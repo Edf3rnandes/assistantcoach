@@ -1,11 +1,11 @@
 /* Periodização > Macrociclo
    A temporada inteira: ciclos, fases, competições e carga semanal numa só linha do tempo. */
 (function () {
-  const { dados, util } = window.Farol;
-  const { DIA, dd, mes, ano, num } = util;
+  const { dados, util, calendario: CAL } = window.Farol;
+  const { DIA, dd, mes, ano, num, esc: _e } = util;
   const P = (window.Farol.periodo = window.Farol.periodo || {});
 
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const esc = util.esc;
 
   const ESTADO = {
     concluido: { nome: 'Concluído', classe: '' },
@@ -15,7 +15,8 @@
 
   function grafico(plano) {
     const n = plano.semanas.length;
-    const colW = 14, L = 58, R = 16;
+    const L = 58, R = 16;
+    const colW = Math.max(14, Math.floor((780 - L - R) / n));
     const W = L + n * colW + R;
     const yCiclo = 8, hCiclo = 30;
     const yFase = 46, hFase = 28;
@@ -131,17 +132,21 @@
   function listaCompeticoes(plano) {
     return `
       <ol class="comp-numbered">
-        ${plano.comps.map((c, i) => `
+        ${plano.comps.map((c, i) => {
+          const conf = CAL.plan(c.id).duplas.filter((d) => d.status === 'confirmada').length;
+          return `
           <li>
             <span class="comp-n ${c.alvo ? 'alvo' : ''} num">${i + 1}</span>
             <span class="num comp-date">${dd(c.data)}</span>
-            <span>${esc(c.nome)}${c.alvo ? ' <span class="chip chip-beam" style="margin-left:6px">alvo</span>' : ''}</span>
-          </li>`).join('')}
+            <span><button class="link-btn comp-link" data-comp="${c.id}" style="margin:0">${esc(c.nome)}</button>${c.alvo ? ' <span class="chip chip-beam" style="margin-left:6px">alvo</span>' : ''}
+              <small class="comp-sub">${esc(c.local)} · ${conf ? `${conf} ${conf === 1 ? 'dupla confirmada' : 'duplas confirmadas'}` : 'sem duplas confirmadas'}</small></span>
+          </li>`;
+        }).join('')}
       </ol>`;
   }
 
   P.macro = function (el, ctx) {
-    const { plano } = ctx;
+    const { plano, estado } = ctx;
     const semanas = plano.semanas.length;
     const alvos = plano.comps.filter((c) => c.alvo).length;
 
@@ -161,7 +166,22 @@
         <p class="hint">Clique num ciclo ou numa fase para abrir os mesociclos, ou numa barra para abrir o microciclo daquela semana.</p>
       </section>
 
-      <div class="split split-even">
+      <section class="card" aria-labelledby="h-base">
+        <div class="card-head">
+          <h2 id="h-base">Fundamentos base e ideias da temporada</h2>
+          ${estado.editaBase ? '' : '<button class="btn btn-sm" id="base-edit">Editar</button>'}
+        </div>
+        ${estado.editaBase ? `
+          <div class="field"><label class="label" for="base-obj">Objetivo da temporada</label>
+            <textarea class="input" id="base-obj" rows="2" maxlength="300">${esc(estado.baseTrab.objetivo || '')}</textarea></div>
+          <div id="base-mount" style="margin-top:14px"></div>
+          <div class="actions" style="margin-top:14px"><button class="btn btn-primary" id="base-salvar">Salvar</button><button class="btn" id="base-cancelar">Cancelar</button></div>`
+        : `${plano.base.objetivo ? `<p class="obj"><b>Objetivo:</b> ${esc(plano.base.objetivo)}</p>` : ''}
+           ${window.Farol.pauta.leitura(plano.base, 'Nenhum fundamento base definido. Clique em Editar para começar.')}
+           <p class="hint">Cada fase tem a sua pauta, que parte destes fundamentos. Veja e edite no Mesociclo.</p>`}
+      </section>
+
+      <div class="corpo">
         <section class="card" aria-labelledby="h-ciclos">
           <div class="card-head"><h2 id="h-ciclos">Ciclos da temporada</h2></div>
           ${tabelaCiclos(plano)}
@@ -190,5 +210,23 @@
       b.addEventListener('click', abrir);
       b.addEventListener('keydown', abrir);
     });
+
+    const be = el.querySelector('#base-edit');
+    if (be) be.addEventListener('click', () => {
+      estado.editaBase = true;
+      estado.baseTrab = JSON.parse(JSON.stringify(plano.base));
+      ctx.ir('macro', {}, '#base-obj');
+    });
+    if (estado.editaBase) {
+      el.querySelector('#base-obj').addEventListener('input', (e) => { estado.baseTrab.objetivo = e.target.value; });
+      window.Farol.pauta.editor(el.querySelector('#base-mount'), estado.baseTrab, { prefixo: 'mbase' });
+      el.querySelector('#base-cancelar').addEventListener('click', () => { estado.editaBase = false; ctx.ir('macro', {}, '#base-edit'); });
+      el.querySelector('#base-salvar').addEventListener('click', () => {
+        dados.salvarBase(plano.id, estado.baseTrab);
+        estado.editaBase = false;
+        ctx.ir('macro', { aviso: 'Fundamentos base salvos.' }, '#base-edit');
+      });
+    }
+    el.querySelectorAll('[data-comp]').forEach((b) => b.addEventListener('click', () => window.Farol.ir('planejamento-competicoes', { competicao: b.dataset.comp })));
   };
 })();

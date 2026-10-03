@@ -6,7 +6,7 @@
   const { DIA, dd, mes, num } = util;
   const P = (window.Farol.periodo = window.Farol.periodo || {});
 
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const esc = util.esc;
   const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 
   // Recorte do plano com as semanas de um ciclo, para o gráfico trabalhar em índices locais.
@@ -128,7 +128,7 @@
     return out.join('');
   }
 
-  function detalhe(plano, v, m) {
+  function detalhe(plano, v, m, estado) {
     const f = m.fase;
     const sems = v.semanas.slice(m.semanaIni, m.semanaIni + m.semanas);
     const feitas = sems.filter((s) => s.realizado != null);
@@ -155,6 +155,17 @@
       <div class="detail-block">
         <span class="label">Objetivo da fase</span>
         <p>${esc(f.objetivo)}</p>
+      </div>
+
+      <div class="detail-block">
+        <div class="reg-tools">
+          <span class="label">Fundamentos e ideias da fase ${m.pautaPropria ? '' : '<span class="chip" style="margin-left:6px;text-transform:none;letter-spacing:0">sugestão padrão</span>'}</span>
+          ${estado.editaPauta === m.id ? '' : '<button class="link-btn" id="pauta-edit" style="margin:0">Editar pauta</button>'}
+        </div>
+        ${estado.editaPauta === m.id
+          ? `<div id="pauta-mount"></div>
+             <div class="actions" style="margin-top:12px"><button class="btn btn-primary" id="pauta-salvar">Salvar pauta</button><button class="btn" id="pauta-cancelar">Cancelar</button></div>`
+          : window.Farol.pauta.leitura(m.pauta)}
       </div>
 
       <div class="detail-block">
@@ -186,7 +197,7 @@
       <div class="detail-block">
         <span class="label">Competições nesta fase</span>
         ${m.competicoes.length
-          ? `<ul class="comp-list">${m.competicoes.map((c) => `<li><span class="chip ${c.id === v.alvo ? 'chip-beam' : ''}">${dd(c.data)}</span><span>${esc(c.nome)}${c.id === v.alvo ? ' <strong>(alvo)</strong>' : ''}</span></li>`).join('')}</ul>`
+          ? `<ul class="comp-list">${m.competicoes.map((c) => `<li><span class="chip ${c.id === v.alvo ? 'chip-beam' : ''}">${dd(c.data)}</span><button class="link-btn comp-link" data-comp="${c.id}" style="margin:0">${esc(c.nome)}</button>${c.id === v.alvo ? ' <strong>(alvo)</strong>' : ''}</li>`).join('')}</ul>`
           : '<p>Nenhuma competição do calendário cai nesta fase.</p>'}
       </div>`;
   }
@@ -248,7 +259,7 @@
       </section>
 
       <div class="split">
-        <section class="card" aria-label="Detalhe da fase selecionada">${detalhe(plano, v, sel)}</section>
+        <section class="card" aria-label="Detalhe da fase selecionada">${detalhe(plano, v, sel, estado)}</section>
         <section class="card" aria-labelledby="h-fases">
           <div class="card-head"><h2 id="h-fases">Fases do ciclo</h2><span class="label num">${dd(ciclo.inicio)} a ${dd(ciclo.fim)}</span></div>
           ${tabela(plano, ci, v, sel)}
@@ -256,10 +267,10 @@
       </div>`;
 
     el.querySelector('#ciclo-sel').addEventListener('change', (e) => {
-      ctx.ir('meso', { ciclo: Number(e.target.value), mesoId: null }, '#ciclo-sel');
+      ctx.ir('meso', { ciclo: Number(e.target.value), mesoId: null, editaPauta: null }, '#ciclo-sel');
     });
 
-    const escolher = (id, foco) => ctx.ir('meso', { mesoId: id }, foco);
+    const escolher = (id, foco) => ctx.ir('meso', { mesoId: id, editaPauta: null }, foco);
     el.querySelectorAll('[data-meso]').forEach((b) => {
       b.addEventListener('click', () => escolher(b.dataset.meso, `.seg[data-meso="${b.dataset.meso}"]`));
       b.addEventListener('keydown', (e) => {
@@ -282,5 +293,22 @@
         ctx.ir('meso', {}, `.step[data-fase="${b.dataset.fase}"][data-delta="${b.dataset.delta}"]`);
       });
     });
+
+    const pe = el.querySelector('#pauta-edit');
+    if (pe) pe.addEventListener('click', () => {
+      estado.editaPauta = sel.id;
+      estado.pautaTrab = JSON.parse(JSON.stringify(sel.pauta));
+      ctx.ir('meso', {}, '#pauta-salvar');
+    });
+    if (estado.editaPauta === sel.id) {
+      window.Farol.pauta.editor(el.querySelector('#pauta-mount'), estado.pautaTrab, { prefixo: 'mpauta' });
+      el.querySelector('#pauta-cancelar').addEventListener('click', () => { estado.editaPauta = null; ctx.ir('meso', {}, '#pauta-edit'); });
+      el.querySelector('#pauta-salvar').addEventListener('click', () => {
+        dados.salvarPauta(plano.id, ci, sel.tipo, estado.pautaTrab);
+        estado.editaPauta = null;
+        ctx.ir('meso', { aviso: `Pauta da fase ${sel.nome} salva.` }, '#pauta-edit');
+      });
+    }
+    el.querySelectorAll('[data-comp]').forEach((b) => b.addEventListener('click', () => window.Farol.ir('planejamento-competicoes', { competicao: b.dataset.comp })));
   };
 })();

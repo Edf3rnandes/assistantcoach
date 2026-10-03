@@ -1,11 +1,20 @@
 # Farol Tático: painel do técnico
 
-Frontend do painel do técnico, montado antes do backend. Sem build: abra `index.html` no navegador
+Frontend montado antes do backend, com dados de exemplo. Sem build: abra `index.html` no navegador
 ou rode `python3 -m http.server` na raiz.
 
-- `index.html`: painel do profissional (navegação lateral e telas por hash, ex.: `#treinos-periodizacao`).
-- `atleta.html`: página do atleta aberta por token (ainda não criada).
+## Telas
+
+- **Periodização** (`#treinos-periodizacao`): macrociclo, mesociclo e microciclo, mais o assistente de novo plano.
+  O microciclo integra o registro do treino de cada sessão.
+- **Competições** (`#planejamento-competicoes`): duplas, viagem, orçamento, professores e resultados.
+- **Registro do treino** (`#treino-registro`): presença, PSE e PSR por atleta, anotações ditadas ou digitadas.
+- As demais entradas do menu aparecem como "em breve".
+
+## Código
+
+- `js/util.js`, `js/elenco.js`, `js/calendario.js`, `js/registros.js`, `js/dados.js`: dados de exemplo e regras.
+  É aqui que o Supabase (schema `ft`) entra no lugar do mock.
+- `js/periodizacao.js` (casca), `js/macro.js`, `js/meso.js`, `js/micro.js`, `js/criar.js`, `js/pauta.js`.
+- `js/registro.js`, `js/competicoes.js`, `js/app.js` (menu e rotas).
 - `css/farol.css`: tokens de cor e tipografia (claro e escuro) e componentes.
-- `js/dados.js`: dados de exemplo. É o único arquivo a trocar quando o Supabase (schema `ft`) entrar.
-- `js/app.js`: shell, menu e roteamento. Telas ainda não feitas aparecem como "em breve".
-- `js/periodizacao.js`: casca da Periodização (plano, situação, abas). `js/macro.js`, `js/meso.js` e `js/micro.js` são as três escalas.

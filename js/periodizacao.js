@@ -8,8 +8,9 @@
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+  // O plano escolhido vale para as telas de Periodização e de Registro do treino.
+  window.Farol.compartilhado = window.Farol.compartilhado || { planoId: dados.planos[0].id };
   const estado = {
-    planoId: dados.planos[0].id,
     nivel: 'macro',
     ciclo: null,
     mesoId: null,
@@ -18,7 +19,18 @@
     confirmaCopia: false,
     noite: false,
     focoEditor: false,
+    painel: 'plano',
+    aviso: '',
+    editaBase: false,
+    baseTrab: null,
+    editaPauta: null,
+    pautaTrab: null,
   };
+  Object.defineProperty(estado, 'planoId', {
+    get: () => window.Farol.compartilhado.planoId,
+    set: (v) => { window.Farol.compartilhado.planoId = v; },
+    enumerable: true,
+  });
 
   const NIVEIS = [
     { id: 'macro', nome: 'Macrociclo' },
@@ -56,6 +68,9 @@
     if (estado.ciclo == null) estado.ciclo = plano.cicloAtual >= 0 ? plano.cicloAtual : 0;
     estado.ciclo = Math.min(estado.ciclo, plano.ciclos.length - 1);
 
+    const aviso = estado.aviso;
+    estado.aviso = '';
+    const criando = estado.nivel === 'criar';
     const rotuloNivel = {
       macro: plano.temporada,
       meso: plano.ciclos[estado.ciclo].nome,
@@ -69,14 +84,19 @@
           <h1>Periodização</h1>
           <p class="lead">Planeje a temporada em três escalas. A competição alvo define o fim de cada ciclo, e a carga de cada semana é a soma das suas sessões.</p>
         </div>
-        <div class="field">
-          <label class="label" for="plano-sel">Plano</label>
-          <select class="select" id="plano-sel">
-            ${dados.planos.map((p) => `<option value="${p.id}" ${p.id === plano.id ? 'selected' : ''}>${esc(p.nome)} (${esc(p.detalhe)})</option>`).join('')}
-          </select>
+        <div class="head-acoes">
+          <div class="field">
+            <label class="label" for="plano-sel">Plano</label>
+            <select class="select" id="plano-sel">
+              ${dados.planos.map((p) => `<option value="${p.id}" ${p.id === plano.id ? 'selected' : ''}>${esc(p.nome)} (${esc(p.detalhe)})</option>`).join('')}
+            </select>
+          </div>
+          ${criando ? '' : '<button class="btn" id="novo-plano">Novo plano</button>'}
         </div>
       </header>
 
+      ${aviso ? `<div class="aviso-ok" role="status">${esc(aviso)}</div>` : ''}
+      ${criando ? '' : `
       <section class="status" aria-label="Situação do plano">${status(plano)}</section>
 
       <div class="tabs" role="tablist" aria-label="Escala do planejamento">
@@ -84,9 +104,9 @@
           <button class="tab" role="tab" id="tab-${n.id}" data-nivel="${n.id}" aria-selected="${n.id === estado.nivel}" aria-controls="corpo" tabindex="${n.id === estado.nivel ? 0 : -1}">
             <span class="tab-nome">${n.nome}</span><span class="tab-sub">${esc(rotuloNivel[n.id])}</span>
           </button>`).join('')}
-      </div>
+      </div>`}
 
-      <div id="corpo" class="corpo" role="tabpanel" aria-labelledby="tab-${estado.nivel}"></div>`;
+      <div id="corpo" class="corpo" role="${criando ? 'region' : 'tabpanel'}" ${criando ? 'aria-label="Novo plano"' : `aria-labelledby="tab-${estado.nivel}"`}></div>`;
 
     const ctx = {
       plano,
@@ -100,9 +120,12 @@
     P[estado.nivel](root.querySelector('#corpo'), ctx);
 
     root.querySelector('#plano-sel').addEventListener('change', (e) => {
-      Object.assign(estado, { planoId: e.target.value, ciclo: null, mesoId: null, semana: null, editor: null, confirmaCopia: false });
+      Object.assign(estado, { planoId: e.target.value, ciclo: null, mesoId: null, semana: null, editor: null, confirmaCopia: false, editaBase: false, editaPauta: null });
+      if (estado.nivel === 'criar') estado.nivel = 'macro';
       render(root, '#plano-sel');
     });
+    const novo = root.querySelector('#novo-plano');
+    if (novo) novo.addEventListener('click', () => ctx.ir('criar', { editor: null }));
 
     const abas = [...root.querySelectorAll('.tab')];
     const abrir = (b) => ctx.ir(b.dataset.nivel, { editor: null, confirmaCopia: false }, `#tab-${b.dataset.nivel}`);
@@ -123,5 +146,11 @@
   }
 
   window.Farol.views = window.Farol.views || {};
-  window.Farol.views['treinos-periodizacao'] = (root) => render(root);
+  window.Farol.views['treinos-periodizacao'] = (root, params) => {
+    if (params) {
+      if (params.planoId) window.Farol.compartilhado.planoId = params.planoId;
+      Object.assign(estado, params);
+    }
+    render(root);
+  };
 })();

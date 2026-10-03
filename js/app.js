@@ -38,6 +38,7 @@
       titulo: 'Planejamento',
       itens: [
         { id: 'treinos-periodizacao', nome: 'Periodização', icone: 'cal', pronta: true },
+        { id: 'planejamento-competicoes', nome: 'Competições', icone: 'placar', pronta: true },
         {
           id: 'treinos-microciclo', nome: 'Resposta da semana', icone: 'pulso',
           resumo: 'Como os atletas estão respondendo à semana: PSE, PSR e bem-estar.',
@@ -54,15 +55,8 @@
       titulo: 'Treino',
       itens: [
         {
-          id: 'treino-registro', nome: 'Registro do treino', icone: 'mic',
-          resumo: 'Fale o que aconteceu no treino. O texto vira um registro organizado que o técnico revisa.',
-          bullets: [
-            'Gravação por áudio com transcrição em português.',
-            'Texto separado em objetivo, blocos de exercício, correções e observações por atleta (@nome).',
-            'Nota rápida de um toque durante o treino, com horário.',
-            'Anexar jogadas do quadro técnico ao registro.',
-          ],
-          tabelas: ['registros_treino', 'notas_treino'],
+          id: 'treino-registro', nome: 'Registro do treino', icone: 'mic', pronta: true,
+          resumo: '', bullets: [], tabelas: [],
         },
         {
           id: 'treino-quadro', nome: 'Quadro técnico', icone: 'quadro',
@@ -162,7 +156,9 @@
     });
 
     const view = window.Farol.views && window.Farol.views[rota];
-    if (item.pronta && view) view(main);
+    const params = window.Farol.params;
+    window.Farol.params = null;
+    if (item.pronta && view) view(main, params);
     else main.innerHTML = pendente(item);
 
     document.title = `${item.nome} | Farol Tático`;
@@ -174,6 +170,14 @@
     document.getElementById('nav').dataset.open = 'false';
     document.getElementById('menu-btn').setAttribute('aria-expanded', 'false');
   }
+
+  // Navega para outra tela levando parâmetros (por exemplo, abrir uma semana ou uma competição).
+  window.Farol.ir = function (rota, params) {
+    window.Farol.params = params || null;
+    if (location.hash.slice(1) === rota) rotear();
+    else location.hash = '#' + rota;
+    window.scrollTo({ top: 0 });
+  };
 
   function iniciar() {
     const nav = document.getElementById('nav');

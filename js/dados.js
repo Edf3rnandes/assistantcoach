@@ -3,39 +3,15 @@
    conhecem a forma de dados abaixo e as funções de edição no fim do arquivo.
 
    Hierarquia:  plano (temporada) -> ciclos -> mesociclos (fases) -> microciclos (semanas) -> sessões.
-   A carga de uma semana é sempre a soma das suas sessões (duração × PSE alvo), em UA. */
+   A carga planejada de uma semana é a soma das sessões (duração × PSE alvo), em UA.
+   A carga realizada vem dos registros de treino (presença e PSE de cada atleta). */
 (function () {
-  const DIA = 864e5;
-
-  const ms = (iso) => {
-    const [y, m, d] = iso.split('-').map(Number);
-    return Date.UTC(y, m - 1, d);
-  };
-  const dd = (t) => {
-    const x = new Date(t);
-    return String(x.getUTCDate()).padStart(2, '0') + '/' + String(x.getUTCMonth() + 1).padStart(2, '0');
-  };
-  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  const mes = (t) => MESES[new Date(t).getUTCMonth()];
-  const ano = (t) => new Date(t).getUTCFullYear();
-  const num = (v) => Math.round(v).toLocaleString('pt-BR');
-  const diaSemana = (t) => (new Date(t).getUTCDay() + 6) % 7; // 0 = segunda
-
-  // "Hoje" fixo para a demonstração ficar estável.
-  const HOJE = ms('2026-10-03');
-
-  // Competições do calendário (`competicoes`). Nomes de exemplo.
-  const COMPETICOES = {
-    c1: { id: 'c1', nome: 'Paraibano de Areia, etapa 1', data: ms('2026-10-17') },
-    c2: { id: 'c2', nome: 'Circuito Nordestino Sub-18, final', data: ms('2026-11-28') },
-    c3: { id: 'c3', nome: 'Open João Pessoa Adulto', data: ms('2026-11-14') },
-    c4: { id: 'c4', nome: 'Seletiva Brasileiro Sub-19', data: ms('2026-12-05') },
-    c5: { id: 'c5', nome: 'Campeonato Brasileiro Sub-18', data: ms('2027-04-10') },
-    c6: { id: 'c6', nome: 'Paraibano de Areia, etapa 2', data: ms('2027-02-13') },
-    c7: { id: 'c7', nome: 'Circuito Nordestino Sub-18, abertura', data: ms('2027-07-17') },
-    c8: { id: 'c8', nome: 'Open Nordeste Adulto', data: ms('2027-04-03') },
-    c9: { id: 'c9', nome: 'Brasileiro Sub-19, final', data: ms('2027-04-10') },
-  };
+  const U = window.Farol.util;
+  const { DIA, ms, iso, HOJE, diaSemana, segunda } = U;
+  const { TURMAS, PAUTA_PADRAO } = window.Farol.elenco;
+  const CAL = window.Farol.calendario;
+  const REG = window.Farol.registros;
+  const COMPETICOES = CAL.COMPETICOES;
 
   const TIPOS_SESSAO = {
     tecnica: { nome: 'Técnica', cor: '--s-tecnica' },
@@ -89,36 +65,54 @@
       objetivo: 'Descanso ativo, mobilidade e correção de desequilíbrios antes do próximo ciclo.',
     },
   };
+  const ORDEM_FASES = ['base', 'especifico', 'polimento', 'competicao', 'transicao'];
 
   /* ---------- Planos de exemplo ---------- */
 
+  const b = (id, prio) => ({ id, prio });
+  const BASE_SUB18 = {
+    objetivo: 'Formar duplas fortes no side-out e confiáveis sob pressão, com saque como arma principal.',
+    fundamentos: [b('saque', 'alta'), b('sideout', 'alta'), b('recepcao', 'alta'), b('bloqueio', 'media'), b('comunicacao', 'media'), b('pressao', 'media')],
+    ideias: ['Toda dupla com um plano de saque claro', 'Treinar com placar em pelo menos duas sessões por semana', 'Vídeo curto de cada jogo para revisão na semana seguinte'],
+  };
+
   const RAW = [
     {
-      id: 'sub18', nome: 'Sub-18 Masculino', tipo: 'turma', detalhe: 'Turma · 14 atletas',
-      temporada: 'Temporada 2026/27', inicio: '2026-08-03', pico: 3200,
+      id: 'sub18', turma: 'sub18', mock: true, nome: 'Sub-18 Masculino', tipo: 'turma',
+      temporada: 'Temporada 2026/27', inicio: '2026-08-03', pico: 3200, base: BASE_SUB18,
       ciclos: [
-        { nome: 'Ciclo 1', alvo: 'c2', competicoes: ['c1', 'c2'], fases: [['base', 6], ['especifico', 6], ['polimento', 2], ['competicao', 3], ['transicao', 3]] },
+        { nome: 'Ciclo 1', alvo: 'c2', competicoes: ['c0', 'c1', 'c2'], fases: [['base', 6], ['especifico', 6], ['polimento', 2], ['competicao', 3], ['transicao', 3]] },
         { nome: 'Ciclo 2', alvo: 'c5', competicoes: ['c6', 'c5'], fases: [['base', 5], ['especifico', 6], ['polimento', 2], ['competicao', 3], ['transicao', 2]] },
         { nome: 'Ciclo 3', alvo: 'c7', competicoes: ['c7'], fases: [['base', 4], ['especifico', 5], ['polimento', 2], ['competicao', 2]] },
       ],
     },
     {
-      id: 'adulto', nome: 'Adulto Misto, areia', tipo: 'turma', detalhe: 'Turma · 10 atletas',
+      id: 'adulto', turma: 'adulto', mock: true, nome: 'Adulto Misto, areia', tipo: 'turma',
       temporada: 'Temporada 2026/27', inicio: '2026-08-10', pico: 3600,
+      base: {
+        objetivo: 'Manter o nível competitivo no circuito aberto com carga controlada, respeitando a rotina de trabalho dos atletas.',
+        fundamentos: [b('ataque', 'alta'), b('defesa', 'alta'), b('leitura', 'media'), b('entrosamento', 'media')],
+        ideias: ['Treinos curtos e intensos nos dias úteis', 'Jogos-treino aos sábados'],
+      },
       ciclos: [
-        { nome: 'Ciclo 1', alvo: 'c3', competicoes: ['c1', 'c3'], fases: [['base', 5], ['especifico', 5], ['polimento', 2], ['competicao', 2], ['transicao', 3]] },
+        { nome: 'Ciclo 1', alvo: 'c3', competicoes: ['c0', 'c1', 'c3'], fases: [['base', 5], ['especifico', 5], ['polimento', 2], ['competicao', 2], ['transicao', 3]] },
         { nome: 'Ciclo 2', alvo: 'c8', competicoes: ['c8'], fases: [['base', 6], ['especifico', 6], ['polimento', 2], ['competicao', 3], ['transicao', 3]] },
       ],
     },
     {
-      id: 'mariana', nome: 'Mariana Costa', tipo: 'atleta', detalhe: 'Individual · Sub-19',
+      id: 'mariana', turma: 'sub19f', atletas: ['e1'], mock: true, nome: 'Mariana Costa', tipo: 'atleta',
       temporada: 'Temporada 2026/27', inicio: '2026-08-24', pico: 2700,
+      base: {
+        objetivo: 'Chegar à seletiva com saque agressivo e bloqueio de leitura, em dupla com Isabela.',
+        fundamentos: [b('saque', 'alta'), b('bloqueio', 'alta'), b('leitura', 'media'), b('entrosamento', 'alta')],
+        ideias: ['Trabalho específico de ombro e tronco para o saque viagem'],
+      },
       ciclos: [
-        { nome: 'Ciclo 1', alvo: 'c4', competicoes: ['c1', 'c4'], fases: [['base', 6], ['especifico', 6], ['polimento', 2], ['competicao', 2], ['transicao', 2]] },
+        { nome: 'Ciclo 1', alvo: 'c4', competicoes: ['c0', 'c1', 'c4'], fases: [['base', 6], ['especifico', 6], ['polimento', 2], ['competicao', 2], ['transicao', 2]] },
         { nome: 'Ciclo 2', alvo: 'c9', competicoes: ['c9'], fases: [['base', 5], ['especifico', 6], ['polimento', 2], ['competicao', 2], ['transicao', 2]] },
       ],
     },
-  ].map((p) => ({ ...p, sessoes: {}, microTipos: {} }));
+  ].map((p) => ({ sessoes: {}, microTipos: {}, ...p }));
 
   /* ---------- Modelos de semana ---------- */
 
@@ -141,7 +135,16 @@
     return lista;
   }
 
-  function modelo(micro, tipoFase, compsSemana) {
+  // Dias da semana (0 a 6) cobertos por competições.
+  function diasDeJogo(compsSemana, ini) {
+    const dias = new Set();
+    compsSemana.forEach((c) => {
+      for (let t = Math.max(c.data, ini); t <= Math.min(CAL.fimDe(c), ini + 6 * DIA); t += DIA) dias.add((t - ini) / DIA);
+    });
+    return [...dias].sort((x, y) => x - y);
+  }
+
+  function modelo(micro, tipoFase, compsSemana, ini) {
     switch (micro) {
       case 'recuperacao':
         if (tipoFase === 'transicao') {
@@ -169,7 +172,8 @@
           S(4, 'manha', 'recuperacao', 45, 3, 'Regenerativo'),
         ];
       case 'competitivo': {
-        if (!compsSemana.length) {
+        const jogos = diasDeJogo(compsSemana, ini);
+        if (!jogos.length) {
           return [
             S(0, 'tarde', 'tecnica', 75, 5, 'Fundamentos em volume baixo'),
             S(1, 'tarde', 'tatica', 75, 6, 'Plano de jogo'),
@@ -177,20 +181,14 @@
             S(3, 'tarde', 'tatica', 60, 5, 'Rotinas de saque e recepção'),
           ];
         }
-        const primeiro = Math.min(...compsSemana.map((c) => diaSemana(c.data)));
-        const base = [
+        const nome = compsSemana[0].nome;
+        const antes = [
           S(0, 'tarde', 'tecnica', 75, 5, 'Ajustes finais de fundamentos'),
           S(1, 'tarde', 'tatica', 75, 6, 'Plano de jogo e adversários'),
           S(2, 'manha', 'recuperacao', 45, 3, 'Regenerativo'),
           S(3, 'tarde', 'tatica', 60, 5, 'Ativação e rotinas de saque'),
-        ].filter((s) => s.dia < primeiro);
-        const jogos = [];
-        compsSemana.forEach((c) => {
-          const d = diaSemana(c.data);
-          jogos.push(S(d, 'manha', 'competicao', 180, 8, c.nome));
-          if (d === 5) jogos.push(S(6, 'manha', 'competicao', 180, 8, c.nome));
-        });
-        return base.concat(jogos);
+        ].filter((s) => s.dia < jogos[0]);
+        return antes.concat(jogos.map((d) => S(d, 'manha', 'competicao', 120, 7, nome)));
       }
       default:
         return modeloOrdinario(tipoFase, micro === 'choque');
@@ -200,8 +198,8 @@
   const arred5 = (v) => Math.max(20, Math.round(v / 5) * 5);
 
   // Cria as sessões da semana e escala as durações para chegar perto da carga alvo da fase.
-  function gerarSessoes(micro, tipoFase, compsSemana, alvo, chave) {
-    const lista = modelo(micro, tipoFase, compsSemana);
+  function gerarSessoes(micro, tipoFase, compsSemana, alvo, ini) {
+    const lista = modelo(micro, tipoFase, compsSemana, ini);
     const fixas = lista.filter((s) => s.tipo === 'competicao');
     const moveis = lista.filter((s) => s.tipo !== 'competicao');
     const cargaFixa = fixas.reduce((a, s) => a + s.dur * s.pse, 0);
@@ -211,16 +209,18 @@
       const k = Math.min(1.5, Math.max(0.6, restante / cargaMovel));
       moveis.forEach((s) => { s.dur = arred5(s.dur * k); });
     }
-    return lista.map((s, i) => ({ ...s, id: `${chave}:${i}` }));
+    return lista.map((s, i) => ({ ...s, id: `${ini}:${i}` }));
   }
 
-  const ruido = (i, s) => 0.9 + 0.2 * (0.5 + 0.5 * Math.sin(i * 12.9898 + s * 78.233));
   const carga = (sessoes) => sessoes.reduce((a, s) => a + s.dur * s.pse, 0);
+  const copiar = (o) => JSON.parse(JSON.stringify(o));
 
   /* ---------- Montagem do plano ---------- */
 
-  function montar(raw, seed) {
+  function montar(raw) {
     const inicio = ms(raw.inicio);
+    const turma = TURMAS[raw.turma];
+    const atletas = raw.atletas || (turma ? turma.atletas : []);
     const todas = [];
     raw.ciclos.forEach((c) => c.competicoes.forEach((id) => {
       if (!todas.find((x) => x.id === id)) todas.push({ ...COMPETICOES[id], alvo: raw.ciclos.some((q) => q.alvo === id) });
@@ -237,17 +237,20 @@
       const mesosCiclo = [];
       c.fases.forEach(([tipo, qtd], fi) => {
         const fase = FASES[tipo];
+        const salvaPauta = c.pautas && c.pautas[tipo];
         const meso = {
           id: `${ci}-${tipo}`, tipo, nome: fase.nome, cor: fase.cor, fase, ciclo: ci, indice: fi,
           semanaIni: n, semanas: qtd,
           inicio: inicio + n * 7 * DIA,
           fim: inicio + (n + qtd) * 7 * DIA - DIA,
+          pauta: copiar(salvaPauta || PAUTA_PADRAO[tipo]),
+          pautaPropria: !!salvaPauta,
         };
         for (let k = 0; k < qtd; k++, n++) {
           const ini = inicio + n * 7 * DIA;
           const t = qtd === 1 ? 0 : k / (qtd - 1);
           const alvoBase = raw.pico * (fase.f[0] + (fase.f[1] - fase.f[0]) * t);
-          const compsSemana = todas.filter((q) => q.data >= ini && q.data < ini + 7 * DIA);
+          const compsSemana = todas.filter((q) => CAL.fimDe(q) >= ini && q.data < ini + 7 * DIA);
           const compsProxima = todas.filter((q) => q.data >= ini + 7 * DIA && q.data < ini + 14 * DIA);
 
           let auto = 'ordinario';
@@ -265,13 +268,11 @@
           const sessoes = editada
             ? raw.sessoes[ini].map((s) => ({ ...s }))
             : gerarSessoes(microTipo, tipo, compsSemana, alvoCarga, ini);
-          const planejado = carga(sessoes);
-          const passada = ini + 6 * DIA < HOJE;
 
           semanas.push({
             n: n + 1, idx: n, inicio: ini, ciclo: ci, meso: meso.id, mesoTipo: tipo,
-            microTipo, microAuto: auto, editada, sessoes, planejado,
-            realizado: passada ? Math.round((planejado * ruido(n, seed)) / 10) * 10 : null,
+            microTipo, microAuto: auto, editada, sessoes, planejado: carga(sessoes),
+            realizado: null, registro: null,
             descarga: microTipo === 'recuperacao',
             competicoes: compsSemana,
           });
@@ -286,7 +287,7 @@
         semanaIni: cicloIni, semanas: n - cicloIni,
         inicio: inicio + cicloIni * 7 * DIA, fim,
         mesos: mesosCiclo,
-        comps: c.competicoes.map((id) => todas.find((q) => q.id === id)),
+        comps: c.competicoes.map((id) => todas.find((q) => q.id === id)).sort((a, b) => a.data - b.data),
       });
     });
 
@@ -294,7 +295,7 @@
       const sem = semanas.slice(m.semanaIni, m.semanaIni + m.semanas);
       m.mediaPlanejada = sem.reduce((a, s) => a + s.planejado, 0) / sem.length;
       m.picoPlanejado = Math.max(...sem.map((s) => s.planejado));
-      m.competicoes = todas.filter((c) => c.data >= m.inicio && c.data < m.fim + DIA);
+      m.competicoes = todas.filter((c) => CAL.fimDe(c) >= m.inicio && c.data < m.fim + DIA);
     });
 
     ciclos.forEach((c) => {
@@ -304,25 +305,61 @@
     });
 
     const semanaAtual = semanas.findIndex((s) => HOJE >= s.inicio && HOJE < s.inicio + 7 * DIA);
-    return {
-      id: raw.id, nome: raw.nome, tipo: raw.tipo, detalhe: raw.detalhe, temporada: raw.temporada, pico: raw.pico,
+    const plano = {
+      id: raw.id, nome: raw.nome, tipo: raw.tipo, mock: !!raw.mock, turma: raw.turma, temporada: raw.temporada, pico: raw.pico,
+      detalhe: raw.tipo === 'atleta' ? `Individual · ${turma ? turma.faixa : ''}` : `Turma · ${atletas.length} atletas`,
+      atletas, professores: turma ? turma.professores : [],
+      base: raw.base || { objetivo: '', fundamentos: [], ideias: [] },
       inicioMs: inicio, fimMs: inicio + n * 7 * DIA - DIA,
       ciclos, mesos, semanas, comps: todas,
       semanaAtual,
       cicloAtual: semanaAtual >= 0 ? semanas[semanaAtual].ciclo : -1,
       mesoAtual: semanaAtual >= 0 ? semanas[semanaAtual].meso : null,
     };
+
+    // Registros de treino alimentam a carga realizada.
+    semanas.forEach((s) => {
+      s.registro = REG.resumoSemana(plano, s);
+      s.realizado = s.registro.realizado == null ? null : Math.round(s.registro.realizado / 10) * 10;
+    });
+    return plano;
   }
 
-  const planos = RAW.map((r, i) => montar(r, i + 1));
+  const planos = RAW.map((r) => montar(r));
   const idx = (id) => RAW.findIndex((r) => r.id === id);
-  const reconstruir = (id) => { const i = idx(id); planos[i] = montar(RAW[i], i + 1); return planos[i]; };
+  const reconstruir = (id) => { const i = idx(id); planos[i] = montar(RAW[i]); return planos[i]; };
+
+  /* ---------- Cálculos para criar um plano ---------- */
+
+  // Distribui as fases para que o ciclo termine na semana da competição alvo.
+  function distribuirAteAlvo(inicioMs, alvoMs, transicao = 2) {
+    const W = Math.floor((segunda(alvoMs) - segunda(inicioMs)) / (7 * DIA)) + 1;
+    if (W < 4) return null;
+    const comp = W >= 14 ? 3 : 2;
+    const pol = W >= 8 ? 2 : 1;
+    const resto = W - comp - pol;
+    const base = Math.max(1, Math.round(resto * 0.45));
+    const esp = Math.max(1, resto - base);
+    const fases = [['base', base], ['especifico', esp], ['polimento', pol], ['competicao', comp]];
+    if (transicao) fases.push(['transicao', transicao]);
+    return fases;
+  }
+
+  // Datas de cada ciclo, encadeados a partir do início do plano.
+  function cronograma(inicioIso, ciclos) {
+    let t = segunda(ms(inicioIso));
+    return ciclos.map((c) => {
+      const sem = c.fases.reduce((a, f) => a + f[1], 0);
+      const r = { inicio: t, fim: t + sem * 7 * DIA - DIA, semanas: sem };
+      t += sem * 7 * DIA;
+      return r;
+    });
+  }
 
   /* ---------- Edição ---------- */
 
   let contador = 0;
 
-  // Semana editada guarda a lista completa de sessões; as demais continuam geradas pelo modelo.
   function sessoesParaEditar(id, semana) {
     const raw = RAW[idx(id)];
     return raw.sessoes[semana.inicio] ? raw.sessoes[semana.inicio] : semana.sessoes.map((s) => ({ ...s }));
@@ -330,20 +367,52 @@
 
   function ordenar(lista) {
     const ordemTurno = { manha: 0, tarde: 1, noite: 2 };
-    lista.sort((a, b) => a.dia - b.dia || ordemTurno[a.turno] - ordemTurno[b.turno]);
+    lista.sort((a, c) => a.dia - c.dia || ordemTurno[a.turno] - ordemTurno[c.turno]);
     return lista;
   }
 
   const api = {
+    HOJE, DIA, FASES, ORDEM_FASES, COMPETICOES, TIPOS_SESSAO, TIPOS_MICRO, TURNOS, DIAS,
     planos,
     plano: (id) => planos[idx(id)],
+    distribuirAteAlvo, cronograma,
+    recarregar() { RAW.forEach((r, i) => { planos[i] = montar(r); }); },
 
-    // Soma ou subtrai semanas de uma fase de um ciclo.
+    turmasSemPlano: () => Object.values(TURMAS).filter((t) => !RAW.some((r) => r.turma === t.id && r.tipo === 'turma')),
+
+    criarPlano(cfg) {
+      const turma = TURMAS[cfg.turma];
+      const crono = cronograma(cfg.inicio, cfg.ciclos);
+      const id = `p${RAW.length + 1}`;
+      const ciclos = cfg.ciclos.map((c, i) => {
+        const comps = CAL.lista().filter((q) => q.data >= crono[i].inicio && q.data <= crono[i].fim + DIA - 1 && q.categorias.some((k) => turma.categorias.includes(k))).map((q) => q.id);
+        if (c.alvo && !comps.includes(c.alvo)) comps.push(c.alvo);
+        return { nome: c.nome, alvo: c.alvo, competicoes: comps, fases: c.fases, pautas: c.pautas || {} };
+      });
+      RAW.push({
+        id, turma: cfg.turma, mock: false, nome: cfg.nome || turma.nome, tipo: 'turma',
+        temporada: cfg.temporada, inicio: iso(segunda(ms(cfg.inicio))), pico: cfg.pico,
+        base: cfg.base, ciclos, sessoes: {}, microTipos: {},
+      });
+      planos.push(montar(RAW[RAW.length - 1]));
+      return id;
+    },
+
     ajustarFase(id, ciclo, indiceFase, delta) {
       const f = RAW[idx(id)].ciclos[ciclo].fases[indiceFase];
-      const nova = Math.min(12, Math.max(1, f[1] + delta));
-      if (nova === f[1]) return reconstruir(id);
-      f[1] = nova;
+      f[1] = Math.min(12, Math.max(1, f[1] + delta));
+      return reconstruir(id);
+    },
+
+    salvarPauta(id, ciclo, tipoFase, pauta) {
+      const c = RAW[idx(id)].ciclos[ciclo];
+      c.pautas = c.pautas || {};
+      c.pautas[tipoFase] = copiar(pauta);
+      return reconstruir(id);
+    },
+
+    salvarBase(id, base) {
+      RAW[idx(id)].base = copiar(base);
       return reconstruir(id);
     },
 
@@ -358,6 +427,7 @@
 
     removerSessao(id, semana, sessaoId) {
       const lista = sessoesParaEditar(id, semana).filter((s) => s.id !== sessaoId);
+      REG.remover(planos[idx(id)], { id: sessaoId });
       RAW[idx(id)].sessoes[semana.inicio] = lista;
       return reconstruir(id);
     },
@@ -366,7 +436,6 @@
       const raw = RAW[idx(id)];
       if (!tipo || tipo === semana.microAuto) delete raw.microTipos[semana.inicio];
       else raw.microTipos[semana.inicio] = tipo;
-      // Mudar o tipo refaz a semana pelo modelo, a menos que o técnico já a tenha editado.
       return reconstruir(id);
     },
 
@@ -385,9 +454,13 @@
       delete raw.microTipos[semana.inicio];
       return reconstruir(id);
     },
+
+    registrarTreino(id, semana, sessao, reg) {
+      REG.salvar(planos[idx(id)], semana, sessao, reg);
+      return reconstruir(id);
+    },
   };
 
   window.Farol = window.Farol || {};
-  window.Farol.dados = Object.assign({ HOJE, DIA, FASES, COMPETICOES, TIPOS_SESSAO, TIPOS_MICRO, TURNOS, DIAS }, api);
-  window.Farol.util = { DIA, ms, dd, mes, ano, num, diaSemana };
+  window.Farol.dados = api;
 })();

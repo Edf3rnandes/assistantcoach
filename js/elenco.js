@@ -1,0 +1,97 @@
+/* Elenco de exemplo: professores, atletas, turmas e o catálogo de fundamentos do vôlei de praia.
+   Trocar este arquivo por consultas ao banco (`atletas`, `turmas`) quando o Supabase entrar. */
+(function () {
+  const PROFS = {
+    p1: { id: 'p1', nome: 'Renato Gomes', funcao: 'Técnico principal' },
+    p2: { id: 'p2', nome: 'Carla Menezes', funcao: 'Auxiliar técnica' },
+    p3: { id: 'p3', nome: 'Tiago Lacerda', funcao: 'Preparador físico' },
+    p4: { id: 'p4', nome: 'Helena Prado', funcao: 'Fisioterapeuta' },
+  };
+
+  const nomes = (faixa, genero, turma, lista) => lista.map((n, i) => ({ id: `${turma}${i + 1}`, nome: n, faixa, genero, turma }));
+
+  const ATLETAS_LISTA = [
+    ...nomes('Sub-18', 'M', 'a', ['Lucas Ribeiro', 'Pedro Alves', 'Gabriel Santana', 'Mateus Oliveira', 'João Vitor Lima', 'Rafael Souza', 'Davi Cardoso', 'Enzo Barbosa', 'Arthur Nogueira', 'Caio Menezes', 'Bruno Teixeira', 'Felipe Araújo', 'Thiago Moreira', 'Samuel Duarte']),
+    ...nomes('Adulto', 'M', 'b', ['André Pacheco', 'Rodrigo Farias', 'Marcelo Tavares', 'Diego Albuquerque', 'Victor Pires']),
+    ...nomes('Adulto', 'F', 'c', ['Camila Rocha', 'Juliana Freitas', 'Beatriz Cunha', 'Larissa Bezerra', 'Renata Monteiro']),
+    ...nomes('Sub-16', 'F', 'd', ['Alice Torres', 'Sofia Barreto', 'Manuela Lopes', 'Clara Vasconcelos', 'Luiza Prado', 'Helena Dantas', 'Maria Eduarda Silva', 'Yasmin Ferraz']),
+    { id: 'e1', nome: 'Mariana Costa', faixa: 'Sub-19', genero: 'F', turma: 'sub19f' },
+    { id: 'e2', nome: 'Isabela Torres', faixa: 'Sub-19', genero: 'F', turma: 'sub19f' },
+  ];
+  // Perfis de exemplo para o painel de atenção: um atleta sobrecarregado e outro ausente.
+  ATLETAS_LISTA.find((a) => a.id === 'a4').perfil = 'alerta';
+  ATLETAS_LISTA.find((a) => a.id === 'a9').perfil = 'ausente';
+  ATLETAS_LISTA.find((a) => a.id === 'c2').perfil = 'alerta';
+
+  const ATLETAS = {};
+  ATLETAS_LISTA.forEach((a) => { ATLETAS[a.id] = a; });
+  const ids = (turma) => ATLETAS_LISTA.filter((a) => a.id.startsWith(turma)).map((a) => a.id);
+
+  const TURMAS = {
+    sub18: { id: 'sub18', nome: 'Sub-18 Masculino', faixa: 'Sub-18', categorias: ['Sub-18 Masc'], atletas: ids('a'), professores: ['p1', 'p2', 'p3'] },
+    adulto: { id: 'adulto', nome: 'Adulto Misto, areia', faixa: 'Adulto', categorias: ['Adulto Masc', 'Adulto Fem'], atletas: [...ids('b'), ...ids('c')], professores: ['p1', 'p3'] },
+    sub19f: { id: 'sub19f', nome: 'Sub-19 Feminino', faixa: 'Sub-19', categorias: ['Sub-19 Fem'], atletas: ['e1', 'e2'], professores: ['p2', 'p3'] },
+    sub16f: { id: 'sub16f', nome: 'Sub-16 Feminino', faixa: 'Sub-16', categorias: ['Sub-16 Fem'], atletas: ids('d'), professores: ['p2', 'p3'] },
+  };
+
+  // Catálogo de fundamentos. O vocabulário vem do perfil do esporte (hoje, vôlei de praia).
+  const GRUPOS_FUNDAMENTO = {
+    tecnico: 'Técnicos',
+    tatico: 'Táticos',
+    dupla: 'Dupla',
+    mental: 'Mentais',
+  };
+  const FUNDAMENTOS_LISTA = [
+    ['saque', 'Saque (float e viagem)', 'tecnico'],
+    ['recepcao', 'Recepção', 'tecnico'],
+    ['levantamento', 'Levantamento', 'tecnico'],
+    ['ataque', 'Ataque (diagonal, paralela, shot)', 'tecnico'],
+    ['bloqueio', 'Bloqueio', 'tecnico'],
+    ['defesa', 'Defesa', 'tecnico'],
+    ['sideout', 'Side-out (sistema de ataque)', 'tatico'],
+    ['break', 'Break point (saque, bloqueio e defesa)', 'tatico'],
+    ['leitura', 'Leitura de jogo', 'tatico'],
+    ['transicao', 'Transição e cobertura', 'tatico'],
+    ['decisao', 'Tomada de decisão', 'tatico'],
+    ['comunicacao', 'Comunicação e sinais', 'dupla'],
+    ['entrosamento', 'Entrosamento e papéis da dupla', 'dupla'],
+    ['pressao', 'Gestão de pressão', 'mental'],
+    ['rotinas', 'Rotinas entre pontos', 'mental'],
+  ];
+  const FUNDAMENTOS = {};
+  FUNDAMENTOS_LISTA.forEach(([id, nome, grupo]) => { FUNDAMENTOS[id] = { id, nome, grupo }; });
+
+  const PRIORIDADES = {
+    alta: { nome: 'Prioridade alta' },
+    media: { nome: 'Prioridade média' },
+    manutencao: { nome: 'Manutenção' },
+  };
+
+  // Ponto de partida de cada fase, usado quando o técnico não definiu a pauta.
+  const f = (id, prio, ideia) => ({ id, prio, ideia: ideia || '' });
+  const PAUTA_PADRAO = {
+    base: {
+      fundamentos: [f('saque', 'alta', 'Consistência no float antes de arriscar a viagem'), f('recepcao', 'alta'), f('levantamento', 'media'), f('defesa', 'media')],
+      ideias: ['Construir repertório técnico comum a todas as duplas', 'Corrigir gestos individuais com vídeo'],
+    },
+    especifico: {
+      fundamentos: [f('saque', 'alta', 'Saque com intenção: zona e tipo definidos antes'), f('ataque', 'alta'), f('bloqueio', 'alta'), f('sideout', 'alta'), f('leitura', 'media')],
+      ideias: ['Treinar sempre em situação de jogo, com placar', 'Fixar funções e lados de cada dupla'],
+    },
+    polimento: {
+      fundamentos: [f('sideout', 'alta'), f('break', 'alta'), f('comunicacao', 'media'), f('pressao', 'media')],
+      ideias: ['Menos volume, mais qualidade em cada bola', 'Ensaiar a rotina de aquecimento da competição'],
+    },
+    competicao: {
+      fundamentos: [f('rotinas', 'alta'), f('pressao', 'alta'), f('comunicacao', 'alta')],
+      ideias: ['Plano de jogo curto, de no máximo três pontos', 'Recuperação entre jogos como prioridade'],
+    },
+    transicao: {
+      fundamentos: [f('entrosamento', 'manutencao'), f('levantamento', 'manutencao'), f('defesa', 'manutencao')],
+      ideias: ['Balanço da temporada com cada dupla', 'Atividades livres e outros esportes de areia'],
+    },
+  };
+
+  window.Farol = window.Farol || {};
+  window.Farol.elenco = { PROFS, ATLETAS, ATLETAS_LISTA, TURMAS, FUNDAMENTOS, FUNDAMENTOS_LISTA, GRUPOS_FUNDAMENTO, PRIORIDADES, PAUTA_PADRAO };
+})();

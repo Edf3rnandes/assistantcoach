@@ -318,6 +318,26 @@
       </section>`;
   }
 
+  function secaoScout(c, p) {
+    const SD = window.Farol.scoutDados;
+    const jogos = SD.jogosDaCompeticao(c.id);
+    const conf = p.duplas.filter((d) => d.status === 'confirmada');
+    if (!conf.length) return '';
+    return `
+      <section class="card" aria-labelledby="h-scout">
+        <div class="card-head"><h2 id="h-scout">Scout dos jogos</h2><span class="label num">${jogos.length} ${jogos.length === 1 ? 'jogo' : 'jogos'} coletados</span></div>
+        ${jogos.length ? `<ul class="sc-lista">${jogos.map((j) => {
+          const e = SD.estado(j);
+          return `<li><span><b>${esc(j.titulo)}</b> · ${esc(SD.rotuloDupla(j.dupla))} × ${esc(j.adv)} <span class="num" style="color:var(--ink-2)">${e.sets.map((x) => `${x.a}–${x.b}`).join(' · ')}</span></span><button class="btn btn-sm" data-scout-rel="${j.id}">${e.encerrado ? 'Relatório' : 'Continuar'}</button></li>`;
+        }).join('')}</ul>` : '<p class="vazio" style="padding:4px 0">Nenhum jogo coletado nesta competição.</p>'}
+        <div class="actions" style="margin-top:12px">
+          <label class="label" for="scout-dupla" style="margin:0">Coletar um jogo de</label>
+          <select class="select sm" id="scout-dupla" style="min-width:0;width:auto">${conf.map((d) => `<option value="${d.id}">${esc(nomeDupla(d))}</option>`).join('')}</select>
+          <button class="btn btn-primary btn-sm" id="scout-novo" type="button">Coletar jogo</button>
+        </div>
+      </section>`;
+  }
+
   function secaoPreparo(c) {
     const blocos = [];
     dados.planos.forEach((pl) => {
@@ -373,6 +393,7 @@
       ${secaoOrcamento(c, p)}
       ${secaoEquipe(c, p)}
       ${secaoResultados(c, p)}
+      ${secaoScout(c, p)}
 
       <section class="card" aria-labelledby="h-notas">
         <div class="card-head"><h2 id="h-notas">Anotações</h2></div>
@@ -389,6 +410,12 @@
     const $ = (s) => root.querySelector(s);
     const recarregar = (aviso, foco) => { estado.aviso = aviso || ''; const y = window.scrollY; detalhe(root); window.scrollTo({ top: y }); if (foco) { const f = $(foco); if (f) f.focus({ preventScroll: true }); } };
 
+    root.querySelectorAll('[data-scout-rel]').forEach((b) => b.addEventListener('click', () => {
+      const j = window.Farol.scoutDados.jogo(b.dataset.scoutRel);
+      window.Farol.ir(window.Farol.scoutDados.estado(j).encerrado ? 'analise-scout' : 'scout-coleta', { jogo: j.id });
+    }));
+    const sn = $('#scout-novo');
+    if (sn) sn.addEventListener('click', () => window.Farol.ir('analise-scout', { novo: { compId: c.id, duplaId: $('#scout-dupla').value } }));
     $('#voltar').addEventListener('click', () => { estado.sel = null; estado.aviso = ''; estado.editar = false; lista(root); window.scrollTo({ top: 0 }); });
     $('#editar-dados').addEventListener('click', () => { estado.editar = !estado.editar; recarregar('', estado.editar ? '#dc-nome' : null); });
 

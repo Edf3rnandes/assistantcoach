@@ -86,22 +86,8 @@
           id: 'analise', nome: 'Análise', icone: 'graf', pronta: true,
           resumo: '', bullets: [], tabelas: [],
         },
-        {
-          id: 'analise-scout', nome: 'Scout', icone: 'alvo',
-          resumo: 'Scout de jogos de campeonato reaproveitado no treino. Ponto em discussão.',
-          bullets: [
-            'Jogo: registro completo, como já existe hoje.',
-            'Treino-jogo: a mesma taxonomia de ações, em versão leve.',
-            'Fundamento: contagem de acertos e tentativas de um exercício, em um toque.',
-            'Metas de treino geradas a partir do scout dos jogos.',
-          ],
-          aberto: [
-            'O que o scout atual registra hoje: por ponto, por ação, direção, tipo de ataque?',
-            'Quem coleta e onde: o técnico sozinho, um auxiliar, ou depois pelo vídeo?',
-            'O scout de treino deve ser comparável ao de jogo (mesma ficha) ou ser mais simples?',
-          ],
-          tabelas: ['jogos', 'acoes_scout'],
-        },
+        { id: 'analise-scout', nome: 'Scout', icone: 'alvo', pronta: true },
+        { id: 'scout-coleta', nome: 'Coleta do scout', icone: 'alvo', pronta: true, oculta: true },
       ],
     },
   ];
@@ -119,8 +105,10 @@
     { id: 'treino-registro', rotulo: 'Registro' },
     { id: 'quadro', rotulo: 'Quadro', icone: 'quadro' },
     { id: 'analise', rotulo: 'Análise' },
+    { id: 'analise-scout', rotulo: 'Scout' },
   ];
-  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro'];
+  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro', 'scout-coleta'];
+  const PAI = { 'scout-coleta': 'analise-scout' }; // telas ocultas acendem o item da barra a que pertencem
   let rotaAtual = null;
 
   const rotuloBarra = (b) => (b.curto ? `<span class="r-longo">${b.rotulo}</span><span class="r-curto">${b.curto}</span>` : `<span>${b.rotulo}</span>`);
@@ -147,7 +135,7 @@
 
   function atualizarBarra() {
     document.querySelectorAll('.bar-item[data-rota]').forEach((a) => {
-      if (a.dataset.rota === rotaAtual) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      if (a.dataset.rota === (PAI[rotaAtual] || rotaAtual)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     const q = document.getElementById('bt-quadro');
     if (q) q.setAttribute('aria-pressed', String(rotaAtual === 'treino-quadro' || gaveta.aberta));
@@ -254,6 +242,12 @@
     montarBarra();
     montarFolha();
     ligarGaveta();
+
+    // Tocar no item da tela em que já está volta ao início dela (por exemplo, sai do relatório de um jogo).
+    document.getElementById('barra').addEventListener('click', (e) => {
+      const a = e.target.closest('a.bar-item[data-rota]');
+      if (a && a.dataset.rota === location.hash.slice(1)) { e.preventDefault(); window.Farol.ir(a.dataset.rota); }
+    });
 
     const mais = document.getElementById('bt-mais');
     mais.addEventListener('click', () => {

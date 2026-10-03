@@ -82,15 +82,8 @@
       titulo: 'Análise',
       itens: [
         {
-          id: 'analise-comparar', nome: 'Comparativos', icone: 'versus',
-          resumo: 'Compare atleta, dupla, equipe, grupo, faixa etária e gênero, sempre contra uma referência justa.',
-          bullets: [
-            'Escolha "comparar A com B" e filtre por faixa etária, gênero, turma e período.',
-            'Valores em percentil dentro da faixa e do gênero, além do valor bruto.',
-            'Aviso quando o grupo de comparação tem poucos atletas.',
-            'Visível só para o técnico.',
-          ],
-          tabelas: ['resultados_testes', 'pse_sessao', 'estatisticas_scout'],
+          id: 'analise-comparar', nome: 'Comparativos', icone: 'versus', pronta: true,
+          resumo: '', bullets: [], tabelas: [],
         },
         {
           id: 'analise-scout', nome: 'Scout', icone: 'alvo',

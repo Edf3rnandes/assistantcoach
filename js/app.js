@@ -1,4 +1,4 @@
-/* Shell do painel do profissional: navegação lateral e roteamento por hash (#treinos-periodizacao).
+/* Shell do painel do profissional: barra de navegação fixa embaixo e roteamento por hash (#treinos-periodizacao).
    Cada tela é uma função registrada em Farol.views[rota](elemento). */
 (function () {
   const ICONS = {
@@ -19,10 +19,11 @@
     quadro: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 12h18M7 9l3 6 4-8 3 4"/>',
     versus: '<path d="M5 20V10M12 20V4M19 20v-7"/>',
     alvo: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+    mais: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
     placar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M7 9h2M15 9h2"/>',
   };
-  const icon = (nome) =>
-    `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nome]}</svg>`;
+  const icon = (nome, t = 18) =>
+    `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nome]}</svg>`;
 
   // `pronta` indica se a tela já foi construída; as demais mostram o que entra nela.
   const GRUPOS = [
@@ -111,14 +112,55 @@
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  function montarNav() {
-    return GRUPOS.map((g) => `
-      <div class="nav-group">
-        <div class="nav-title">${esc(g.titulo)}</div>
-        ${g.itens.filter((i) => !i.oculta).map((i) => i.existente
-          ? `<span class="nav-link" aria-disabled="true" title="Já existe no sistema atual, fora desta etapa">${icon(i.icone)}${esc(i.nome)}<span class="nav-tag">atual</span></span>`
-          : `<a class="nav-link" href="#${i.id}" data-rota="${i.id}">${icon(i.icone)}${esc(i.nome)}${i.pronta ? '' : '<span class="nav-tag">em breve</span>'}</a>`).join('')}
-      </div>`).join('');
+  // Itens que ficam sempre na barra. "Quadro" abre a gaveta do quadro rápido; o resto navega.
+  const BARRA = [
+    { id: 'treinos-periodizacao', rotulo: 'Periodização', curto: 'Plano' },
+    { id: 'planejamento-competicoes', rotulo: 'Competições', curto: 'Torneios' },
+    { id: 'treino-registro', rotulo: 'Registro' },
+    { id: 'quadro', rotulo: 'Quadro', icone: 'quadro' },
+    { id: 'analise-comparar', rotulo: 'Comparar' },
+  ];
+  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro'];
+  let rotaAtual = null;
+
+  const rotuloBarra = (b) => (b.curto ? `<span class="r-longo">${b.rotulo}</span><span class="r-curto">${b.curto}</span>` : `<span>${b.rotulo}</span>`);
+
+  function montarBarra() {
+    const itens = BARRA.map((b) => {
+      if (b.id === 'quadro') return `<button class="bar-item" id="bt-quadro" type="button" aria-pressed="false" aria-controls="gaveta-quadro" aria-label="Quadro técnico rápido">${icon(b.icone, 20)}${rotuloBarra(b)}</button>`;
+      return `<a class="bar-item" href="#${b.id}" data-rota="${b.id}" aria-label="${esc(ROTAS[b.id].nome)}">${icon(ROTAS[b.id].icone, 20)}${rotuloBarra(b)}</a>`;
+    });
+    itens.push(`<button class="bar-item" id="bt-mais" type="button" aria-expanded="false" aria-controls="folha-mais" aria-label="Mais telas">${icon('mais', 20)}<span>Mais</span></button>`);
+    document.getElementById('barra').innerHTML = `<div class="barra-itens">${itens.join('')}</div>`;
+  }
+
+  function montarFolha() {
+    const todos = GRUPOS.flatMap((g) => g.itens).filter((i) => !i.oculta && !ID_NA_BARRA.includes(i.id));
+    const breve = todos.filter((i) => !i.existente);
+    const atuais = todos.filter((i) => i.existente);
+    document.getElementById('folha-mais').innerHTML = `
+      <div class="folha-titulo label">Em breve</div>
+      ${breve.map((i) => `<a class="folha-link" role="menuitem" href="#${i.id}" data-rota="${i.id}">${icon(i.icone, 20)}${esc(i.nome)}<span class="folha-tag">em breve</span></a>`).join('')}
+      <div class="folha-titulo label">No sistema atual</div>
+      ${atuais.map((i) => `<span class="folha-link" role="menuitem" aria-disabled="true">${icon(i.icone, 20)}${esc(i.nome)}</span>`).join('')}`;
+  }
+
+  function atualizarBarra() {
+    document.querySelectorAll('.bar-item[data-rota]').forEach((a) => {
+      if (a.dataset.rota === rotaAtual) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    const q = document.getElementById('bt-quadro');
+    if (q) q.setAttribute('aria-pressed', String(rotaAtual === 'treino-quadro' || gaveta.aberta));
+    const maisAtivo = rotaAtual && !ID_NA_BARRA.includes(rotaAtual) && rotaAtual !== 'atleta-previa';
+    const m = document.getElementById('bt-mais');
+    if (m) { if (maisAtivo) m.setAttribute('aria-current', 'page'); else m.removeAttribute('aria-current'); }
+  }
+
+  function fecharFolha() {
+    const f = document.getElementById('folha-mais');
+    if (!f || f.hidden) return;
+    f.hidden = true;
+    document.getElementById('bt-mais').setAttribute('aria-expanded', 'false');
   }
 
   function pendente(item) {
@@ -144,11 +186,6 @@
     const item = ROTAS[rota];
     const main = document.getElementById('conteudo');
 
-    document.querySelectorAll('.nav-link[data-rota]').forEach((a) => {
-      if (a.dataset.rota === rota) a.setAttribute('aria-current', 'page');
-      else a.removeAttribute('aria-current');
-    });
-
     const view = window.Farol.views && window.Farol.views[rota];
     const params = window.Farol.params;
     window.Farol.params = null;
@@ -156,15 +193,9 @@
     else main.innerHTML = pendente(item);
 
     document.title = `${item.nome} | Farol Tático`;
-    const fab = document.getElementById('fab-quadro');
-    if (fab) fab.hidden = rota === 'treino-quadro';
-    const nav = document.getElementById('nav');
-    if (nav.dataset.open === 'true' && matchMedia('(max-width: 860px)').matches) fecharMenu();
-  }
-
-  function fecharMenu() {
-    document.getElementById('nav').dataset.open = 'false';
-    document.getElementById('menu-btn').setAttribute('aria-expanded', 'false');
+    rotaAtual = rota;
+    fecharFolha();
+    atualizarBarra();
   }
 
   // Navega para outra tela levando parâmetros (por exemplo, abrir uma semana ou uma competição).
@@ -186,7 +217,7 @@
       if (!el || !window.Farol.quadro) return;
       this.aberta = true;
       el.hidden = false;
-      document.getElementById('fab-quadro').setAttribute('aria-expanded', 'true');
+      atualizarBarra();
       window.Farol.quadro.montar(document.getElementById('gaveta-corpo'), 'painel');
       document.getElementById('gaveta-fechar').focus();
     },
@@ -195,34 +226,45 @@
       if (!el || !this.aberta) return;
       this.aberta = false;
       el.hidden = true;
-      document.getElementById('fab-quadro').setAttribute('aria-expanded', 'false');
+      atualizarBarra();
       document.getElementById('gaveta-corpo').innerHTML = '';
       window.Farol.quadro.desmontar();
-      document.getElementById('fab-quadro').focus();
+      const bt = document.getElementById('bt-quadro');
+      if (bt) bt.focus();
     },
   };
   window.Farol.gaveta = gaveta;
 
   function ligarGaveta() {
-    const fab = document.getElementById('fab-quadro');
-    if (!fab) return;
-    fab.addEventListener('click', () => (gaveta.aberta ? gaveta.fechar() : gaveta.abrir()));
+    const bt = document.getElementById('bt-quadro');
+    if (!bt) return;
+    // Na tela cheia do quadro o item já está ativo; nas demais, abre e fecha a gaveta.
+    bt.addEventListener('click', () => {
+      if (rotaAtual === 'treino-quadro') return;
+      fecharFolha();
+      if (gaveta.aberta) { gaveta.fechar(); bt.focus(); } else gaveta.abrir();
+    });
     document.getElementById('gaveta-fechar').addEventListener('click', () => gaveta.fechar());
     document.getElementById('gaveta-tela').addEventListener('click', () => { gaveta.fechar(); window.Farol.ir('treino-quadro', {}); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gaveta.aberta) gaveta.fechar(); });
   }
 
   function iniciar() {
+    montarBarra();
+    montarFolha();
     ligarGaveta();
-    const nav = document.getElementById('nav');
-    nav.innerHTML = montarNav();
 
-    const btn = document.getElementById('menu-btn');
-    btn.addEventListener('click', () => {
-      const aberto = nav.dataset.open === 'true';
-      nav.dataset.open = aberto ? 'false' : 'true';
-      btn.setAttribute('aria-expanded', String(!aberto));
+    const mais = document.getElementById('bt-mais');
+    mais.addEventListener('click', () => {
+      const f = document.getElementById('folha-mais');
+      f.hidden = !f.hidden;
+      mais.setAttribute('aria-expanded', String(!f.hidden));
     });
+    document.addEventListener('click', (e) => {
+      const f = document.getElementById('folha-mais');
+      if (!f.hidden && !f.contains(e.target) && !mais.contains(e.target)) fecharFolha();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharFolha(); });
 
     window.addEventListener('hashchange', rotear);
     rotear();

@@ -10,10 +10,10 @@ ou rode `python3 -m http.server` na raiz.
 - **Competições** (`#planejamento-competicoes`): duplas, viagem, orçamento, professores e resultados.
 - **Registro do treino** (`#treino-registro`): presença, PSE e PSR por atleta, anotações ditadas ou digitadas.
 - **Comparativos** (`#analise-comparar`): atleta contra turma, faixa e gênero, ele mesmo ou outro atleta; grupo contra grupo, com evolução nos testes para comparar gêneros de forma justa.
-- **Quadro técnico** (`#treino-quadro`) e a gaveta **Quadro rápido**, que abre sobre qualquer tela sem sair dela.
+- **Quadro técnico** (`#treino-quadro`) e a gaveta **Quadro rápido**, que abre sobre qualquer tela pelo item Quadro da barra.
 - **Página do atleta** (`atleta.html?t=TOKEN`): link único por turma; o atleta escolhe o nome e responde PSE, PSR e dor.
   Dentro do painel há uma prévia (`#atleta-previa`).
-- As demais entradas do menu aparecem como "em breve".
+- Navegação: barra fixa embaixo (Plano, Torneios, Registro, Quadro, Comparar, Mais). O que ainda não existe fica em "Mais".
 
 ## Código
 

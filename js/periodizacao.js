@@ -203,11 +203,7 @@
           ? `<ul class="comp-list">${doCiclo.map((c) => `<li><span class="chip ${c.id === plano.alvo ? 'chip-beam' : ''}">${dd(c.data)}</span><span>${esc(c.nome)}${c.id === plano.alvo ? ' <strong>(alvo)</strong>' : ''}</span></li>`).join('')}</ul>`
           : '<p>Nenhuma competição do calendário cai nesta fase.</p>'}
       </div>
-
-      <div class="callout" style="margin-top:18px">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c3 4 5 6.5 5 10a5 5 0 0 1-10 0c0-3.5 2-6 5-10z"/></svg>
-        <div><strong>Fase nutricional ligada:</strong> ${esc(f.nutricao)} <a href="#nutricao-plano">Ver plano</a></div>
-      </div>`;
+    `;
   }
 
   function tabela(plano, sel) {

@@ -1,6 +1,6 @@
-# Farol Tático: Treinos e Nutrição
+# Farol Tático: painel do técnico
 
-Frontend dos módulos novos, montado antes do backend. Sem build: abra `index.html` no navegador
+Frontend do painel do técnico, montado antes do backend. Sem build: abra `index.html` no navegador
 ou rode `python3 -m http.server` na raiz.
 
 - `index.html`: painel do profissional (navegação lateral e telas por hash, ex.: `#treinos-periodizacao`).

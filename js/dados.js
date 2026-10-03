@@ -36,7 +36,6 @@
       pse: [5, 6],
       foco: { forca: 55, potencia: 15, mobilidade: 30 },
       objetivo: 'Construir capacidade de trabalho e força geral. Volume cresce semana a semana, com intensidade controlada.',
-      nutricao: 'Superávit leve, para sustentar o ganho de força e a recuperação.',
     },
     especifico: {
       nome: 'Específico',
@@ -45,7 +44,6 @@
       pse: [6, 8],
       foco: { forca: 35, potencia: 45, mobilidade: 20 },
       objetivo: 'Converter a força em potência e velocidade de salto. O volume cai aos poucos e a intensidade sobe.',
-      nutricao: 'Manutenção das calorias, com carboidrato ajustado aos dias de maior carga.',
     },
     polimento: {
       nome: 'Polimento',
@@ -54,7 +52,6 @@
       pse: [6, 7],
       foco: { forca: 20, potencia: 55, mobilidade: 25 },
       objetivo: 'Reduzir volume mantendo a intensidade, para o atleta chegar descansado e rápido à competição.',
-      nutricao: 'Manutenção. Déficit leve só se o profissional julgar necessário.',
     },
     competicao: {
       nome: 'Competição',
@@ -63,7 +60,6 @@
       pse: [7, 9],
       foco: { forca: 15, potencia: 40, mobilidade: 45 },
       objetivo: 'Manter prontidão e recuperar entre jogos. Treino físico curto e de baixa fadiga.',
-      nutricao: 'Manutenção. Sem déficit em semana de prova.',
     },
     transicao: {
       nome: 'Transição',
@@ -72,7 +68,6 @@
       pse: [3, 4],
       foco: { forca: 25, potencia: 5, mobilidade: 70 },
       objetivo: 'Descanso ativo, mobilidade e correção de desequilíbrios antes do próximo ciclo.',
-      nutricao: 'Manutenção, com espaço para recomposição corporal se houver meta.',
     },
   };
 

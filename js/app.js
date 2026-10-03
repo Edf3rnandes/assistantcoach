@@ -169,6 +169,7 @@
   /* ---------- Gaveta "Quadro rápido" ----------
      Botão fixo que abre o quadro técnico sobre qualquer tela, sem navegar. O desenho é o mesmo
      da tela cheia e continua onde parou. Pensado para o treino e, depois, para o scout em jogo. */
+  const lerModo = () => { try { return localStorage.getItem('ft.gaveta.modo') === 'compacta'; } catch (e) { return false; } };
   const gaveta = {
     aberta: false,
     abrir() {
@@ -176,9 +177,18 @@
       if (!el || !window.Farol.quadro) return;
       this.aberta = true;
       el.hidden = false;
+      this.modo(lerModo());
       atualizarBarra();
       window.Farol.quadro.montar(document.getElementById('gaveta-corpo'), 'painel');
       document.getElementById('gaveta-fechar').focus();
+    },
+    // Em telas estreitas a gaveta ocupa a área toda acima da barra (como uma aba); "Reduzir" devolve a tela de baixo.
+    modo(compacta) {
+      const el = document.getElementById('gaveta-quadro');
+      const bt = document.getElementById('gaveta-modo');
+      el.classList.toggle('compacta', compacta);
+      if (bt) { bt.textContent = compacta ? 'Ampliar' : 'Reduzir'; bt.setAttribute('aria-pressed', String(compacta)); }
+      try { localStorage.setItem('ft.gaveta.modo', compacta ? 'compacta' : 'cheia'); } catch (e) { /* sem armazenamento */ }
     },
     fechar(devolverFoco = true) {
       const el = document.getElementById('gaveta-quadro');
@@ -204,6 +214,7 @@
       if (gaveta.aberta) { gaveta.fechar(); bt.focus(); } else gaveta.abrir();
     });
     document.getElementById('gaveta-fechar').addEventListener('click', () => gaveta.fechar());
+    document.getElementById('gaveta-modo').addEventListener('click', () => gaveta.modo(!document.getElementById('gaveta-quadro').classList.contains('compacta')));
     document.getElementById('gaveta-tela').addEventListener('click', () => { gaveta.fechar(); window.Farol.ir('treino-quadro', {}); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gaveta.aberta) gaveta.fechar(); });
   }

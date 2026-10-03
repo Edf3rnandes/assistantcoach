@@ -1028,16 +1028,24 @@ select.st-prevista { border-color: var(--warn); }
 .qd-lib-meta { padding: 2px 10px 10px; font-size: 13px; color: var(--ink-2); }
 .qd-painel { display: flex; flex-direction: column; }
 
-.gaveta { position: fixed; z-index: 40; left: 0; right: 0; bottom: calc(var(--barra-h) + env(safe-area-inset-bottom, 0px)); height: min(66vh, 580px); display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-bottom: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.28); animation: gaveta-sobe 0.2s ease-out; overflow: hidden; }
-.gaveta-topo { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); flex: none; }
+.gaveta { position: fixed; z-index: 40; left: 0; right: 0; top: 0; bottom: calc(var(--barra-h) + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; background: var(--bg); animation: gaveta-sobe 0.2s ease-out; overflow: hidden; }
+.gaveta.compacta { top: auto; height: min(62vh, 560px); border: 1px solid var(--line); border-bottom: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.28); }
+.gaveta-topo { display: flex; align-items: center; gap: 12px; padding: 10px 16px; min-width: 0; border-bottom: 1px solid var(--line); background: var(--surface); flex: none; }
 .gaveta-topo strong { font-family: var(--font-display); font-size: 21px; margin-right: auto; white-space: nowrap; }
 .gaveta-topo .link-btn { white-space: nowrap; }
-.gaveta-corpo { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 16px; }
+.gaveta-corpo { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 16px; }
 @keyframes gaveta-sobe { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes gaveta-entra { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
 
+@media (max-width: 899px) {
+  .gaveta-topo { gap: 10px; padding: 8px 12px; }
+  .gaveta-topo strong { font-size: 19px; }
+  .gaveta:not(.compacta) #gaveta-tela { display: none; } /* a aba cheia já é a tela completa */
+}
+
 @media (min-width: 900px) {
-  .gaveta { left: auto; top: 0; bottom: calc(var(--barra-h) + 24px); width: 480px; height: auto; border-radius: 0; border-top: 0; border-bottom: 0; border-right: 0; box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25); animation-name: gaveta-entra; }
+  .gaveta, .gaveta.compacta { left: auto; top: 0; bottom: calc(var(--barra-h) + 24px); width: 480px; height: auto; border: 0; border-left: 1px solid var(--line); border-radius: 0; box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25); animation-name: gaveta-entra; }
+  #gaveta-modo { display: none; }
 }
 
 
@@ -1813,3 +1821,38 @@ i.cmp-b { background: var(--s-tatica); }
 .sc-dest-det > summary { cursor: pointer; font-weight: 600; min-height: 36px; display: flex; align-items: center; }
 .sc-dest-det > summary small { color: var(--ink-2); font-weight: 500; margin-left: 6px; }
 @media (max-width: 420px) { .sc-det-b { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sc-jogada small { display: none; } }
+
+/* ---------- Quadro: interação ao mover atleta e seta ---------- */
+
+.qd-halo { transition: stroke 0.12s, fill 0.12s; }
+@media (hover: hover) {
+  .qd-peca:hover .qd-halo { fill: color-mix(in srgb, var(--accent) 16%, transparent); stroke: var(--accent); stroke-width: 0.1; }
+  .qd-seta:hover line:not(.hit) { stroke-width: 0.26; }
+}
+.qd-peca.sel .qd-halo { fill: color-mix(in srgb, var(--accent) 14%, transparent); animation: qd-pulsa 1.6s ease-in-out infinite; }
+@keyframes qd-pulsa { 50% { stroke-opacity: 0.35; } }
+.qd-peca.arrastando .qd-halo { animation: none; fill: color-mix(in srgb, var(--accent) 24%, transparent); stroke: var(--accent); stroke-width: 0.14; stroke-dasharray: none; }
+.qd-peca.arrastando circle:not(.qd-halo) { filter: drop-shadow(0 0.25px 0.3px rgba(0, 0, 0, 0.45)); }
+.qd-fantasma { opacity: 0.32; pointer-events: none; }
+.qd-fantasma .qd-halo { display: none; }
+.qd-rastro { stroke: var(--accent); stroke-width: 0.16; stroke-dasharray: 0.4 0.3; stroke-linecap: round; fill: none; pointer-events: none; }
+.qd-peca.ima .qd-halo, .qd-ima .qd-halo { fill: color-mix(in srgb, var(--good) 26%, transparent); stroke: var(--good); stroke-width: 0.14; stroke-dasharray: none; animation: none; }
+
+.qd-alcas { pointer-events: none; }
+.qd-alca { pointer-events: all; cursor: grab; touch-action: none; }
+.qd-alca-h { fill: transparent; }
+.qd-alca-p { fill: var(--surface); stroke: var(--accent); stroke-width: 0.16; transition: r 0.12s; }
+.qd-alca:hover .qd-alca-p, .qd-alca.arrastando .qd-alca-p { r: 0.55; fill: var(--accent); }
+.qd-alca.ima .qd-alca-p { fill: var(--good); stroke: var(--good); r: 0.6; }
+.qd-seta.arrastando line:not(.hit) { opacity: 0.85; }
+.qd-seta .hit { cursor: grab; }
+.qd-previa { opacity: 0.8; pointer-events: none; }
+
+.qd-wrap { transition: box-shadow 0.15s; }
+.qd-wrap.mexendo { box-shadow: 0 0 0 2px var(--accent); }
+.qd-ajuda { font-size: 13px; color: var(--ink-2); text-align: center; padding: 6px 10px; background: var(--surface-2); border-radius: 10px; }
+.qd-ajuda b { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  .qd-peca.sel .qd-halo { animation: none; }
+  .gaveta { animation: none; }
+}

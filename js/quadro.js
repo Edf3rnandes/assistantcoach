@@ -113,6 +113,8 @@
       ${mini ? '' : '<circle class="qd-halo" r="1.1"/>'}${forma}</g>`;
   }
 
+  const frame_ = (frame, i) => frame.setas[i];
+
   function svgQuadro(frame, meta, o = {}) {
     const mini = !!o.mini;
     const id = o.id || 'q';
@@ -141,10 +143,17 @@
       if (!p) return '';
       const eq = k[0];
       return `<g class="qd-peca qd-${eq}" data-pec="${k}" transform="translate(${p.x} ${p.y})" ${mini ? '' : `tabindex="0" role="button" aria-label="Jogador ${esc(meta.nomes[k])}"`}>
-        ${mini ? '' : '<circle class="qd-halo" r="1.1"/>'}<circle r="0.72"/><text y="0.19" text-anchor="middle"${vertical ? ' transform="rotate(90)"' : ''}>${esc(String(meta.nomes[k]).slice(0, 4))}</text></g>`;
+        ${mini ? '' : '<circle class="qd-halo" r="1.35"/>'}<circle r="0.72"/><text y="0.19" text-anchor="middle"${vertical ? ' transform="rotate(90)"' : ''}>${esc(String(meta.nomes[k]).slice(0, 4))}</text></g>`;
     }).join('');
 
-    const bola = `<g class="qd-peca qd-bola" data-pec="bola" transform="translate(${frame.bola.x} ${frame.bola.y})" ${mini ? '' : 'tabindex="0" role="button" aria-label="Bola"'}>${mini ? '' : '<circle class="qd-halo" r="1.0"/>'}<circle r="0.36"/></g>`;
+    const bola = `<g class="qd-peca qd-bola" data-pec="bola" transform="translate(${frame.bola.x} ${frame.bola.y})" ${mini ? '' : 'tabindex="0" role="button" aria-label="Bola"'}>${mini ? '' : '<circle class="qd-halo" r="1.2"/>'}<circle r="0.36"/></g>`;
+
+    // Pontas da seta selecionada: arrastar uma ponta muda a seta; arrastar o corpo move a seta inteira.
+    const alcas = mini || !sel || sel.tipo !== 'seta' || !frame_(frame, sel.i) ? '' : (() => {
+      const s = frame.setas[sel.i];
+      const al = (n, x, y) => `<g class="qd-alca" data-alca="${sel.i}:${n}" transform="translate(${x} ${y})"><circle class="qd-alca-h" r="1.0"/><circle class="qd-alca-p" r="0.4"/></g>`;
+      return `<g class="qd-alcas">${al(1, s.x1, s.y1)}${al(2, s.x2, s.y2)}</g>`;
+    })();
 
     const rede = meta.fundo === 'livre' ? '' : `
       <line x1="8" y1="-0.7" x2="8" y2="8.7" class="qd-rede"/>
@@ -157,7 +166,7 @@
         <rect x="0" y="0" width="16" height="8" class="qd-quadra${meta.fundo === 'livre' ? ' livre' : ''}"/>
         ${rede}
         ${mini ? '' : `${meta.fundo === 'livre' ? '' : rotulo(8, -1.15, 'REDE')}${rotulo(8, 9.55, '16 m')}${rotulo(-1.6, 4.15, '8 m')}`}
-        ${setas}${objetos}${bola}${pecas}
+        ${setas}${objetos}${bola}${pecas}${alcas}
       </g>
     </svg>`;
   }
@@ -230,6 +239,12 @@
       contextual = `<div class="qd-ctx qd-tipos" role="group" aria-label="Tipo de seta">
         ${Object.keys(ESTILO_SETA).map((k) => `<button class="qd-tipo" data-tipo-seta="${k}" aria-pressed="${ui.tipoSeta === k}"><svg width="36" height="14" viewBox="0 0 36 14" aria-hidden="true">${AMOSTRA_SETA[k]}</svg>${NOME_SETA[k]}</button>`).join('')}
       </div>`;
+    }
+
+    if (!contextual && !ui.tocando) {
+      contextual = `<div class="qd-ctx"><span class="qd-dica qd-ajuda">${ui.ferr === 'seta'
+        ? 'Arraste na quadra para traçar a seta. Ela sai da peça mais próxima e encaixa na que estiver perto do fim.'
+        : 'Arraste um jogador ou a bola. Toque numa seta para ajustar as pontas ou arrastá-la inteira.'}</span></div>`;
     }
 
     const paleta = ui.paleta ? `
@@ -526,8 +541,9 @@
       requestAnimationFrame(passo);
     });
 
-    // Quadra: arrastar peças e traçar setas
+    // Quadra: arrastar peças, ajustar setas e traçar setas novas
     const wrap = q('#qd-wrap');
+    const NS = 'http://www.w3.org/2000/svg';
     // A matriz de tela é lida uma vez por gesto: ler a cada movimento força o navegador a recalcular o layout.
     let inversa = null;
     const prepararMatriz = () => { const mundo = wrap.querySelector('#qd-mundo'); inversa = mundo ? mundo.getScreenCTM().inverse() : null; };
@@ -549,29 +565,77 @@
       if (alvo) alvo.classList.add('sel');
     };
     marcarSel();
-    let arrasto = null;
-    let traco = null;
+    const chaveSel = () => (ui.sel ? `${ui.sel.tipo}:${ui.sel.id !== undefined ? ui.sel.id : ui.sel.i}` : '');
+
+    // Encaixe: perto de uma peça, a ponta da seta para na borda dela (não por cima) e a peça acende.
+    const encaixar = (pt, outro) => {
+      let melhor = 1.05, alvo = null;
+      [...ed.pecas.map((k) => ({ k, ...posDe(k) })), { k: 'bola', ...frame().bola }, ...frame().objs.map((o) => ({ k: `obj:${o.id}`, x: o.x, y: o.y }))].forEach((a) => {
+        const d = Math.hypot(a.x - pt.x, a.y - pt.y);
+        if (d < melhor) { melhor = d; alvo = a; }
+      });
+      if (!alvo) return { x: pt.x, y: pt.y, k: null };
+      const dx = alvo.x - outro.x, dy = alvo.y - outro.y, L = Math.hypot(dx, dy) || 1;
+      const folga = alvo.k === 'bola' ? 0.5 : 0.85;
+      return { x: alvo.x - (dx / L) * folga, y: alvo.y - (dy / L) * folga, k: alvo.k };
+    };
+    const destacar = (k) => {
+      wrap.querySelectorAll('.ima').forEach((el) => el.classList.remove('ima'));
+      if (k) { const el = wrap.querySelector(`[data-pec="${k}"]`); if (el) el.classList.add('ima'); }
+    };
+    const pintarSeta = (i) => {
+      const s = frame().setas[i];
+      const g = wrap.querySelector(`[data-seta="${i}"]`);
+      if (g) g.querySelectorAll('line').forEach((l) => { l.setAttribute('x1', s.x1); l.setAttribute('y1', s.y1); l.setAttribute('x2', s.x2); l.setAttribute('y2', s.y2); });
+      [[1, s.x1, s.y1], [2, s.x2, s.y2]].forEach(([n, x, y]) => { const a = wrap.querySelector(`[data-alca="${i}:${n}"]`); if (a) a.setAttribute('transform', `translate(${x} ${y})`); });
+    };
+
+    let arrasto = null;     // peça, bola ou objeto
+    let arrastoSeta = null; // ponta ou corpo de uma seta
+    let traco = null;       // seta nova sendo traçada
 
     wrap.addEventListener('pointerdown', (e) => {
       if (ui.tocando) return;
       prepararMatriz();
-      const selAntes = ui.sel ? `${ui.sel.tipo}:${ui.sel.id}` : '';
+      const selAntes = chaveSel();
       const p = ponto(e);
       if (ui.ferr === 'mover') {
+        const alca = e.target.closest('[data-alca]');
         const peca = e.target.closest('[data-pec]');
         const seta = e.target.closest('[data-seta]');
-        if (peca) {
+        if (alca) {
+          const [i, n] = alca.dataset.alca.split(':').map(Number);
+          arrastoSeta = { i, modo: n, antes: snapshot(), mexeu: false, selMudou: false, quadro: 0, ult: null };
+          try { wrap.setPointerCapture(e.pointerId); } catch (er) { /* ponteiro já encerrado */ }
+          alca.classList.add('arrastando');
+          e.preventDefault();
+        } else if (peca) {
           const k = peca.dataset.pec;
           const pos = posDe(k);
           ui.sel = k === 'bola' ? null : k.startsWith('obj:') ? { tipo: 'obj', id: k.slice(4) } : { tipo: 'peca', id: k };
-          arrasto = { k, dx: pos.x - p.x, dy: pos.y - p.y, antes: snapshot(), mexeu: false, el: peca, selMudou: selAntes !== (ui.sel ? `${ui.sel.tipo}:${ui.sel.id}` : ''), quadro: 0, ult: null };
+          // Fantasma na origem e rastro até a posição atual: mostram de onde o jogador saiu e para onde vai.
+          const mundo = wrap.querySelector('#qd-mundo');
+          const primeira = mundo.querySelector('.qd-peca');
+          const fant = document.createElementNS(NS, 'g');
+          fant.setAttribute('class', 'qd-fantasma'); fant.setAttribute('transform', `translate(${pos.x} ${pos.y})`);
+          fant.innerHTML = `<circle r="${k === 'bola' ? 0.36 : k.startsWith('obj:') ? 0.55 : 0.72}"/>`;
+          const rastro = document.createElementNS(NS, 'line');
+          rastro.setAttribute('class', 'qd-rastro'); rastro.setAttribute('x1', pos.x); rastro.setAttribute('y1', pos.y); rastro.setAttribute('x2', pos.x); rastro.setAttribute('y2', pos.y);
+          mundo.insertBefore(rastro, primeira); mundo.insertBefore(fant, primeira);
+          arrasto = { k, dx: pos.x - p.x, dy: pos.y - p.y, antes: snapshot(), mexeu: false, el: peca, fant, rastro, ox: pos.x, oy: pos.y, selMudou: selAntes !== chaveSel(), quadro: 0, ult: null };
+          peca.classList.add('arrastando');
           try { wrap.setPointerCapture(e.pointerId); } catch (er) { /* ponteiro já encerrado */ }
           marcarSel();
           e.preventDefault();
         } else if (seta) {
-          ui.sel = { tipo: 'seta', i: Number(seta.dataset.seta) };
-          marcarSel();
-          q('#qd-apagar').disabled = false;
+          const i = Number(seta.dataset.seta);
+          const jaSel = ui.sel && ui.sel.tipo === 'seta' && ui.sel.i === i;
+          ui.sel = { tipo: 'seta', i };
+          const s = frame().setas[i];
+          arrastoSeta = { i, modo: 'corpo', p0: p, orig: { ...s }, antes: snapshot(), mexeu: false, selMudou: !jaSel, quadro: 0, ult: null };
+          try { wrap.setPointerCapture(e.pointerId); } catch (er) { /* ponteiro já encerrado */ }
+          if (!jaSel) { leve(); q('#qd-apagar').disabled = false; } // mostra as pontas na hora
+          e.preventDefault();
         } else if (ui.sel) {
           ui.sel = null; render();
         }
@@ -580,13 +644,14 @@
         const alvos = [...ed.pecas.map((k) => posDe(k)), frame().bola, ...frame().objs];
         alvos.forEach((pos) => { const d = Math.hypot(pos.x - p.x, pos.y - p.y); if (d < melhor) { melhor = d; ini = { x: pos.x, y: pos.y }; } });
         const mundo = wrap.querySelector('#qd-mundo');
-        const linha = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        const linha = document.createElementNS(NS, 'line');
         const est = ESTILO_SETA[ui.tipoSeta];
         linha.setAttribute('x1', ini.x); linha.setAttribute('y1', ini.y); linha.setAttribute('x2', ini.x); linha.setAttribute('y2', ini.y);
-        linha.setAttribute('style', `stroke:var(${est.cor});stroke-width:${est.w};stroke-linecap:round;opacity:.7;pointer-events:none`);
+        linha.setAttribute('style', `stroke:var(${est.cor});stroke-width:${est.w};stroke-linecap:round;opacity:.8;pointer-events:none`);
+        linha.setAttribute('marker-end', `url(#qd-m-${ui.tipoSeta})`);
         if (est.dash) linha.setAttribute('stroke-dasharray', est.dash);
         mundo.appendChild(linha);
-        traco = { ini, linha };
+        traco = { ini, linha, fim: null, quadro: 0, ult: null };
         try { wrap.setPointerCapture(e.pointerId); } catch (er) { /* ponteiro já encerrado */ }
         e.preventDefault();
       }
@@ -602,39 +667,85 @@
       pos.x = clamp(p.x + arrasto.dx, LIM.x0, LIM.x1);
       pos.y = clamp(p.y + arrasto.dy, LIM.y0, LIM.y1);
       arrasto.el.setAttribute('transform', `translate(${pos.x} ${pos.y}) rotate(${arrasto.el.dataset.rot || 0})`);
+      arrasto.rastro.setAttribute('x2', pos.x); arrasto.rastro.setAttribute('y2', pos.y);
     };
-    let tracoQuadro = 0, tracoUlt = null;
+    const aplicarSeta = () => {
+      if (!arrastoSeta) return;
+      arrastoSeta.quadro = 0;
+      const e = arrastoSeta.ult; if (!e) return;
+      const p = ponto(e), s = frame().setas[arrastoSeta.i];
+      if (arrastoSeta.modo === 'corpo') {
+        const o = arrastoSeta.orig;
+        const dx = clamp(p.x - arrastoSeta.p0.x, LIM.x0 - Math.min(o.x1, o.x2), LIM.x1 - Math.max(o.x1, o.x2));
+        const dy = clamp(p.y - arrastoSeta.p0.y, LIM.y0 - Math.min(o.y1, o.y2), LIM.y1 - Math.max(o.y1, o.y2));
+        s.x1 = o.x1 + dx; s.y1 = o.y1 + dy; s.x2 = o.x2 + dx; s.y2 = o.y2 + dy;
+      } else {
+        const outro = arrastoSeta.modo === 1 ? { x: s.x2, y: s.y2 } : { x: s.x1, y: s.y1 };
+        const enc = encaixar({ x: clamp(p.x, LIM.x0, LIM.x1), y: clamp(p.y, LIM.y0, LIM.y1) }, outro);
+        destacar(enc.k);
+        if (arrastoSeta.modo === 1) { s.x1 = enc.x; s.y1 = enc.y; } else { s.x2 = enc.x; s.y2 = enc.y; }
+      }
+      pintarSeta(arrastoSeta.i);
+    };
+    const aplicarTraco = () => {
+      if (!traco) return;
+      traco.quadro = 0;
+      const e = traco.ult; if (!e) return;
+      const p = ponto(e);
+      const enc = encaixar({ x: clamp(p.x, LIM.x0, LIM.x1), y: clamp(p.y, LIM.y0, LIM.y1) }, traco.ini);
+      traco.fim = enc;
+      destacar(enc.k);
+      traco.linha.setAttribute('x2', enc.x); traco.linha.setAttribute('y2', enc.y);
+    };
     wrap.addEventListener('pointermove', (e) => {
       if (arrasto) {
+        if (!arrasto.mexeu) wrap.classList.add('mexendo');
         arrasto.mexeu = true;
         arrasto.ult = e;
         if (!arrasto.quadro) arrasto.quadro = requestAnimationFrame(aplicarArrasto);
+      } else if (arrastoSeta) {
+        const p = ponto(e);
+        if (arrastoSeta.modo === 'corpo' ? Math.hypot(p.x - arrastoSeta.p0.x, p.y - arrastoSeta.p0.y) > 0.15 : true) { arrastoSeta.mexeu = true; wrap.classList.add('mexendo'); }
+        arrastoSeta.ult = e;
+        if (!arrastoSeta.quadro) arrastoSeta.quadro = requestAnimationFrame(aplicarSeta);
       } else if (traco) {
-        tracoUlt = e;
-        if (!tracoQuadro) tracoQuadro = requestAnimationFrame(() => { tracoQuadro = 0; if (!traco || !tracoUlt) return; const p = ponto(tracoUlt); traco.linha.setAttribute('x2', p.x); traco.linha.setAttribute('y2', p.y); });
+        traco.ult = e;
+        if (!traco.quadro) traco.quadro = requestAnimationFrame(aplicarTraco);
       }
     });
 
     wrap.addEventListener('pointerup', (e) => {
+      wrap.classList.remove('mexendo');
       if (arrasto) {
         cancelAnimationFrame(arrasto.quadro); arrasto.ult = e; aplicarArrasto();
         const mudouSel = arrasto.selMudou;
         if (arrasto.mexeu) { ui.desfazer.push(arrasto.antes); ui.refazer = []; ui.sujo = true; if (ui.desfazer.length > 40) ui.desfazer.shift(); }
         arrasto = null;
         if (mudouSel) render(); else leve();
+      } else if (arrastoSeta) {
+        cancelAnimationFrame(arrastoSeta.quadro); arrastoSeta.ult = e; if (arrastoSeta.mexeu) aplicarSeta();
+        destacar(null);
+        const s = frame().setas[arrastoSeta.i];
+        ['x1', 'y1', 'x2', 'y2'].forEach((c) => { s[c] = +s[c].toFixed(2); });
+        if (arrastoSeta.mexeu) { ui.desfazer.push(arrastoSeta.antes); ui.refazer = []; ui.sujo = true; if (ui.desfazer.length > 40) ui.desfazer.shift(); }
+        const mudouSel = arrastoSeta.selMudou && !arrastoSeta.mexeu;
+        arrastoSeta = null;
+        if (mudouSel) render(); else leve();
       } else if (traco) {
-        const p = ponto(e);
+        cancelAnimationFrame(traco.quadro); traco.ult = e; aplicarTraco();
+        destacar(null);
+        const fim = traco.fim || { x: traco.ini.x, y: traco.ini.y };
         traco.linha.remove();
-        if (Math.hypot(p.x - traco.ini.x, p.y - traco.ini.y) >= 0.6) {
+        if (Math.hypot(fim.x - traco.ini.x, fim.y - traco.ini.y) >= 0.6) {
           empilhar();
-          frame().setas.push(S(ui.tipoSeta, +traco.ini.x.toFixed(2), +traco.ini.y.toFixed(2), +clamp(p.x, LIM.x0, LIM.x1).toFixed(2), +clamp(p.y, LIM.y0, LIM.y1).toFixed(2)));
+          frame().setas.push(S(ui.tipoSeta, +traco.ini.x.toFixed(2), +traco.ini.y.toFixed(2), +fim.x.toFixed(2), +fim.y.toFixed(2)));
           ui.sel = { tipo: 'seta', i: frame().setas.length - 1 };
           render();
         }
         traco = null;
       }
     });
-    wrap.addEventListener('pointercancel', () => { if (traco) { traco.linha.remove(); traco = null; } arrasto = null; render(); });
+    wrap.addEventListener('pointercancel', () => { wrap.classList.remove('mexendo'); if (traco) { traco.linha.remove(); traco = null; } arrasto = null; arrastoSeta = null; render(); });
 
     wrap.addEventListener('keydown', (e) => {
       const peca = e.target.closest('[data-pec]');

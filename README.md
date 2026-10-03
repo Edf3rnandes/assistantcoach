@@ -93,7 +93,14 @@ A coleta ao vivo (`js/scout-coleta.js`) usa o mesmo registro de ações, com pou
 
 ## Quadro rápido e fluidez (etapa 18)
 
-- **Gaveta do quadro** fecha sozinha ao trocar de tela, então o botão **Quadro** volta a abrir em qualquer página (antes ela ficava aberta sobre a página nova e o toque seguinte a fechava). No celular virou uma **folha baixa** acima da barra (a tela de trás, como o placar do Scout, continua visível); no computador é um painel lateral. Os dois entram com uma animação curta.
+- **Gaveta do quadro** fecha sozinha ao trocar de tela, então o botão **Quadro** volta a abrir em qualquer página (antes ela ficava aberta sobre a página nova e o toque seguinte a fechava). No celular ela é uma **aba**: ocupa toda a área acima da barra e some ao tocar em qualquer outro item; o botão **Reduzir** devolve uma folha baixa (a tela de trás continua visível) e **Ampliar** volta à aba (a escolha fica salva). No computador é um painel lateral. Os dois entram com uma animação curta.
 - **Arrastar** peças e traçar setas ficou mais leve: a matriz de tela é lida uma vez por gesto, o movimento é aplicado uma vez por quadro de tela e, ao soltar, só a quadra, a faixa de quadros e os botões são atualizados (a tela não é remontada, salvo quando a seleção muda).
 - **Reproduzir** a sequência monta a quadra uma vez por passo e só move as peças a cada quadro, em vez de refazer o SVG inteiro.
-- Na folha do celular a quadra abre na horizontal (no painel lateral do computador, em pé); dá para girar no menu.
+- Na gaveta do celular a quadra abre na horizontal (no painel lateral do computador, em pé); dá para girar no menu.
+
+## Quadro: mexer em atleta e seta (etapa 19)
+
+- **Mover atleta**: halo que acende ao passar o mouse, pulsa quando selecionado; ao arrastar aparece um **fantasma** na posição de origem e um **rastro** tracejado até a posição atual; a quadra ganha contorno enquanto algo é movido. Desfazer volta ao ponto de partida.
+- **Mexer em seta**: toque na seta para selecioná-la; surgem duas **alças nas pontas** (arraste para ajustar só aquela ponta) e dá para **arrastar a seta inteira** pelo corpo. As pontas **encaixam** em atletas, bola e cones próximos (o alvo acende em verde). Cada ajuste é um passo de desfazer.
+- Ao traçar uma seta nova, a prévia já mostra a ponta da seta e o encaixe.
+- Limites: sem teste em aparelho real (só toque simulado); alças e encaixe valem para o quadro atual, não para a reprodução.

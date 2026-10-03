@@ -79,3 +79,14 @@ Tela `treinos-biblioteca` (`js/biblioteca.js`, dados em `js/prescricao.js`), abe
 - **Catálogo**: 45 exercícios de exemplo com categoria, grupos musculares, equipamento, nível, vídeo (link) e dica técnica. Busca e filtros, criar, editar e excluir (quem está em um plano não pode ser excluído). Cada exercício diz o que **exige** (saltos, corrida, braço acima da cabeça, quedas) e onde **pesa** (tornozelo, joelho, ombro…), que é o que cruza com a saúde.
 - **Página do atleta**: o atleta vê "Meu treino físico" com o treino dele, as trocas e as cargas individuais. Exercícios que ainda conflitam com a saúde dele aparecem marcados com "fale com o professor antes".
 - Os dados ficam no navegador (`ft.prescricao.v1`) até o Supabase entrar (tabelas previstas `exercicios`, `planos_treino` e `treino_prescrito`).
+
+## Scout por toque e pressão (etapa 16)
+
+A coleta ao vivo (`js/scout-coleta.js`) foi refeita em cima do mesmo registro de ações:
+
+- **Placar dividido**: azul é a nossa dupla e vermelho o adversário, com números enormes, o sacador, o relógio do jogo e **+** e **−** de cada lado. O **−** desfaz o último ponto do lado (só quando foi dele).
+- **Toque no +** abre as ações do ponto. Nosso ponto: ataque, bloqueio, ace, erro deles, outro. Ponto deles: ataque, saque, bloqueio, **erro nosso** (pergunta quem errou e em qual fundamento) e outro. A escolha de quem fez fica nos dois atletas, sempre à vista.
+- **Toque registra o padrão; segure e deslize** abre uma **roda** de detalhes: tipo de ataque (diagonal, paralela, largada, usada), tipo de saque (viagem, flutuante), qual erro do adversário, qualidade da recepção. Soltar no centro vale "geral". Também dá para tocar nas fatias, ou usar **Shift+Enter** no teclado e as setas.
+- **Sem ponto**: faixa com recepção, defesa, ataque defendido e saque em jogo, com a mesma regra (toque = padrão, segure = detalhe). Depois de recepção ou defesa, a vez passa para o parceiro.
+- **Última ação** com o destino opcional na quadra (3 × 3). Troca de lado, tempo técnico e sacador continuam automáticos.
+- **Relatório do jogo** ganhou **Linha da partida** (uma bolinha por ponto, com o que o originou), **rosquinhas** (origem dos pontos, ataques convertidos por tipo, erros cometidos, origem dos pontos do adversário) e os tipos passam a aparecer nas jogadas. Os jogos gravados mudaram de chave (`ft.scout.v2`).

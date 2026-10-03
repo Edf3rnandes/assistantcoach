@@ -18,7 +18,6 @@
     rel: { periodo: 'tudo', tipo: 'todos', dupla: 'todas' },
     treino: null, novoTreino: null, aviso: '',
   };
-  const live = { jogoId: null, quem: null, fund: null, tipo: null, dest: null, foco: null };
   let raiz = null;
 
   const pct = (v) => (v == null ? '–' : `${Math.round(v)}%`);
@@ -60,149 +59,11 @@
      COLETA AO VIVO
      ==================================================================== */
 
-  function padrao(j) {
-    const e = D.estado(j);
-    live.tipo = null; live.dest = null;
-    if (e.sac === 'nos') { live.quem = e.sacador; live.fund = 'saque'; }
-    else { live.quem = live.quem && j.dupla.includes(live.quem) ? live.quem : j.dupla[0]; live.fund = 'recepcao'; }
-  }
-
-  // Depois de uma ação que não encerra a jogada, sugere o que costuma vir em seguida.
-  function proximo(j, ev) {
-    const parc = j.dupla.find((x) => x !== ev.quem) || j.dupla[0];
-    live.tipo = null; live.dest = null;
-    if (ev.fund === 'recepcao' || ev.fund === 'defesa') { live.quem = parc; live.fund = 'ataque'; }
-    else live.fund = 'defesa';
-  }
-
   const descrever = (j, ev) => {
     const f = F[ev.fund], r = f.res.find((x) => x.id === ev.res);
-    return ev.quem === 'adv' ? `Adversário · ${r.nome}` : `${nm(ev.quem)} · ${f.nome} · ${r.nome}`;
+    const t = ev.tipo ? ` (${D.rotuloTipo(ev.fund, ev.res, ev.tipo).toLowerCase()})` : '';
+    return ev.quem === 'adv' ? `Adversário · ${r.nome}${t}` : `${nm(ev.quem)} · ${f.nome}${t} · ${r.nome}`;
   };
-
-  function coleta(root, id) {
-    const j = D.jogo(id);
-    if (!j) { root.innerHTML = '<p class="vazio">Jogo não encontrado. <button class="link-btn" id="sc-volta">Voltar aos jogos</button></p>'; root.querySelector('#sc-volta').addEventListener('click', () => window.Farol.ir('analise-scout', {})); return; }
-    if (live.jogoId !== id) { live.jogoId = id; live.quem = null; padrao(j); }
-    if (!live.quem) padrao(j);
-    const e = D.estado(j);
-    const fmt = D.FORMATOS[j.formato];
-    const [pa, pb] = j.dupla;
-    const ultimo = j.eventos[j.eventos.length - 1];
-    let aviso = '';
-    if (ultimo && ultimo.ponto && !e.encerrado) {
-      if (e.tempoTecnico) aviso = `Tempo técnico: ${e.a + e.b} pontos somados.`;
-      else if (e.trocaAgora) aviso = `Troca de lado: ${e.a + e.b} pontos somados.`;
-    }
-    const nSets = fmt.sets * 2 - 1;
-    const fund = live.quem === 'adv' ? 'adv' : live.fund === 'adv' ? 'saque' : live.fund;
-    const def = F[fund];
-
-    const op = (attr, val, pressed, rot, sub) => `<button class="sc-op" type="button" ${attr}="${val}" aria-pressed="${pressed}">${rot}${sub ? `<small>${sub}</small>` : ''}</button>`;
-    const quemBtns = [pa, pb].map((a) => op('data-quem', a, live.quem === a, esc(nm(a)), e.sac === 'nos' && e.sacador === a ? 'saca' : '')).join('')
-      + op('data-quem', 'adv', live.quem === 'adv', 'Adversário', e.sac === 'adv' ? 'saca' : '');
-
-    const prompt = !e.iniciado && !e.encerrado ? `
-      <section class="sc-inicio card" aria-label="Quem saca primeiro">
-        <div class="sc-inicio-t"><b>${e.sets.length ? `Set ${e.set + 1} começa.` : 'Antes de começar.'}</b> Quem saca primeiro?
-          ${e.sets.length ? `<small>${e.sets.map((s, i) => `Set ${i + 1}: ${s.a}–${s.b}`).join(' · ')}</small>` : ''}</div>
-        <div class="sc-quem">
-          ${[0, 1].map((k) => op('data-inicio', `nos:${k}`, e.sac === 'nos' && e.idx === k, esc(nm(j.dupla[k])), 'nós')).join('')}
-          ${op('data-inicio', 'adv:0', e.sac === 'adv', 'Adversário', 'eles')}
-        </div>
-      </section>` : '';
-
-    const fim = e.encerrado ? `
-      <section class="sc-fim card" role="status">
-        <div><span class="label">Jogo encerrado</span><h2>${e.vencedor === 'nos' ? 'Vitória' : 'Derrota'} por ${e.ganhos} set${e.ganhos === 1 ? '' : 's'} a ${e.perdidos}</h2><p class="num">${esc(resumoSets(j))}</p></div>
-        <div class="actions"><button class="btn btn-primary" id="sc-rel">Ver relatório</button><button class="btn" id="sc-corrigir">Corrigir o último ponto</button></div>
-      </section>` : '';
-
-    const entrada = e.encerrado ? '' : `
-      <section class="sc-entrada" aria-label="Registrar ação">
-        <div class="sc-bloco"><span class="label">Quem</span><div class="sc-quem" role="group" aria-label="Quem fez a ação">${quemBtns}</div></div>
-        ${live.quem === 'adv' ? '' : `<div class="sc-bloco"><span class="label">Fundamento</span><div class="sc-fund" role="group" aria-label="Fundamento">
-          ${D.ORDEM_FUND.map((k) => op('data-fund', k, fund === k, F[k].curto)).join('')}</div></div>`}
-        <div class="sc-bloco"><span class="label">Resultado</span><div class="sc-res" role="group" aria-label="Resultado de ${esc(def.nome.toLowerCase())}">
-          ${def.res.map((r) => `<button class="sc-rb ${r.ponto === 'nos' ? 'nos' : r.ponto === 'adv' ? 'adv' : 'cont'}" type="button" data-res="${r.id}"><span>${esc(r.nome)}</span><small>${r.ponto === 'nos' ? 'ponto nosso' : r.ponto === 'adv' ? 'ponto deles' : 'a jogada segue'}</small></button>`).join('')}
-        </div></div>
-        ${def.tipos || def.destino ? `<details class="sc-extra" ${live.tipo || live.dest != null ? 'open' : ''}>
-          <summary>Tipo e destino <small>(opcional${live.tipo || live.dest != null ? ', preenchido' : ''})</small></summary>
-          ${def.tipos ? `<div class="sc-chips" role="group" aria-label="Tipo">${def.tipos.map(([k, n]) => `<button class="sc-chip" type="button" data-tipo="${k}" aria-pressed="${live.tipo === k}">${esc(n)}</button>`).join('')}</div>` : ''}
-          ${def.destino ? `<div class="sc-dest-w"><span class="sc-rede">Rede</span><div class="sc-dest" role="group" aria-label="Para onde foi na quadra do adversário">
-            ${[0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => `<button type="button" data-dest="${k}" aria-pressed="${live.dest === k}" aria-label="${['Perto da rede', 'Meio', 'Fundo'][Math.floor(k / 3)]}, ${['esquerda', 'centro', 'direita'][k % 3]}">${live.dest === k ? '●' : ''}</button>`).join('')}</div><span class="sc-rede">Fundo</span></div>` : ''}
-        </details>` : ''}
-      </section>`;
-
-    const recentes = j.eventos.slice(-6).reverse();
-
-    root.innerHTML = `
-      <div class="sc-coleta">
-        <div class="sc-top">
-          <button class="link-btn" id="sc-voltar" style="margin:0">‹ Jogos</button>
-          <div class="actions">
-            <button class="btn btn-sm" id="sc-quadro" type="button">Quadro</button>
-            <button class="btn btn-sm" id="sc-desfazer" type="button" ${j.eventos.length ? '' : 'disabled'}>Desfazer</button>
-          </div>
-        </div>
-        <div><h1 class="sc-h1">${esc(tituloJogo(j))}</h1><p class="sc-sub">${esc(versus(j))} · ${esc(fmt.nome)}</p></div>
-
-        <section class="sc-placar" aria-label="Placar" aria-live="polite">
-          <div class="sc-time"><span class="sc-time-nome">${esc(D.rotuloDupla(j.dupla))}</span><b class="sc-pts num">${e.a}</b>
-            <span class="sc-saque">${e.sac === 'nos' && !e.encerrado ? `<i></i>Saque: ${esc(nm(e.sacador))}` : ''}</span></div>
-          <div class="sc-meio"><span>${fmt.sets > 1 || e.sets.length ? `Set ${Math.min(e.set + 1, nSets)}${nSets > 1 ? ` de ${nSets}` : ''}` : 'Set único'}</span>
-            <b class="num">${e.ganhos} – ${e.perdidos}</b>${e.sets.length ? `<small class="num">${e.sets.map((s) => `${s.a}–${s.b}`).join(' · ')}</small>` : ''}</div>
-          <div class="sc-time adv"><span class="sc-time-nome">${esc(j.adv)}</span><b class="sc-pts num">${e.b}</b>
-            <span class="sc-saque">${e.sac === 'adv' && !e.encerrado ? '<i></i>Saque deles' : ''}</span></div>
-        </section>
-        ${aviso ? `<div class="sc-aviso" role="status"><b>${esc(aviso)}</b></div>` : ''}
-        ${prompt}${fim}${entrada}
-
-        <section class="card sc-log" aria-labelledby="sc-log-t">
-          <div class="card-head"><h2 id="sc-log-t">Últimas ações</h2><span class="label num">${j.eventos.length} no jogo</span></div>
-          ${recentes.length ? `<ol class="sc-lista">${recentes.map((ev) => `<li><span>${esc(descrever(j, ev))}</span>${ev.ponto ? `<b class="sc-pt ${ev.ponto}">${ev.ponto === 'nos' ? 'ponto nosso' : 'ponto deles'}</b>` : ''}</li>`).join('')}</ol>` : '<p class="vazio" style="padding:4px 0">Nenhuma ação ainda. Escolha quem, o fundamento e o resultado.</p>'}
-          <div class="actions" style="margin-top:12px">
-            ${e.encerrado ? '' : `<button class="link-btn" id="sc-encerrar" style="margin:0" ${e.iniciado ? '' : 'disabled'}>Encerrar o jogo agora</button>`}
-          </div>
-        </section>
-      </div>`;
-
-    const $ = (s) => root.querySelector(s);
-    const refazer = (foco) => { live.foco = foco || null; coleta(root, id); window.scrollTo({ top: window.scrollY }); const f = live.foco && root.querySelector(live.foco); if (f) f.focus({ preventScroll: true }); };
-
-    $('#sc-voltar').addEventListener('click', () => window.Farol.ir('analise-scout', {}));
-    $('#sc-quadro').addEventListener('click', () => window.Farol.gaveta.abrir());
-    $('#sc-desfazer').addEventListener('click', () => { D.desfazer(id); padrao(D.jogo(id)); refazer('#sc-desfazer'); });
-    const encerrar = $('#sc-encerrar');
-    if (encerrar) encerrar.addEventListener('click', () => { D.encerrar(id); refazer('#sc-rel'); });
-    const rel = $('#sc-rel');
-    if (rel) rel.addEventListener('click', () => window.Farol.ir('analise-scout', { jogo: id }));
-    const corr = $('#sc-corrigir');
-    if (corr) corr.addEventListener('click', () => { D.desfazer(id); D.reabrir(id); padrao(D.jogo(id)); refazer('[data-res]'); });
-
-    root.querySelectorAll('[data-inicio]').forEach((b) => b.addEventListener('click', () => {
-      const [sac, k] = b.dataset.inicio.split(':');
-      D.definirInicio(id, e.set, sac, +k);
-      padrao(D.jogo(id));
-      refazer(`[data-inicio="${b.dataset.inicio}"]`);
-    }));
-    root.querySelectorAll('[data-quem]').forEach((b) => b.addEventListener('click', () => {
-      live.quem = b.dataset.quem;
-      if (live.quem === 'adv') live.fund = 'adv';
-      else if (live.fund === 'adv') live.fund = e.sac === 'nos' ? 'saque' : 'recepcao';
-      live.tipo = null; live.dest = null;
-      refazer(`[data-quem="${live.quem}"]`);
-    }));
-    root.querySelectorAll('[data-fund]').forEach((b) => b.addEventListener('click', () => { live.fund = b.dataset.fund; live.tipo = null; live.dest = null; refazer(`[data-fund="${live.fund}"]`); }));
-    root.querySelectorAll('[data-tipo]').forEach((b) => b.addEventListener('click', () => { live.tipo = live.tipo === b.dataset.tipo ? null : b.dataset.tipo; refazer(`[data-tipo="${b.dataset.tipo}"]`); }));
-    root.querySelectorAll('[data-dest]').forEach((b) => b.addEventListener('click', () => { const k = +b.dataset.dest; live.dest = live.dest === k ? null : k; refazer(`[data-dest="${k}"]`); }));
-    root.querySelectorAll('[data-res]').forEach((b) => b.addEventListener('click', () => {
-      const ev = D.registrar(id, { quem: live.quem, fund, res: b.dataset.res, tipo: def.tipos ? live.tipo : null, dest: def.destino ? live.dest : null });
-      if (!ev) return;
-      if (ev.ponto) padrao(D.jogo(id)); else proximo(D.jogo(id), ev);
-      refazer(`[data-res="${b.dataset.res}"]`);
-    }));
-  }
 
   /* ====================================================================
      PEÇAS DO RELATÓRIO
@@ -292,6 +153,68 @@
     ].join('')}</div>`;
   }
 
+
+  /* ---------- Gráficos de resumo do jogo ---------- */
+
+  const COR_DONUT = { ataque: 'var(--s-tatica)', bloqueio: 'var(--s-jogo)', ace: 'var(--s-tecnica)', saque: 'var(--s-tecnica)', erroAdv: 'var(--beam)', erroNos: 'var(--beam)', erro: 'var(--beam)', outro: 'var(--ink-2)', recepcao: 'var(--s-tecnica)', bloqueado: 'var(--s-jogo)', defesa: 'var(--s-recuperacao)', geral: 'var(--ink-2)', diagonal: 'var(--s-tatica)', paralela: 'var(--s-tecnica)', largada: 'var(--s-jogo)', usada: 'var(--s-fisico)', forca: 'var(--s-fisico)', shot: 'var(--beam)' };
+
+  function donut(titulo, itens, corNome) {
+    const lista = itens.filter((x) => x.v > 0), total = lista.reduce((a, x) => a + x.v, 0);
+    const R = 42, C = 2 * Math.PI * R;
+    let acc = 0;
+    const segs = lista.map((x) => { const len = (x.v / total) * C; const seg = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${COR_DONUT[x.k] || 'var(--ink-2)'}" stroke-width="16" stroke-dasharray="${Math.max(0, len - 1.5).toFixed(2)} ${(C - Math.max(0, len - 1.5)).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}" transform="rotate(-90 60 60)"/>`; acc += len; return seg; }).join('');
+    return `<div class="sc-donut ${corNome || ''}">
+      <svg viewBox="0 0 120 120" width="112" height="112" role="img" aria-label="${esc(titulo)}: ${total ? esc(lista.map((x) => `${x.rot} ${x.v}`).join(', ')) : 'sem dados'}">
+        <circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--sel)" stroke-width="16"/>${segs}
+        <text x="60" y="60" text-anchor="middle" dominant-baseline="central" class="sc-donut-n">${total || '–'}</text></svg>
+      <div class="sc-donut-l"><b>${esc(titulo)}</b>
+        ${total ? `<ul>${lista.map((x) => `<li><span class="dot" style="background:${COR_DONUT[x.k] || 'var(--ink-2)'};margin:0"></span><span>${esc(x.rot)}</span><b class="num">${x.v}</b><span class="num an-pc">${Math.round((x.v / total) * 100)}%</span></li>`).join('')}</ul>` : '<p class="vazio" style="padding:2px 0">Sem dados</p>'}</div></div>`;
+  }
+
+  function resumoVisual(S, j) {
+    const o = S.origemNos, a = S.origemAdv, e = S.errosNossos;
+    const tipoRot = (k) => (k === 'geral' ? 'Sem tipo' : D.rotuloTipo('ataque', 'ponto', k));
+    return `<div class="sc-duas">
+      <div class="sc-lado-card nos"><h3>${esc(D.rotuloDupla(j.dupla))}</h3>
+        ${donut('Origem dos pontos', [{ k: 'ataque', rot: 'Ataque', v: o.ataque }, { k: 'bloqueio', rot: 'Bloqueio', v: o.bloqueio }, { k: 'ace', rot: 'Ace', v: o.ace }, { k: 'erroAdv', rot: 'Erro deles', v: o.erroAdv }, { k: 'outro', rot: 'Outro', v: o.outro }])}
+        ${donut('Ataques convertidos', Object.entries(S.tiposAtaque).map(([k, v]) => ({ k, rot: tipoRot(k), v })))}
+        ${donut('Erros cometidos', [{ k: 'saque', rot: 'Saque', v: e.saque }, { k: 'recepcao', rot: 'Recepção', v: e.recepcao }, { k: 'ataque', rot: 'Ataque', v: e.ataque }, { k: 'bloqueado', rot: 'Ataque bloqueado', v: e.bloqueado }, { k: 'defesa', rot: 'Defesa', v: e.defesa }, { k: 'bloqueio', rot: 'Bloqueio', v: e.bloqueio }])}</div>
+      <div class="sc-lado-card adv"><h3>${esc(j.adv)}</h3>
+        ${donut('Origem dos pontos', [{ k: 'ataque', rot: 'Ataque', v: a.ataque }, { k: 'saque', rot: 'Saque', v: a.saque }, { k: 'bloqueio', rot: 'Bloqueio', v: a.bloqueio }, { k: 'erroNos', rot: 'Erro nosso', v: a.erroNos }, { k: 'outro', rot: 'Outro', v: a.outro }], 'adv')}</div>
+    </div>`;
+  }
+
+  const GLIFO = { ataque: '<circle r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M-4.600 -.5c3 .8 6 .8 9.200 0M0 -4.600a6 6 0 0 1 0 9.200" fill="none" stroke="currentColor" stroke-width="1.100"/>', bloqueio: '<path d="M-5 -4h10M-5 0h10M-5 4h10M0 -4v4M-2.500 0v4M2.500 0v4" stroke="currentColor" stroke-width="1.400" fill="none"/>', ace: '<text y="4.200" text-anchor="middle" font-size="11" font-weight="800" fill="currentColor">A</text>', saque: '<text y="4.200" text-anchor="middle" font-size="11" font-weight="800" fill="currentColor">S</text>', erro: '<path d="M-4 -4l8 8M4 -4l-8 8" stroke="currentColor" stroke-width="1.800" stroke-linecap="round"/>', outro: '<text y="4.200" text-anchor="middle" font-size="12" font-weight="800" fill="currentColor">?</text>' };
+  const origemEv = (ev) => {
+    if (ev.ponto === 'nos') return ev.fund === 'saque' ? 'ace' : ev.fund === 'ataque' ? 'ataque' : ev.fund === 'bloqueio' ? 'bloqueio' : ev.tipo === 'outro' ? 'outro' : 'erro';
+    if (ev.fund === 'adv') return ['ataque', 'saque', 'bloqueio'].includes(ev.tipo) ? ev.tipo : 'outro';
+    return 'erro';
+  };
+
+  // Uma bolinha por ponto: em cima os nossos (azul), embaixo os deles (vermelho), com o que originou o ponto.
+  function linhaPartida(j) {
+    const pts = j.eventos.filter((ev) => ev.ponto);
+    if (pts.length < 2) return '';
+    const DX = 34, X0 = 26, YC = 62, YN = 30, YA = 94;
+    let a = 0, b = 0, setC = pts[0].set;
+    const marcas = [], bol = [], pontos = [];
+    pts.forEach((ev, i) => {
+      if (ev.set !== setC) { marcas.push({ x: X0 + i * DX - DX / 2, rot: `Set ${ev.set + 1}` }); setC = ev.set; a = 0; b = 0; }
+      if (ev.ponto === 'nos') a++; else b++;
+      const x = X0 + i * DX, y = ev.ponto === 'nos' ? YN : YA, k = origemEv(ev), cor = ev.ponto === 'nos' ? '#2c5fe0' : '#d1362e';
+      pontos.push([x, y]);
+      bol.push(`<g transform="translate(${x} ${y})" style="color:${cor}"><title>${a}×${b} · ${esc(descrever(j, ev))}</title><circle r="13" fill="var(--surface)" stroke="${cor}" stroke-width="2.200"/>${GLIFO[k]}</g>${(a + b) % 5 === 0 ? `<text x="${x}" y="${ev.ponto === 'nos' ? YN - 19 : YA + 27}" text-anchor="middle" class="sc-lp-p">${a}×${b}</text>` : ''}`);
+    });
+    const W = X0 * 2 + (pts.length - 1) * DX;
+    return `<section class="card" aria-labelledby="sc-lp-t"><div class="card-head"><div><h2 id="sc-lp-t">Linha da partida</h2><p class="gf-sub">Cada bolinha é um ponto. Em cima, os nossos; embaixo, os deles. Passe o dedo ou o mouse para ver o placar e a jogada.</p></div></div>
+      <div class="sc-lp" tabindex="0" role="group" aria-label="Linha da partida, ponto a ponto"><svg width="${W}" height="${YA + 36}" viewBox="0 0 ${W} ${YA + 36}">
+        <line x1="8" x2="${W - 8}" y1="${YC}" y2="${YC}" class="sc-lp-base"/>
+        <polyline points="${pontos.map((q) => q.join(',')).join(' ')}" class="sc-lp-linha"/>
+        ${marcas.map((m) => `<line x1="${m.x}" x2="${m.x}" y1="6" y2="${YA + 20}" class="sc-lp-set"/><text x="${m.x}" y="14" text-anchor="middle" class="sc-lp-s">${m.rot}</text>`).join('')}
+        ${bol.join('')}</svg></div>
+      <ul class="sc-lp-leg" aria-label="Legenda">${[['ataque', 'Ataque'], ['bloqueio', 'Bloqueio'], ['ace', 'Ace'], ['saque', 'Saque deles'], ['erro', 'Erro'], ['outro', 'Outro']].map(([k, n]) => `<li><svg width="24" height="24" viewBox="-12 -12 24 24" aria-hidden="true"><g style="color:var(--ink)">${GLIFO[k]}</g></svg>${n}</li>`).join('')}</ul></section>`;
+  }
+
   /* ====================================================================
      RELATÓRIO DE UM JOGO
      ==================================================================== */
@@ -336,7 +259,8 @@
       </header>
       ${S.pontos.nos + S.pontos.adv ? kpisDe(S) : '<section class="card an-vazio"><h2>Sem ações registradas</h2><p>Comece a coleta para ver o relatório.</p></section>'}
       ${n >= 4 ? G.cartao('g-saldo', { titulo: 'Como o jogo andou', sub: 'Diferença de pontos a cada jogada.', ...cfgSaldo }) : ''}
-      ${S.pontos.nos + S.pontos.adv ? `<section class="card" aria-labelledby="sc-or-t"><div class="card-head"><h2 id="sc-or-t">De onde vieram os pontos</h2></div>${origemPontos(S)}</section>` : ''}
+      ${linhaPartida(j)}
+      ${S.pontos.nos + S.pontos.adv ? `<section class="card" aria-labelledby="sc-or-t"><div class="card-head"><h2 id="sc-or-t">Resumo visual</h2><span class="label">de onde vêm os pontos e onde erramos</span></div>${resumoVisual(S, j)}</section>` : ''}
       <section class="card" aria-labelledby="sc-at-t"><div class="card-head"><h2 id="sc-at-t">Atletas neste jogo</h2></div>${tabelaAtletas(S, j.dupla)}</section>
       ${S.dest.saque.some((v) => v) || S.dest.ataque.some((v) => v) ? `<section class="card" aria-labelledby="sc-mp-t"><div class="card-head"><h2 id="sc-mp-t">Para onde foram os saques e ataques</h2><span class="label">quadra do adversário</span></div><div class="sc-mapas">${mapa('Saque', S.dest.saque)}${mapa('Ataque', S.dest.ataque, S.dest.ataquePonto)}</div></section>` : ''}
       <details class="card sc-tl"><summary>Todas as jogadas (${pontos.length})</summary><ol class="sc-lista sc-tl-l">${linhas.join('')}</ol></details>`;
@@ -716,9 +640,5 @@
     if (params && params.novoTreino) { est.aba = 'fund'; est.treino = null; est.novoTreino = { fund: 'saque', nome: '', meta: 70, turmaId: 'sub18' }; }
     render(root);
   };
-  window.Farol.views['scout-coleta'] = (root, params) => {
-    raiz = root;
-    const id = (params && params.jogo) || live.jogoId;
-    coleta(root, id);
-  };
+  window.Farol.scoutUI = { tituloJogo, versus, resumoSets, descrever, seloResultado, kpi };
 })();

@@ -43,7 +43,7 @@
         { id: 'bloq', nome: 'Bloqueado', ponto: 'adv' },
         { id: 'erro', nome: 'Erro', ponto: 'adv' },
       ],
-      tipos: [['forca', 'Força'], ['shot', 'Shot'], ['largada', 'Largada']],
+      tipos: [['diagonal', 'Diagonal'], ['paralela', 'Paralela'], ['largada', 'Largada'], ['usada', 'Usada']],
       destino: true,
     },
     bloqueio: {
@@ -64,12 +64,21 @@
     adv: {
       nome: 'Adversário', curto: 'Adv.',
       res: [
-        { id: 'erro', nome: 'Erro deles', ponto: 'nos' },
-        { id: 'ponto', nome: 'Ponto deles', ponto: 'adv' },
+        { id: 'erro', nome: 'Erro deles', ponto: 'nos', tipos: [['saque', 'Saque'], ['ataque', 'Ataque'], ['rede', 'Rede'], ['fora', 'Bola fora'], ['outro', 'Outro']] },
+        { id: 'ponto', nome: 'Ponto deles', ponto: 'adv', tipos: [['ataque', 'Ataque'], ['saque', 'Saque'], ['bloqueio', 'Bloqueio'], ['outro', 'Outro']] },
       ],
     },
   };
   const ORDEM_FUND = ['saque', 'recepcao', 'ataque', 'bloqueio', 'defesa'];
+  // Rótulo de um tipo, inclusive os antigos (jogos já gravados).
+  const LEGADO = { forca: 'Força', shot: 'Shot' };
+  const rotuloTipo = (fund, res, id) => {
+    if (!id) return '';
+    const f = FUND[fund], r = f && f.res.find((x) => x.id === res);
+    const lista = (r && r.tipos) || (f && f.tipos) || [];
+    const par = lista.find(([k]) => k === id);
+    return par ? par[1] : LEGADO[id] || id;
+  };
 
   const FORMATOS = {
     melhor3: { nome: 'Melhor de 3 sets (21, 21 e 15)', pts: [21, 21, 15], sets: 2, troca: [7, 7, 5], tempoTecnico: true },
@@ -160,6 +169,10 @@
       ganhos: { ace: 0, ataque: 0, bloqueio: 0, erroAdv: 0 },
       perdas: { erroSaque: 0, erroRec: 0, erroAtaque: 0, bloqueado: 0, erroDef: 0, erroBloq: 0, pontoAdv: 0 },
       atletas: {}, dest: { saque: grade(), ataque: grade(), ataquePonto: grade() },
+      // Para os gráficos: de onde vem cada ponto, quais ataques convertem e onde erramos.
+      origemNos: { ataque: 0, bloqueio: 0, ace: 0, erroAdv: 0, outro: 0 },
+      origemAdv: { ataque: 0, saque: 0, bloqueio: 0, erroNos: 0, outro: 0 },
+      tiposAtaque: {}, errosNossos: { saque: 0, recepcao: 0, ataque: 0, bloqueado: 0, defesa: 0, bloqueio: 0 },
     };
     const at = (id) => (R.atletas[id] = R.atletas[id] || vazioAtleta());
     jogos.forEach((j) => {
@@ -190,6 +203,20 @@
         R.pontos[ev.ponto]++;
         const bucket = ev.sac === 'adv' ? R.so : R.bp;
         bucket.n++; if (ev.ponto === 'nos') bucket.v++;
+        if (ev.ponto === 'nos') {
+          if (ev.fund === 'saque') R.origemNos.ace++;
+          else if (ev.fund === 'ataque') { R.origemNos.ataque++; const t = ev.tipo || 'geral'; R.tiposAtaque[t] = (R.tiposAtaque[t] || 0) + 1; }
+          else if (ev.fund === 'bloqueio') R.origemNos.bloqueio++;
+          else if (ev.tipo === 'outro') R.origemNos.outro++;
+          else R.origemNos.erroAdv++;
+        } else if (ev.fund === 'adv') {
+          const k = ['ataque', 'saque', 'bloqueio'].includes(ev.tipo) ? ev.tipo : 'outro';
+          R.origemAdv[k]++;
+        } else {
+          R.origemAdv.erroNos++;
+          const k = ev.fund === 'ataque' ? (ev.res === 'bloq' ? 'bloqueado' : 'ataque') : ev.fund;
+          if (k in R.errosNossos) R.errosNossos[k]++;
+        }
         if (ev.ponto === 'nos') {
           if (p) p.pontos++;
           if (ev.fund === 'saque') R.ganhos.ace++;
@@ -275,7 +302,8 @@
     };
     const dest = (f) => (FUND[f].destino ? { dest: escolha(r, [[0, 1], [1, 1.4], [2, 1.1], [3, 1.6], [4, 2.1], [5, 1.7], [6, 1.2], [7, 1.8], [8, 1.3]]) } : {});
     const tipoSaque = (id) => (r() < 0.25 + 0.5 * P[id].viagem ? 'viag' : 'flut');
-    const tipoAtq = () => escolha(r, [['forca', 5], ['shot', 3], ['largada', 1.5]]);
+    const tipoAtq = () => escolha(r, [['diagonal', 5], ['paralela', 3], ['largada', 1.5], ['usada', 1.5]]);
+    const tipoAdv = (opcoes) => escolha(r, opcoes);
 
     // Ordem dos pontos: embaralhada, com o último sempre do vencedor do set.
     const jogada = (set, sac, idx, vence) => {
@@ -288,14 +316,14 @@
             push(set, sac, sacador, 'saque', 'jogo', { tipo: tipoSaque(sacador), ...dest('saque') });
             const y = r();
             if (y < 0.22) push(set, sac, parc, 'bloqueio', 'ponto');
-            else if (y < 0.55) push(set, sac, 'adv', 'adv', 'erro');
+            else if (y < 0.55) push(set, sac, 'adv', 'adv', 'erro', { tipo: tipoAdv([['saque', 3], ['ataque', 4], ['rede', 2], ['fora', 3], ['outro', 0.5]]) });
             else { push(set, sac, escolha(r, [[sacador, 1], [parc, 1]]), 'defesa', 'boa'); push(set, sac, escolha(r, [[sacador, 1], [parc, 1]]), 'ataque', 'ponto', { tipo: tipoAtq(), ...dest('ataque') }); }
           }
         } else if (r() < P[sacador].erroSaque * 1.6) push(set, sac, sacador, 'saque', 'erro', { tipo: tipoSaque(sacador), ...dest('saque') });
         else {
           push(set, sac, sacador, 'saque', 'jogo', { tipo: tipoSaque(sacador), ...dest('saque') });
           const y = r();
-          if (y < 0.5) push(set, sac, 'adv', 'adv', 'ponto');
+          if (y < 0.5) push(set, sac, 'adv', 'adv', 'ponto', { tipo: tipoAdv([['ataque', 6], ['saque', 2], ['bloqueio', 2], ['outro', 0.6]]) });
           else if (y < 0.78) push(set, sac, escolha(r, [[sacador, 1], [parc, 1]]), 'defesa', 'erro');
           else if (y < 0.88) push(set, sac, parc, 'bloqueio', 'erro');
           else { push(set, sac, escolha(r, [[sacador, 1], [parc, 1]]), 'defesa', 'boa'); push(set, sac, escolha(r, [[sacador, 1], [parc, 1]]), 'ataque', r() < 0.5 ? 'erro' : 'bloq', { tipo: tipoAtq(), ...dest('ataque') }); }
@@ -311,11 +339,11 @@
         const y = r();
         if (y < 0.3) push(set, sac, atac, 'ataque', 'bloq', { tipo: tipoAtq(), ...dest('ataque') });
         else if (y < 0.62) push(set, sac, atac, 'ataque', 'erro', { tipo: tipoAtq(), ...dest('ataque') });
-        else { push(set, sac, atac, 'ataque', 'jogo', { tipo: tipoAtq(), ...dest('ataque') }); push(set, sac, 'adv', 'adv', 'ponto'); }
+        else { push(set, sac, atac, 'ataque', 'jogo', { tipo: tipoAtq(), ...dest('ataque') }); push(set, sac, 'adv', 'adv', 'ponto', { tipo: tipoAdv([['ataque', 6], ['saque', 2], ['bloqueio', 2], ['outro', 0.6]]) }); }
       } else {
         const nota = escolha(r, [['r3', 0.3 + P[rec].rec * 0.8], ['r2', 0.5], ['r1', 0.18]]);
         push(set, sac, rec, 'recepcao', nota);
-        if (nota === 'r1' && r() < 0.35) { push(set, sac, atac, 'ataque', 'jogo', { tipo: 'shot', ...dest('ataque') }); push(set, sac, 'adv', 'adv', 'erro'); return; }
+        if (nota === 'r1' && r() < 0.35) { push(set, sac, atac, 'ataque', 'jogo', { tipo: 'largada', ...dest('ataque') }); push(set, sac, 'adv', 'adv', 'erro', { tipo: tipoAdv([['saque', 3], ['ataque', 4], ['rede', 2], ['fora', 3], ['outro', 0.5]]) }); return; }
         push(set, sac, atac, 'ataque', 'ponto', { tipo: tipoAtq(), ...dest('ataque') });
       }
     };
@@ -375,6 +403,7 @@
     // Um treino-jogo em andamento hoje, para continuar de onde parou
     const andamento = novoJogo({ tipo: 'treino', titulo: 'Treino-jogo', data: HOJE, origem: { turmaId: 'sub18' }, dupla: ['a5', 'a6'], adv: 'Caio e Bruno', formato: 'set21', status: 'andamento' });
     andamento.eventos = simular(andamento, [[9, 7]], 't5');
+    andamento.iniciadoEm = Date.now() - 11 * 60e3;
     lista.push(andamento);
     return lista;
   }
@@ -405,7 +434,7 @@
 
   /* ---------- Armazenamento ---------- */
 
-  const CHAVE = 'ft.scout.v1';
+  const CHAVE = 'ft.scout.v2';
   let jogos = semear();
   let treinos = semearFundamentos();
   try {
@@ -422,7 +451,7 @@
 
   const API = {
     FUND, ORDEM_FUND, FORMATOS, REF,
-    estado, estatisticas, sugestoes, nomeCurto, rotuloDupla,
+    estado, estatisticas, sugestoes, nomeCurto, rotuloDupla, rotuloTipo,
     jogos: () => jogos.slice().sort((a, b) => b.data - a.data || (b.status === 'andamento') - (a.status === 'andamento')),
     jogo: obter,
     treinos: () => treinos.slice().sort((a, b) => b.data - a.data),
@@ -445,6 +474,7 @@
       const novo = { n: j.eventos.length + 1, set: e.set, sac: e.sac, quem: ev.quem, fund: ev.fund, res: ev.res, ponto: def.ponto };
       if (ev.tipo) novo.tipo = ev.tipo;
       if (ev.dest != null) novo.dest = ev.dest;
+      if (!j.iniciadoEm) j.iniciadoEm = Date.now();
       j.eventos.push(novo);
       if (estado(j).encerrado && FORMATOS[j.formato].pts[0]) j.status = 'finalizado';
       salvar();
@@ -457,6 +487,8 @@
       salvar();
       return ev;
     },
+    // Acrescenta destino ou tipo à última ação (a coleta rápida pergunta depois, sem atrapalhar o ritmo).
+    ajustarUltimo(jogoId, patch) { const j = obter(jogoId); const ev = j && j.eventos[j.eventos.length - 1]; if (!ev) return null; Object.assign(ev, patch); salvar(); return ev; },
     definirInicio(jogoId, set, sac, idx) { const j = obter(jogoId); j.inicio[set] = { sac, idx: idx || 0 }; salvar(); },
     encerrar(jogoId) { const j = obter(jogoId); if (j) { j.status = 'finalizado'; salvar(); } },
     reabrir(jogoId) { const j = obter(jogoId); if (j) { j.status = 'andamento'; salvar(); } },

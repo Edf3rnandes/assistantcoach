@@ -28,10 +28,10 @@
   const ids = (turma) => ATLETAS_LISTA.filter((a) => a.id.startsWith(turma)).map((a) => a.id);
 
   const TURMAS = {
-    sub18: { id: 'sub18', nome: 'Sub-18 Masculino', faixa: 'Sub-18', categorias: ['Sub-18 Masc'], atletas: ids('a'), professores: ['p1', 'p2', 'p3'] },
-    adulto: { id: 'adulto', nome: 'Adulto Misto, areia', faixa: 'Adulto', categorias: ['Adulto Masc', 'Adulto Fem'], atletas: [...ids('b'), ...ids('c')], professores: ['p1', 'p3'] },
-    sub19f: { id: 'sub19f', nome: 'Sub-19 Feminino', faixa: 'Sub-19', categorias: ['Sub-19 Fem'], atletas: ['e1', 'e2'], professores: ['p2', 'p3'] },
-    sub16f: { id: 'sub16f', nome: 'Sub-16 Feminino', faixa: 'Sub-16', categorias: ['Sub-16 Fem'], atletas: ids('d'), professores: ['p2', 'p3'] },
+    sub18: { id: 'sub18', nome: 'Sub-18 Masculino', token: 'sub18-7kq2', faixa: 'Sub-18', categorias: ['Sub-18 Masc'], atletas: ids('a'), professores: ['p1', 'p2', 'p3'] },
+    adulto: { id: 'adulto', nome: 'Adulto Misto, areia', token: 'adulto-m4x9', faixa: 'Adulto', categorias: ['Adulto Masc', 'Adulto Fem'], atletas: [...ids('b'), ...ids('c')], professores: ['p1', 'p3'] },
+    sub19f: { id: 'sub19f', nome: 'Sub-19 Feminino', token: 'sub19f-p8d1', faixa: 'Sub-19', categorias: ['Sub-19 Fem'], atletas: ['e1', 'e2'], professores: ['p2', 'p3'] },
+    sub16f: { id: 'sub16f', nome: 'Sub-16 Feminino', token: 'sub16f-z3c6', faixa: 'Sub-16', categorias: ['Sub-16 Fem'], atletas: ids('d'), professores: ['p2', 'p3'] },
   };
 
   // Catálogo de fundamentos. O vocabulário vem do perfil do esporte (hoje, vôlei de praia).
@@ -92,6 +92,14 @@
     },
   };
 
+  const turmaPorToken = (t) => Object.values(TURMAS).find((x) => x.token === t) || null;
+  // Novo link: o anterior deixa de valer. Em produção o token fica no banco (`tokens_atleta`).
+  const novoToken = (turmaId) => {
+    const t = TURMAS[turmaId];
+    t.token = `${turmaId}-${Math.random().toString(36).slice(2, 6)}`;
+    return t.token;
+  };
+
   window.Farol = window.Farol || {};
-  window.Farol.elenco = { PROFS, ATLETAS, ATLETAS_LISTA, TURMAS, FUNDAMENTOS, FUNDAMENTOS_LISTA, GRUPOS_FUNDAMENTO, PRIORIDADES, PAUTA_PADRAO };
+  window.Farol.elenco = { turmaPorToken, novoToken, PROFS, ATLETAS, ATLETAS_LISTA, TURMAS, FUNDAMENTOS, FUNDAMENTOS_LISTA, GRUPOS_FUNDAMENTO, PRIORIDADES, PAUTA_PADRAO };
 })();

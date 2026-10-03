@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Farol Tático · Atleta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/farol.css">
+</head>
+<body class="pagina-atleta">
+  <!-- Página do atleta: aberta pelo link único da turma, ex.: atleta.html?t=sub18-7kq2 -->
+  <main id="app"></main>
+
+  <script src="js/util.js"></script>
+  <script src="js/elenco.js"></script>
+  <script src="js/calendario.js"></script>
+  <script src="js/registros.js"></script>
+  <script src="js/dados.js"></script>
+  <script src="js/atleta.js"></script>
+  <script>
+    (function () {
+      var token = new URLSearchParams(location.search).get('t') || location.hash.replace('#t=', '');
+      window.Farol.atletaUI.montar(document.getElementById('app'), { token: token });
+    })();
+  </script>
+</body>
+</html>

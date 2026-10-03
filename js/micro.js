@@ -75,7 +75,8 @@
       status = `<span class="session-status ok">✓ PSE ${r.pseMedio != null ? dec(r.pseMedio) : '–'} · PSR ${r.psrMedio != null ? dec(r.psrMedio) : '–'}</span>`;
       leitura = ` Registrado: PSE médio ${r.pseMedio != null ? dec(r.pseMedio) : 'n/d'}, PSR médio ${r.psrMedio != null ? dec(r.psrMedio) : 'n/d'}.`;
     } else if (st === 'aguardando') {
-      status = '<span class="session-status pend">Aguardando registro</span>';
+      const rr = REG.resumoRespostas(plano, sem, s);
+      status = `<span class="session-status pend">Aguardando registro</span>${rr.n ? `<span class="session-status num">${rr.n}/${rr.total} responderam</span>` : ''}`;
       leitura = ' Aguardando registro.';
     } else if (st === 'semregistro') {
       status = '<span class="session-status">Sem registro</span>';

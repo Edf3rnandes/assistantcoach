@@ -4,7 +4,7 @@
 (function () {
   const { dados, util, elenco, registros: REG } = window.Farol;
   const { DIA, dd, dec, esc, num, plural, media, clamp, HOJE } = util;
-  const { ATLETAS, PROFS, FUNDAMENTOS } = elenco;
+  const { ATLETAS, PROFS, FUNDAMENTOS, TURMAS } = elenco;
   const { TIPOS_SESSAO, DIAS, TURNOS } = dados;
 
   const PRESENCAS = { presente: 'Presente', justificada: 'Falta justificada', falta: 'Falta' };
@@ -30,6 +30,20 @@
       presenca: Object.fromEntries(plano.atletas.map((id) => [id, 'presente'])),
       pse: {}, psr: {}, notasAtleta: {},
     };
+    base.jogadas = base.jogadas || [];
+
+    // Respostas dadas pelos atletas no link da turma entram como ponto de partida.
+    const resp = REG.respostas(plano, semana, sessao);
+    const nResp = Object.keys(resp).length;
+    if (!existente) {
+      plano.atletas.forEach((id) => {
+        const q = resp[id];
+        if (!q) return;
+        if (q.faltou) base.presenca[id] = 'falta';
+        else { base.pse[id] = q.pse; base.psr[id] = q.psr; }
+      });
+    }
+    const jogadasLib = window.Farol.quadro ? window.Farol.quadro.listar() : [];
     // Chips de fundamentos: os da pauta da fase mais os que o professor marcou.
     const chips = [...new Set([...pautaIds, ...base.fundamentos])];
     const outros = Object.values(FUNDAMENTOS).filter((f) => !chips.includes(f.id));
@@ -66,6 +80,15 @@
           ${pautaIds.length ? `<p class="hint" style="margin-top:6px">Os primeiros itens vêm da pauta da fase ${esc(meso.nome)}.</p>` : ''}
         </fieldset>
 
+        ${jogadasLib.length ? `
+        <fieldset class="reg-fund">
+          <legend class="label">Jogadas do quadro técnico usadas</legend>
+          <div class="checks" id="rg-jogadas">
+            ${jogadasLib.map((j) => `<label class="check chipcheck"><input type="checkbox" name="rg-jog" value="${j.id}" ${base.jogadas.includes(j.id) ? 'checked' : ''}><span>${esc(j.titulo)}</span></label>`).join('')}
+            <button class="link-btn" type="button" id="rg-quadro" style="margin:0">Abrir o quadro rápido</button>
+          </div>
+        </fieldset>` : ''}
+
         <div class="reg-atletas">
           <div class="reg-tools">
             <span class="label">Atletas · ${plano.atletas.length}</span>
@@ -73,6 +96,10 @@
               <button class="link-btn" type="button" id="rg-todos">Todos presentes</button>
               <button class="link-btn" type="button" id="rg-alvo">Preencher PSE vazio com ${sessao.pse}</button>
             </div>
+          </div>
+          <div class="resp-info">
+            <span><b class="num">${nResp}</b> de ${plano.atletas.length} atletas responderam pelo link da turma.</span>
+            ${nResp ? '<button class="link-btn" type="button" id="rg-importar" style="margin:0">Usar respostas nos campos vazios</button>' : ''}
           </div>
           <div class="reg-grid" role="group" aria-label="Presença, PSE e PSR por atleta">
             <div class="reg-row reg-cab" aria-hidden="true"><span>Atleta</span><span>Presença</span><span>PSE (1 a 10)</span><span>PSR (0 a 10)</span><span>Nota</span></div>
@@ -82,7 +109,7 @@
               const ausente = pres !== 'presente';
               return `
               <div class="reg-row" data-atleta="${id}">
-                <span class="reg-nome">${esc(a.nome)}</span>
+                <span class="reg-nome">${esc(a.nome)}${resp[id] ? '<span class="badge-resp" title="Respondeu pelo link da turma">✓ respondeu</span>' : ''}${resp[id] && resp[id].dor >= 2 ? `<span class="dor-tag">${esc(REG.DOR[resp[id].dor].toLowerCase())}</span>` : ''}</span>
                 <label class="reg-cell"><span class="reg-lbl">Presença</span>
                   <select class="select sm" id="rg-pres-${id}" aria-label="Presença de ${esc(a.nome)}">
                     ${Object.entries(PRESENCAS).map(([k, v]) => `<option value="${k}" ${k === pres ? 'selected' : ''}>${v}</option>`).join('')}
@@ -164,6 +191,37 @@
         sel.value = 'presente';
         $(`#rg-pse-${id}`).disabled = false;
         $(`#rg-psr-${id}`).disabled = false;
+      });
+      resumo();
+    });
+    const bq = $('#rg-quadro');
+    if (bq) bq.addEventListener('click', () => window.Farol.gaveta && window.Farol.gaveta.abrir());
+    // Jogada salva no quadro rápido enquanto este registro está aberto já entra marcada.
+    const aoSalvarJogada = (ev) => {
+      if (!el.isConnected) { window.removeEventListener('ft:jogada-salva', aoSalvarJogada); return; }
+      const caixa = $('#rg-jogadas');
+      if (!caixa) return;
+      const ja = caixa.querySelector(`input[value="${ev.detail.id}"]`);
+      if (ja) { ja.checked = true; ja.nextElementSibling.textContent = ev.detail.titulo; return; }
+      const lb = document.createElement('label');
+      lb.className = 'check chipcheck';
+      lb.innerHTML = `<input type="checkbox" name="rg-jog" value="${esc(ev.detail.id)}" checked><span>${esc(ev.detail.titulo)}</span>`;
+      caixa.insertBefore(lb, $('#rg-quadro'));
+    };
+    window.addEventListener('ft:jogada-salva', aoSalvarJogada);
+
+    const imp = $('#rg-importar');
+    if (imp) imp.addEventListener('click', () => {
+      plano.atletas.forEach((id) => {
+        const q = resp[id];
+        if (!q) return;
+        if (q.faltou) {
+          if ($(`#rg-pse-${id}`).value === '') { $(`#rg-pres-${id}`).value = 'falta'; $(`#rg-pse-${id}`).disabled = true; $(`#rg-psr-${id}`).disabled = true; }
+          return;
+        }
+        if ($(`#rg-pres-${id}`).value !== 'presente') return;
+        if ($(`#rg-pse-${id}`).value === '') $(`#rg-pse-${id}`).value = q.pse;
+        if ($(`#rg-psr-${id}`).value === '') $(`#rg-psr-${id}`).value = q.psr;
       });
       resumo();
     });
@@ -257,6 +315,7 @@
         duracao: dur,
         professores: [...el.querySelectorAll('input[name="rg-prof"]:checked')].map((i) => i.value),
         fundamentos: [...el.querySelectorAll('input[name="rg-fund"]:checked')].map((i) => i.value),
+        jogadas: [...el.querySelectorAll('input[name="rg-jog"]:checked')].map((i) => i.value),
         notas: valor('#rg-notas').trim(),
         presenca: {}, pse: {}, psr: {}, notasAtleta: {},
       };
@@ -281,7 +340,7 @@
 
   /* ---------- Tela "Registro do treino" ---------- */
 
-  const estado = { filtro: 'aguardando', dias: 28, abrir: null, aviso: '' };
+  const estado = { filtro: 'aguardando', dias: 28, abrir: null, aviso: '', confirmaLink: false, copiado: '' };
 
   function sessoesRegistraveis(plano) {
     const lista = [];
@@ -310,7 +369,7 @@
         <td class="num">${r ? `${r.presentes}/${r.total}` : '–'}</td>
         <td class="num">${r && r.pseMedio != null ? `${dec(r.pseMedio)} <small style="color:var(--ink-2)">/ ${s.pse}</small>` : '–'}</td>
         <td class="num">${r && r.psrMedio != null ? dec(r.psrMedio) : '–'}${r && r.psrPendentes ? ` <span class="chip" title="PSR pendente">${r.psrPendentes}</span>` : ''}</td>
-        <td>${st === 'registrado' ? '<span class="chip">registrado</span>' : st === 'aguardando' ? '<span class="chip chip-beam">aguardando</span>' : '<span class="chip">sem registro</span>'}</td>
+        <td>${st === 'registrado' ? '<span class="chip">registrado</span>' : st === 'aguardando' ? `<span class="chip chip-beam">aguardando</span> <small class="num" style="color:var(--ink-2)">${REG.resumoRespostas(plano, semana, s).n}/${plano.atletas.length} responderam</small>` : '<span class="chip">sem registro</span>'}</td>
         <td><button class="btn btn-sm" data-abrir="${semana.idx}:${s.id}">${st === 'registrado' ? 'Abrir' : 'Registrar'}</button></td>
       </tr>`;
   }
@@ -339,6 +398,22 @@
 
       ${estado.aviso ? `<div class="aviso-ok" role="status">${esc(estado.aviso)}</div>` : ''}
 
+      <section class="card link-unico" aria-labelledby="h-link">
+        <div class="card-head"><h2 id="h-link">Link único para os atletas</h2><span class="label">${esc(TURMAS[plano.turma].nome)}</span></div>
+        <p>Envie este link no grupo da turma. Cada atleta abre, escolhe o próprio nome e responde o esforço (PSE), a recuperação (PSR) e se sentiu dor. Não precisa de senha.</p>
+        <div class="link-url">
+          <code id="link-txt">atleta.html?t=${esc(TURMAS[plano.turma].token)}</code>
+          <button class="btn" id="link-copiar">Copiar link</button>
+        </div>
+        <p class="hint" id="link-msg" aria-live="polite" style="margin:0">${esc(estado.copiado) || 'O endereço completo é o mesmo do painel, com atleta.html no lugar de index.html.'}</p>
+        <div class="actions">
+          <button class="btn" id="ver-atleta">Ver como o atleta vê</button>
+          ${estado.confirmaLink
+            ? '<span class="confirma">Os links já enviados deixam de funcionar.</span><button class="btn btn-primary" id="novo-link-sim">Gerar novo link</button><button class="btn" id="novo-link-nao">Cancelar</button>'
+            : '<button class="link-btn" id="novo-link" style="margin:0">Gerar um novo link</button>'}
+        </div>
+      </section>
+
       <div id="reg-editor"></div>
 
       <section class="card" aria-labelledby="h-lista">
@@ -363,6 +438,16 @@
       estado.abrir = null; estado.aviso = '';
       tela(root);
     });
+    root.querySelector('#link-copiar').addEventListener('click', () => {
+      const url = new URL(`atleta.html?t=${TURMAS[plano.turma].token}`, location.href).href;
+      const msg = root.querySelector('#link-msg');
+      const falhou = () => { estado.copiado = ''; msg.textContent = `Não consegui copiar sozinho. Copie manualmente: ${url}`; };
+      try { navigator.clipboard.writeText(url).then(() => { estado.copiado = 'Link copiado.'; msg.textContent = 'Link copiado.'; }, falhou); } catch (e) { falhou(); }
+    });
+    root.querySelector('#ver-atleta').addEventListener('click', () => window.Farol.ir('atleta-previa', {}));
+    const nl = root.querySelector('#novo-link'); if (nl) nl.addEventListener('click', () => { estado.confirmaLink = true; tela(root); });
+    const nls = root.querySelector('#novo-link-sim'); if (nls) nls.addEventListener('click', () => { elenco.novoToken(plano.turma); estado.confirmaLink = false; estado.copiado = 'Novo link gerado. O anterior não funciona mais.'; tela(root); });
+    const nln = root.querySelector('#novo-link-nao'); if (nln) nln.addEventListener('click', () => { estado.confirmaLink = false; tela(root); });
     root.querySelectorAll('[data-filtro]').forEach((b) => b.addEventListener('click', () => { estado.filtro = b.dataset.filtro; tela(root); }));
     root.querySelector('#reg-mais').addEventListener('click', () => { estado.dias += 28; tela(root); });
 
@@ -396,7 +481,37 @@
     }
   }
 
+  function previa(root) {
+    const plano = dados.plano(window.Farol.compartilhado.planoId);
+    const turma = TURMAS[plano.turma];
+    root.innerHTML = `
+      <div><button class="link-btn" id="pv-voltar" style="margin:0">‹ Voltar ao registro do treino</button></div>
+      <header class="page-head">
+        <div>
+          <span class="chip" style="margin-bottom:10px">Prévia</span>
+          <h1>Página do atleta</h1>
+          <p class="lead">É assim que o atleta vê o link da turma ${esc(turma.nome)} no celular dele. Escolha um nome, responda um treino e volte ao registro: a resposta aparece lá como “respondeu”.</p>
+        </div>
+      </header>
+      <div class="previa-linha">
+        <section class="card" aria-labelledby="h-pv">
+          <h2 id="h-pv" style="margin-bottom:10px">Como funciona</h2>
+          <ol class="ideias" style="gap:8px">
+            <li>O professor envia o <b>link único</b> da turma no grupo.</li>
+            <li>O atleta escolhe o nome e confirma que é ele.</li>
+            <li>Responde cada treino: foi ou não, esforço (PSE), recuperação (PSR) e dor.</li>
+            <li>No painel, o professor abre o registro da sessão e as respostas já vêm preenchidas. Falta só conferir a presença e salvar.</li>
+          </ol>
+          <p class="hint" style="margin-top:14px">O atleta vê só os próprios dados: seus treinos, suas respostas e as competições em que está inscrito. Dados de colegas e custos nunca aparecem. Nesta prévia, o atleta “Lucas Ribeiro” tem treinos para responder.</p>
+        </section>
+        <div class="celular" id="pv-celular"></div>
+      </div>`;
+    root.querySelector('#pv-voltar').addEventListener('click', () => window.Farol.ir('treino-registro', {}));
+    window.Farol.atletaUI.montar(root.querySelector('#pv-celular'), { turmaId: turma.id, embutido: true });
+  }
+
   window.Farol.registroUI = { editor };
   window.Farol.views = window.Farol.views || {};
   window.Farol.views['treino-registro'] = tela;
+  window.Farol.views['atleta-previa'] = previa;
 })();

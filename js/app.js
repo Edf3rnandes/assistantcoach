@@ -38,6 +38,7 @@
       titulo: 'Planejamento',
       itens: [
         { id: 'treinos-periodizacao', nome: 'Periodização', icone: 'cal', pronta: true },
+        { id: 'atleta-previa', nome: 'Prévia do atleta', icone: 'pessoas', pronta: true, oculta: true },
         { id: 'planejamento-competicoes', nome: 'Competições', icone: 'placar', pronta: true },
         {
           id: 'treinos-microciclo', nome: 'Resposta da semana', icone: 'pulso',
@@ -59,7 +60,7 @@
           resumo: '', bullets: [], tabelas: [],
         },
         {
-          id: 'treino-quadro', nome: 'Quadro técnico', icone: 'quadro',
+          id: 'treino-quadro', nome: 'Quadro técnico', icone: 'quadro', pronta: true,
           resumo: 'Quadra de areia para desenhar posições, deslocamentos e ações, em sequência de quadros.',
           bullets: [
             'Quadra 16 × 8 m com rede, dois jogadores por lado, bola, setas de deslocamento, passe e ataque.',
@@ -121,7 +122,7 @@
     return GRUPOS.map((g) => `
       <div class="nav-group">
         <div class="nav-title">${esc(g.titulo)}</div>
-        ${g.itens.map((i) => i.existente
+        ${g.itens.filter((i) => !i.oculta).map((i) => i.existente
           ? `<span class="nav-link" aria-disabled="true" title="Já existe no sistema atual, fora desta etapa">${icon(i.icone)}${esc(i.nome)}<span class="nav-tag">atual</span></span>`
           : `<a class="nav-link" href="#${i.id}" data-rota="${i.id}">${icon(i.icone)}${esc(i.nome)}${i.pronta ? '' : '<span class="nav-tag">em breve</span>'}</a>`).join('')}
       </div>`).join('');
@@ -162,6 +163,8 @@
     else main.innerHTML = pendente(item);
 
     document.title = `${item.nome} | Farol Tático`;
+    const fab = document.getElementById('fab-quadro');
+    if (fab) fab.hidden = rota === 'treino-quadro';
     const nav = document.getElementById('nav');
     if (nav.dataset.open === 'true' && matchMedia('(max-width: 860px)').matches) fecharMenu();
   }
@@ -179,7 +182,45 @@
     window.scrollTo({ top: 0 });
   };
 
+
+  /* ---------- Gaveta "Quadro rápido" ----------
+     Botão fixo que abre o quadro técnico sobre qualquer tela, sem navegar. O desenho é o mesmo
+     da tela cheia e continua onde parou. Pensado para o treino e, depois, para o scout em jogo. */
+  const gaveta = {
+    aberta: false,
+    abrir() {
+      const el = document.getElementById('gaveta-quadro');
+      if (!el || !window.Farol.quadro) return;
+      this.aberta = true;
+      el.hidden = false;
+      document.getElementById('fab-quadro').setAttribute('aria-expanded', 'true');
+      window.Farol.quadro.montar(document.getElementById('gaveta-corpo'), 'painel');
+      document.getElementById('gaveta-fechar').focus();
+    },
+    fechar() {
+      const el = document.getElementById('gaveta-quadro');
+      if (!el || !this.aberta) return;
+      this.aberta = false;
+      el.hidden = true;
+      document.getElementById('fab-quadro').setAttribute('aria-expanded', 'false');
+      document.getElementById('gaveta-corpo').innerHTML = '';
+      window.Farol.quadro.desmontar();
+      document.getElementById('fab-quadro').focus();
+    },
+  };
+  window.Farol.gaveta = gaveta;
+
+  function ligarGaveta() {
+    const fab = document.getElementById('fab-quadro');
+    if (!fab) return;
+    fab.addEventListener('click', () => (gaveta.aberta ? gaveta.fechar() : gaveta.abrir()));
+    document.getElementById('gaveta-fechar').addEventListener('click', () => gaveta.fechar());
+    document.getElementById('gaveta-tela').addEventListener('click', () => { gaveta.fechar(); window.Farol.ir('treino-quadro', {}); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gaveta.aberta) gaveta.fechar(); });
+  }
+
   function iniciar() {
+    ligarGaveta();
     const nav = document.getElementById('nav');
     nav.innerHTML = montarNav();
 

@@ -128,6 +128,50 @@
 
   function remover(plano, s) { delete store[chave(plano, s)]; }
 
+
+  /* ---------- Respostas dos atletas (link único da turma) ---------- */
+
+  // Cada atleta responde por si: se foi ao treino, PSE, PSR e dor. O professor aproveita isso no registro.
+  // Em produção, a resposta vai ao banco identificada pelo token da turma e pelo atleta escolhido.
+  const auto = {};
+  const autoCache = {};
+  const DOR = { 0: 'Sem dor', 1: 'Dor leve', 2: 'Dor moderada', 3: 'Dor forte' };
+
+  function respostasExemplo(plano, semana, s) {
+    const k = `${chave(plano, s)}|${s.dur}|${s.pse}`;
+    if (autoCache[k]) return autoCache[k];
+    const out = {};
+    const antiga = dataSessao(semana, s) < HOJE;
+    if (plano.mock && estado(plano, semana, s) === 'aguardando' && antiga) {
+      plano.atletas.forEach((id) => {
+        const a = ATLETAS[id];
+        if (id === 'a1') return; // o atleta da demonstração ainda tem treinos para responder
+        const r1 = hash(k + id + 'ar'), r2 = hash(k + id + 'ae'), r3 = hash(k + id + 'ap'), r4 = hash(k + id + 'ad');
+        if (r1 > 0.68) return;
+        if (a.perfil === 'ausente' && r1 < 0.4) { out[id] = { faltou: true }; return; }
+        const sobrecarga = a.perfil === 'alerta' ? 1.6 : 0;
+        const pse = clamp(Math.round(s.pse + (r2 - 0.5) * 2.2 + sobrecarga), 1, 10);
+        out[id] = {
+          faltou: false, pse,
+          psr: clamp(Math.round(7.4 - 0.4 * (pse - 5) + (r3 - 0.5) * 2.6 - (a.perfil === 'alerta' ? 2.6 : 0)), 0, 10),
+          dor: a.perfil === 'alerta' ? 2 : r4 > 0.88 ? 1 : 0,
+        };
+      });
+    }
+    autoCache[k] = out;
+    return out;
+  }
+
+  const respostas = (plano, semana, s) => ({ ...respostasExemplo(plano, semana, s), ...(auto[chave(plano, s)] || {}) });
+
+  function responder(plano, s, atletaId, resp) {
+    const k = chave(plano, s);
+    auto[k] = auto[k] || {};
+    auto[k][atletaId] = { ...resp, em: HOJE };
+  }
+
+  const resumoRespostas = (plano, semana, s) => ({ n: Object.keys(respostas(plano, semana, s)).length, total: plano.atletas.length });
+
   window.Farol = window.Farol || {};
-  window.Farol.registros = { estado, obter, salvar, remover, resumoSessao, resumoSemana, dataSessao };
+  window.Farol.registros = { respostas, responder, resumoRespostas, DOR, estado, obter, salvar, remover, resumoSessao, resumoSemana, dataSessao };
 })();

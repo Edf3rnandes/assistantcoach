@@ -21,6 +21,7 @@
     alvo: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
     mais: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
     placar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M7 9h2M15 9h2"/>',
+    cruz: '<rect x="9" y="3" width="6" height="18" rx="1.5"/><rect x="3" y="9" width="18" height="6" rx="1.5"/>',
     casa: '<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/>',
   };
   const icon = (nome, t = 18) =>
@@ -28,7 +29,7 @@
 
   // `pronta` indica se a tela já foi construída; as demais mostram o que entra nela.
   const GRUPOS = [
-    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }] },
+    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }, { id: 'saude', nome: 'Saúde do elenco', icone: 'cruz', pronta: true, oculta: true }] },
     {
       titulo: 'Já existe',
       itens: [
@@ -110,8 +111,8 @@
     { id: 'analise', rotulo: 'Análise' },
     { id: 'analise-scout', rotulo: 'Scout' },
   ];
-  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro', 'scout-coleta'];
-  const PAI = { 'scout-coleta': 'analise-scout' }; // telas ocultas acendem o item da barra a que pertencem
+  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro', 'scout-coleta', 'saude'];
+  const PAI = { 'scout-coleta': 'analise-scout', saude: 'inicio' }; // telas ocultas acendem o item da barra a que pertencem
   let rotaAtual = null;
 
   const rotuloBarra = (b) => (b.curto ? `<span class="r-longo">${b.rotulo}</span><span class="r-curto">${b.curto}</span>` : `<span>${b.rotulo}</span>`);

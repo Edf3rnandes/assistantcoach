@@ -187,13 +187,14 @@
       const dias = x.sit.retorno ? emDias(x.sit.retorno) : null;
       return `<li class="ix-les ${x.sit.tipo}">
         <span class="ix-av ${x.sit.tipo === 'lesao' ? 'lesao' : 'retorno'}"><i>${esc(iniciais(x.a.nome))}</i></span>
-        <div class="ix-les-m"><b>${esc(x.a.nome)}</b><small>${esc(x.sit.local)} · ${esc(x.sit.texto)}</small><small class="conduta">${esc(x.sit.conduta)}</small></div>
+        <div class="ix-les-m"><button class="link-btn at-link" data-ir="saude" data-params='${esc(JSON.stringify({ foco: x.a.id }))}' style="margin:0">${esc(x.a.nome)}</button><small>${esc(x.sit.local)} · ${esc(x.sit.texto)}</small><small class="conduta">${esc(x.sit.conduta)}</small></div>
         <div class="ix-les-r"><span class="ix-sel ${x.sit.tipo}">${NOME_ESTADO[x.sit.tipo]}</span>${dias != null ? `<small class="num">${dias <= 0 ? 'retorno hoje' : `volta em ${dias} dias`}<br>${dd(x.sit.retorno)}</small>` : '<small>sem data</small>'}</div></li>`;
     };
     return `
       <section class="ix-card ix-elenco" aria-labelledby="ix-el-t">
         <div class="ix-head"><h2 id="ix-el-t">${ic('pessoas', 18)} Elenco e saúde</h2>
           <span class="ix-resumo"><b class="num">${nOk}</b> de ${total} disponíveis · <button class="link-btn" data-ir="analise" data-params='${esc(JSON.stringify({ aba: 'atletas' }))}' style="margin:0">Carga por atleta</button></span></div>
+        <div class="actions ix-el-acoes"><button class="btn btn-sm btn-primary" data-ir="saude" data-params='${esc(JSON.stringify({ novo: true }))}'>Registrar lesão ou queixa</button><button class="btn btn-sm" data-ir="saude">Abrir cadastro de saúde</button></div>
         <div class="ix-elenco-g">
           <div class="ix-turmas">${D.turmas.map(turmaCard).join('')}</div>
           <div class="ix-lesoes">
@@ -280,7 +281,7 @@
       const falta = CAL.prontidao(c.id).filter((x) => x.estado === 'vazio' || x.estado === 'parcial');
       if (falta.length) lista.push({ ic: 'comp', t: `${esc(c.nome)}`, s: `em ${emDias(c.data)} dias · ${esc(falta.map((x) => `${x.nome.toLowerCase()}: ${x.texto.toLowerCase()}`).join('; '))}`, bt: 'Abrir', comp: c.id });
     });
-    D.lesoes.filter((x) => x.sit.retorno && emDias(x.sit.retorno) <= 9).forEach((x) => lista.push({ ic: 'cruz', t: `Reavaliar ${esc(x.a.nome)}`, s: `retorno previsto para ${dd(x.sit.retorno)} (${esc(x.sit.local.toLowerCase())})`, bt: 'Ver', ir: 'inicio-lesao' }));
+    D.lesoes.filter((x) => x.sit.retorno && emDias(x.sit.retorno) <= 9).forEach((x) => lista.push({ ic: 'cruz', t: `Reavaliar ${esc(x.a.nome)}`, s: `retorno previsto para ${dd(x.sit.retorno)} (${esc(x.sit.local.toLowerCase())})`, bt: 'Abrir', saude: x.a.id }));
     const prox = M.AVALIACOES.atual + (M.AVALIACOES.atual - M.AVALIACOES.anterior);
     if (emDias(prox) <= 14) lista.push({ ic: 'teste', t: 'Reavaliação física se aproxima', s: `sugerida para ${dd(prox)}`, bt: 'Ver testes', ir: 'analise' });
     return lista;
@@ -327,7 +328,7 @@
           ${atalho('reg', 'Registrar treino', 'treino-registro', { planoId: est.planoId })}
           ${atalho('jogo', 'Coletar jogo', 'analise-scout', { novo: {} })}
           ${atalho('quadro', 'Quadro técnico', '#quadro')}
-          ${atalho('fund', 'Fundamento', 'analise-scout', { aba: 'fund', novoTreino: true })}
+          ${atalho('cruz', 'Registrar lesão', 'saude', { novo: true })}
           ${atalho('plano', 'Novo plano', 'treinos-periodizacao', { nivel: 'criar' })}
           ${atalho('comp', 'Nova competição', 'planejamento-competicoes', { nova: true })}
         </nav>
@@ -335,7 +336,7 @@
 
       <div class="ix-kpis">
         <a class="ix-kpi" href="#analise" data-ir="analise" data-params='${esc(JSON.stringify({ aba: 'atletas' }))}'><span class="ix-kpi-i ok">${ic('pessoas', 20)}</span><span><b class="num">${nOk}<small> de ${total}</small></b><em>atletas disponíveis</em></span></a>
-        <a class="ix-kpi" href="#inicio" data-rolar="ix-el-t"><span class="ix-kpi-i lesao">${ic('cruz', 20)}</span><span><b class="num">${fora}</b><em>lesionados ou em retorno</em></span></a>
+        <a class="ix-kpi" href="#saude" data-ir="saude"><span class="ix-kpi-i lesao">${ic('cruz', 20)}</span><span><b class="num">${fora}</b><em>lesionados ou em retorno</em></span></a>
         <a class="ix-kpi" href="#treino-registro" data-ir="treino-registro"><span class="ix-kpi-i ${antigas.length ? 'atencao' : 'ok'}">${ic('relogio', 20)}</span><span><b class="num">${antigas.length}</b><em>sessões sem registro</em></span></a>
         <a class="ix-kpi" href="#planejamento-competicoes" data-ir="planejamento-competicoes" ${prox ? `data-params='${esc(JSON.stringify({ competicao: prox.id }))}'` : ''}><span class="ix-kpi-i beam">${ic('comp', 20)}</span><span><b class="num">${prox ? emDias(prox.data) : '–'}<small> dias</small></b><em>para a próxima competição</em></span></a>
       </div>
@@ -360,7 +361,7 @@
       const x = lista[Number(b.dataset.atraso)];
       if (x.reg) { const [pid, si, sid] = x.reg.split('|'); window.Farol.ir('treino-registro', { planoId: pid, abrir: { semana: Number(si), sessaoId: sid } }); }
       else if (x.comp) window.Farol.ir('planejamento-competicoes', { competicao: x.comp });
-      else if (x.ir === 'inicio-lesao') { const alvo = root.querySelector('#ix-el-t'); if (alvo) alvo.scrollIntoView({ block: 'start' }); }
+      else if (x.saude) window.Farol.ir('saude', { foco: x.saude });
       else if (x.ir === 'analise') window.Farol.ir('analise', { aba: 'comparar' });
       else window.Farol.ir(x.ir, null);
     }));

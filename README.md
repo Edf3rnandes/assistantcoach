@@ -47,3 +47,15 @@ O **Início** (`js/inicio.js`) é o painel geral e o ponto de volta de todas as 
 4. **Em seguida**: **últimos testes** (evolução média da turma por teste, quem mais evoluiu, quem olhar e a próxima avaliação sugerida), **treinos para rever** (sessões dos últimos 14 dias com esforço acima do alvo, recuperação baixa ou presença baixa) e **em atraso** (sessões sem registro, atletas sem responder, competições com preparo pendente, retornos de lesão próximos, reavaliação física).
 
 **Voltar**: toda tela fora do Início mostra **‹ Início** logo abaixo do logotipo. O logotipo e o item Início da barra também levam para lá, e tocar no item da tela em que já está volta ao começo dela. A barra fixa é: Início, Plano, Torneios, Registro, Quadro, Análise, Scout.
+
+
+## Cadastro de lesão e retorno (etapa 13)
+
+Tela **Saúde do elenco** (`js/saude.js`, rota `saude`), aberta pelo Início (indicador de lesionados, botão "Registrar lesão ou queixa", atalho do painel do dia ou nome do atleta na lista).
+
+- **Ocorrência por atleta**, uma ativa por vez: lesão (fora dos treinos), em retorno (treina com restrições) ou dúvida (relato a avaliar). Guarda região do corpo, diagnóstico ou queixa, início, retorno previsto, conduta, restrições (sem saltos, sem ataque forte, só físico adaptado…) e quem acompanha.
+- **Fluxo**: lesão → **liberar para retorno** (com data de liberação total, conduta adaptada e restrições) → **dar alta**; dúvida → **confirmar lesão** ou **descartar**. Também **registrar evolução** (anotações datadas), **editar**, **reabrir** e **excluir** (com confirmação).
+- **Histórico** com as ocorrências encerradas e o tempo afastado.
+- **Relatos de dor sem ocorrência**: dores moderadas ou fortes que o atleta informou no PSE e PSR e que ainda não viraram ocorrência, com botão que abre o formulário já preenchido.
+- **Impacto nas competições**: para cada dupla prevista ou confirmada nos próximos 75 dias com atleta em acompanhamento, mostra se deve jogar, se é preciso conferir ou se fica fora, comparando a data de retorno com a da competição.
+- O Início (cartões das turmas, lista de lesões, indicadores e "em atraso") lê `Farol.elenco.situacaoDe`, que agora vem deste cadastro. Os dados ficam no navegador (`ft.saude.v1`) até o Supabase entrar (tabela prevista `ocorrencias_saude`).

@@ -69,3 +69,13 @@ Tela `treinos-microciclo` (`js/semana.js`), aberta pelo botão **Resposta da sem
 - **Indicadores**: respostas recebidas, PSE e PSR médios, carga por atleta, atletas em atenção e dor relatada. **Gráfico** do PSE e PSR médios de cada sessão contra o PSE planejado.
 - **Semáforo** por atleta com os motivos à vista (regras na própria tela). Quem relatou dor e ainda não tem acompanhamento pode abrir o cadastro de saúde já preenchido.
 - **Lançar em lote**: escolhe a sessão que aguarda registro, escolhe PSE, PSR ou presença, escolhe o valor e toca nos atletas. As respostas dos atletas entram sozinhas. Salvar grava o registro da sessão (notas, fundamentos e jogadas continuam no Registro do treino).
+
+## Exercícios e prescrição (etapa 15)
+
+Tela `treinos-biblioteca` (`js/biblioteca.js`, dados em `js/prescricao.js`), aberta pelas "Outras áreas" do Início e, na sessão física do microciclo, pelo botão **Prescrever treino físico**. A barra marca Plano. Três abas:
+
+- **Prescrições**: um plano de treino aplicado a uma **turma** ou a **atletas**, numa data e, se quiser, ligado a uma sessão física do microciclo. Ao abrir, mostra o treino, os **conflitos com a saúde** de cada atleta (restrições e região do corpo do cadastro de Saúde do elenco) e, para cada conflito, uma lista de **trocas** só com exercícios sem conflito (o botão "Aplicar as trocas sugeridas" faz isso de uma vez). Há **cargas individuais** em kg e **Copiar para enviar** (texto da turma ou de cada atleta, já com as trocas). Marcar como feita, reabrir e excluir.
+- **Planos de treino** (modelos): séries, repetições ou tempo, carga (peso do corpo, kg, % de 1RM ou PSE), descanso e observação, com barra de séries por categoria e tempo estimado. Prescrever, editar (reordenar, adicionar, remover), duplicar e excluir.
+- **Catálogo**: 45 exercícios de exemplo com categoria, grupos musculares, equipamento, nível, vídeo (link) e dica técnica. Busca e filtros, criar, editar e excluir (quem está em um plano não pode ser excluído). Cada exercício diz o que **exige** (saltos, corrida, braço acima da cabeça, quedas) e onde **pesa** (tornozelo, joelho, ombro…), que é o que cruza com a saúde.
+- **Página do atleta**: o atleta vê "Meu treino físico" com o treino dele, as trocas e as cargas individuais. Exercícios que ainda conflitam com a saúde dele aparecem marcados com "fale com o professor antes".
+- Os dados ficam no navegador (`ft.prescricao.v1`) até o Supabase entrar (tabelas previstas `exercicios`, `planos_treino` e `treino_prescrito`).

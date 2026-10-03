@@ -164,6 +164,29 @@
         <p class="at-rotulo" id="at-rot-${nome}" aria-live="polite">${valor == null ? (nome === 'sono' || nome === 'disp' ? 'Opcional: toque num número' : 'Toque num número') : `${valor} · ${rot[valor]}`}</p>`;
     }
 
+    // Treino físico prescrito pelo professor: o atleta vê só o dele, já com as trocas e as cargas individuais.
+    function blocoFisico(atletaId) {
+      const PR = window.Farol.prescricao;
+      if (!PR) return '';
+      const lista = PR.doAtleta(atletaId).slice(0, 2);
+      if (!lista.length) return '<p class="vazio">Nenhum treino físico prescrito para você agora.</p>';
+      return lista.map((p) => {
+        const m = PR.plano(p.plano);
+        const itens = PR.itensDoAtleta(p, atletaId);
+        const trocou = itens.some((x) => x.troca);
+        const duvida = itens.filter((x) => x.conflitoFinal);
+        const carga = (x) => (x.kg != null ? `${x.kg} kg` : x.it.carga === 'pc' ? 'peso do corpo' : x.it.carga === 'kg' ? (x.it.valor != null ? `${x.it.valor} kg` : 'carga combinada com o professor') : x.it.carga === 'pct' ? `${x.it.valor}% da sua carga máxima` : `esforço ${x.it.valor}`);
+        const url = (e) => (/^https?:\/\//i.test(e.video) ? ` · <a href="${esc(e.video)}" target="_blank" rel="noopener noreferrer">ver vídeo</a>` : '');
+        return `<article class="card at-fis">
+          <div class="at-comp-top"><b class="num">${dd(p.data)}</b><span>${esc(m.nome)}</span></div>
+          ${p.nota ? `<div class="at-comp-sub">${esc(p.nota)}</div>` : ''}
+          ${duvida.length ? `<p class="at-fis-aviso at-fis-perigo"><b>Atenção:</b> ${plural(duvida.length, 'exercício pode não servir', 'exercícios podem não servir')} para a sua saúde agora. Não faça os marcados sem falar com o professor.</p>` : ''}
+          ${trocou ? '<p class="at-fis-aviso">O professor ajustou alguns exercícios por causa da sua saúde. Faça só o que está nesta lista.</p>' : ''}
+          <ol class="at-fis-l">${itens.map((x) => `<li><b>${esc(x.efetivo.nome)}</b>${x.troca ? ` <span class="chip">troca</span>` : ''}${x.conflitoFinal ? ` <span class="chip chip-crit">fale com o professor antes</span>` : ''}<small>${x.it.series} × ${esc(x.it.reps)} · ${esc(carga(x))}${x.it.desc ? ` · descanso ${x.it.desc} s` : ''}${url(x.efetivo)}</small><small>${esc(x.efetivo.dica)}</small></li>`).join('')}</ol>
+        </article>`;
+      }).join('');
+    }
+
     function blocoCompeticoes(atletaId) {
       const itens = [];
       CAL.lista().filter((c) => !CAL.passada(c)).forEach((c) => {
@@ -209,6 +232,10 @@
           <section aria-labelledby="at-h-pend">
             <h2 id="at-h-pend">${pend.length ? `Para responder (${pend.length})` : 'Tudo respondido'}</h2>
             ${pend.length ? pend.map((x) => cartaoPendente(plano, x)).join('') : '<p class="vazio">Você respondeu todos os treinos recentes. Obrigado.</p>'}
+          </section>
+          <section aria-labelledby="at-h-fis">
+            <h2 id="at-h-fis">Meu treino físico</h2>
+            ${blocoFisico(a.id)}
           </section>
           <section aria-labelledby="at-h-comp">
             <h2 id="at-h-comp">Minhas competições</h2>

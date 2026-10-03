@@ -65,12 +65,7 @@
           ],
           tabelas: ['jogadas'],
         },
-        {
-          id: 'treinos-biblioteca', nome: 'Exercícios e prescrição', icone: 'halter',
-          resumo: 'Catálogo de exercícios e templates de treino físico, aplicados a atletas ou turmas.',
-          bullets: ['Catálogo com grupo muscular, categoria e vídeo.', 'Template com séries, repetições, carga e descanso.', 'Aplicar a uma turma ou a um atleta.'],
-          tabelas: ['exercicios', 'planos_treino', 'treino_prescrito'],
-        },
+        { id: 'treinos-biblioteca', nome: 'Exercícios e prescrição', icone: 'halter', pronta: true, oculta: true },
       ],
     },
     {
@@ -102,8 +97,8 @@
     { id: 'analise', rotulo: 'Análise' },
     { id: 'analise-scout', rotulo: 'Scout' },
   ];
-  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro', 'scout-coleta', 'saude', 'treinos-microciclo'];
-  const PAI = { 'scout-coleta': 'analise-scout', saude: 'inicio', 'treinos-microciclo': 'treino-registro' }; // telas ocultas acendem o item da barra a que pertencem
+  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro', 'scout-coleta', 'saude', 'treinos-microciclo', 'treinos-biblioteca'];
+  const PAI = { 'scout-coleta': 'analise-scout', saude: 'inicio', 'treinos-microciclo': 'treino-registro', 'treinos-biblioteca': 'treinos-periodizacao' }; // telas ocultas acendem o item da barra a que pertencem
   let rotaAtual = null;
 
   const rotuloBarra = (b) => (b.curto ? `<span class="r-longo">${b.rotulo}</span><span class="r-curto">${b.curto}</span>` : `<span>${b.rotulo}</span>`);

@@ -342,6 +342,15 @@
         <a class="ix-kpi" href="#planejamento-competicoes" data-ir="planejamento-competicoes" ${prox ? `data-params='${esc(JSON.stringify({ competicao: prox.id }))}'` : ''}><span class="ix-kpi-i beam">${ic('comp', 20)}</span><span><b class="num">${prox ? emDias(prox.data) : '–'}<small> dias</small></b><em>para a próxima competição</em></span></a>
       </div>
 
+      <nav class="ix-outras" aria-label="Outras áreas">
+        <span class="label">Outras áreas</span>
+        <a href="#saude" data-ir="saude">Saúde do elenco</a>
+        <a href="#treinos-microciclo" data-ir="treinos-microciclo">Resposta da semana</a>
+        <a href="#treinos-biblioteca" data-ir="treinos-biblioteca">Exercícios e prescrição</a>
+        <a href="#analise-scout" data-ir="analise-scout" data-params='${esc(JSON.stringify({ aba: 'fund' }))}'>Treino de fundamento</a>
+        <a href="#atleta-previa" data-ir="atleta-previa">Prévia do atleta</a>
+      </nav>
+
       <div class="ix-g2">${blocoPlano(D)}${blocoComps(D)}</div>
       ${blocoElenco(D)}
       <div class="ix-g3">${blocoTestes(D)}${blocoRever(D)}${blocoAtraso(D)}</div>`;

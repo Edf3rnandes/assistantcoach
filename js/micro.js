@@ -218,6 +218,7 @@
         <div class="actions">
           <button class="btn btn-primary" type="submit">Salvar</button>
           <button class="btn" type="button" id="f-cancelar">Cancelar</button>
+          ${existente && existente.tipo === 'fisico' ? '<button class="btn" type="button" id="f-prescrever">Prescrever treino físico</button>' : ''}
           ${existente ? '<button class="btn btn-danger" type="button" id="f-remover">Remover sessão</button>' : ''}
         </div>
       </form>`;
@@ -401,6 +402,8 @@
           ir({}, e.id ? '[data-sessao]' : null);
         });
         q('#f-cancelar').addEventListener('click', () => ir({}));
+        const presc = q('#f-prescrever');
+        if (presc) presc.addEventListener('click', () => window.Farol.ir('treinos-biblioteca', { nova: { planoId: plano.id, semana: sem.idx, sessaoId: sessaoAberta.id } }));
         const rem = q('#f-remover');
         if (rem) rem.addEventListener('click', () => { dados.removerSessao(plano.id, sem, e.id); ir({}); });
       }

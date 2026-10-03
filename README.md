@@ -59,3 +59,13 @@ Tela **Saúde do elenco** (`js/saude.js`, rota `saude`), aberta pelo Início (in
 - **Relatos de dor sem ocorrência**: dores moderadas ou fortes que o atleta informou no PSE e PSR e que ainda não viraram ocorrência, com botão que abre o formulário já preenchido.
 - **Impacto nas competições**: para cada dupla prevista ou confirmada nos próximos 75 dias com atleta em acompanhamento, mostra se deve jogar, se é preciso conferir ou se fica fora, comparando a data de retorno com a da competição.
 - O Início (cartões das turmas, lista de lesões, indicadores e "em atraso") lê `Farol.elenco.situacaoDe`, que agora vem deste cadastro. Os dados ficam no navegador (`ft.saude.v1`) até o Supabase entrar (tabela prevista `ocorrencias_saude`).
+
+## Resposta da semana (etapa 14)
+
+Tela `treinos-microciclo` (`js/semana.js`), aberta pelo botão **Resposta da semana** do Registro do treino e pelo link no bloco Planejamento do Início. Mostra, para a semana escolhida do plano:
+
+- **Quadro atleta × sessão** com PSE / PSR de cada célula. Valores registrados pelo professor aparecem normais; relatos que o atleta mandou pelo link da turma, ainda sem registro, aparecem inclinados e com fundo tracejado. PSE bem acima do planejado e PSR baixo ficam sublinhados em âmbar; faltas, sessões sem resposta e sessões futuras têm marcação própria. Atletas lesionados aparecem marcados.
+- **Por atleta**: carga da semana e quanto ela é do plano até agora, ACWR (só em semana completa, com 3 semanas anteriores), monotonia e **bem-estar** (dor, sono e disposição). O link do atleta ganhou duas perguntas opcionais, sono e disposição (1 a 5).
+- **Indicadores**: respostas recebidas, PSE e PSR médios, carga por atleta, atletas em atenção e dor relatada. **Gráfico** do PSE e PSR médios de cada sessão contra o PSE planejado.
+- **Semáforo** por atleta com os motivos à vista (regras na própria tela). Quem relatou dor e ainda não tem acompanhamento pode abrir o cadastro de saúde já preenchido.
+- **Lançar em lote**: escolhe a sessão que aguarda registro, escolhe PSE, PSR ou presença, escolhe o valor e toca nos atletas. As respostas dos atletas entram sozinhas. Salvar grava o registro da sessão (notas, fundamentos e jogadas continuam no Registro do treino).

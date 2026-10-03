@@ -144,6 +144,7 @@
           <div class="ix-chips">${alta.map((f) => `<span class="ix-chip alta" title="${esc(f.ideia || FUNDAMENTOS[f.id].nome)}">${esc(FUNDAMENTOS[f.id].nome.replace(/ \(.*\)/, ''))}</span>`).join('')}${media.map((f) => `<span class="ix-chip" title="${esc(f.ideia || '')}">${esc(FUNDAMENTOS[f.id].nome.replace(/ \(.*\)/, ''))}</span>`).join('')}</div>
           ${meso.pauta.ideias.length ? `<ul class="ix-ideias">${meso.pauta.ideias.slice(0, 2).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
           <button class="link-btn" data-ir="treinos-periodizacao" data-params='${esc(JSON.stringify({ planoId: plano.id, nivel: 'meso', mesoId: meso.id }))}' style="margin:0">Ver e editar a pauta da fase</button>
+          <button class="link-btn" data-ir="treinos-microciclo" data-params='${esc(JSON.stringify({ planoId: plano.id, semana: semana.idx }))}' style="margin:0">Ver a resposta dos atletas nesta semana</button>
         </div>
       </section>`;
   }

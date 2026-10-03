@@ -44,16 +44,7 @@
         { id: 'treinos-periodizacao', nome: 'Periodização', icone: 'cal', pronta: true },
         { id: 'atleta-previa', nome: 'Prévia do atleta', icone: 'pessoas', pronta: true, oculta: true },
         { id: 'planejamento-competicoes', nome: 'Competições', icone: 'placar', pronta: true },
-        {
-          id: 'treinos-microciclo', nome: 'Resposta da semana', icone: 'pulso',
-          resumo: 'Como os atletas estão respondendo à semana: PSE, PSR e bem-estar.',
-          bullets: [
-            'Sessões da semana planejadas na Periodização, lado a lado com o que os atletas relataram.',
-            'Por atleta: PSE, PSR, sono, dor e disposição, com semáforo e carga da semana (monotonia, strain, ACWR).',
-            'Coleta em lote pelo técnico (toque em atleta × valor) ou pelo link do atleta.',
-          ],
-          tabelas: ['pse_sessao', 'wellness_diario'],
-        },
+        { id: 'treinos-microciclo', nome: 'Resposta da semana', icone: 'pulso', pronta: true, oculta: true },
       ],
     },
     {
@@ -111,8 +102,8 @@
     { id: 'analise', rotulo: 'Análise' },
     { id: 'analise-scout', rotulo: 'Scout' },
   ];
-  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro', 'scout-coleta', 'saude'];
-  const PAI = { 'scout-coleta': 'analise-scout', saude: 'inicio' }; // telas ocultas acendem o item da barra a que pertencem
+  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro', 'scout-coleta', 'saude', 'treinos-microciclo'];
+  const PAI = { 'scout-coleta': 'analise-scout', saude: 'inicio', 'treinos-microciclo': 'treino-registro' }; // telas ocultas acendem o item da barra a que pertencem
   let rotaAtual = null;
 
   const rotuloBarra = (b) => (b.curto ? `<span class="r-longo">${b.rotulo}</span><span class="r-curto">${b.curto}</span>` : `<span>${b.rotulo}</span>`);

@@ -155,6 +155,8 @@
           faltou: false, pse,
           psr: clamp(Math.round(7.4 - 0.4 * (pse - 5) + (r3 - 0.5) * 2.6 - (a.perfil === 'alerta' ? 2.6 : 0)), 0, 10),
           dor: a.perfil === 'alerta' ? 2 : r4 > 0.88 ? 1 : 0,
+          sono: r1 > 0.62 ? null : clamp(Math.round(3.7 + (r3 - 0.5) * 2.2 - (a.perfil === 'alerta' ? 1.6 : 0)), 1, 5),
+          disp: r1 > 0.62 ? null : clamp(Math.round(3.5 + (r2 - 0.5) * 1.8 - (a.perfil === 'alerta' ? 1.4 : 0)), 1, 5),
         };
       });
     }

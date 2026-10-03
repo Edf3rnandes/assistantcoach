@@ -9,7 +9,11 @@
   const { TIPOS_SESSAO, DIAS, TURNOS } = dados;
 
   const PSE_ROT = { 1: 'Muito fácil', 2: 'Fácil', 3: 'Leve', 4: 'Moderado', 5: 'Um pouco forte', 6: 'Forte', 7: 'Muito forte', 8: 'Muito, muito forte', 9: 'Quase o máximo', 10: 'Máximo' };
+  const SONO_ROT = { 1: 'Dormi muito mal', 2: 'Dormi mal', 3: 'Dormi mais ou menos', 4: 'Dormi bem', 5: 'Dormi muito bem' };
+  const DISP_ROT = { 1: 'Sem energia', 2: 'Pouca energia', 3: 'Normal', 4: 'Com energia', 5: 'Muito disposto' };
+  const ROT = {};
   const PSR_ROT = { 0: 'Exausto', 1: 'Muito cansado', 2: 'Muito cansado', 3: 'Cansado', 4: 'Cansado', 5: 'Mais ou menos', 6: 'Razoável', 7: 'Bem', 8: 'Bem recuperado', 9: 'Quase 100%', 10: 'Totalmente recuperado' };
+  ROT.pse = PSE_ROT; ROT.psr = PSR_ROT; ROT.sono = SONO_ROT; ROT.disp = DISP_ROT;
   const turnoNome = (id) => TURNOS.find((t) => t.id === id).nome.toLowerCase();
   const ORDEM_TURNO = { manha: 0, tarde: 1, noite: 2 };
   const recentes = (m, n) => n.data - m.data || ORDEM_TURNO[n.s.turno] - ORDEM_TURNO[m.s.turno];
@@ -128,6 +132,14 @@
                 ${escala('psr', 0, 10, f.psr, PSR_ROT)}
               </fieldset>
               <fieldset class="at-bloco">
+                <legend class="at-q">Como você dormiu esta noite?<small>Opcional · 1 é muito mal, 5 é muito bem</small></legend>
+                ${escala('sono', 1, 5, f.sono, SONO_ROT)}
+              </fieldset>
+              <fieldset class="at-bloco">
+                <legend class="at-q">Como está a sua disposição hoje?<small>Opcional · 1 é sem energia, 5 é muito disposto</small></legend>
+                ${escala('disp', 1, 5, f.disp, DISP_ROT)}
+              </fieldset>
+              <fieldset class="at-bloco">
                 <legend class="at-q">Está com alguma dor?</legend>
                 <div class="at-dor" role="radiogroup" aria-label="Dor">
                   ${Object.entries(REG.DOR).map(([k, n]) => `<button type="button" class="at-opcao" role="radio" data-dor="${k}" aria-checked="${f.dor === Number(k)}" aria-pressed="${f.dor === Number(k)}">${n}</button>`).join('')}
@@ -149,7 +161,7 @@
         itens.push(`<button type="button" class="at-num" role="radio" data-escala="${nome}" data-v="${v}" aria-checked="${valor === v}" aria-pressed="${valor === v}" aria-label="${v}, ${rot[v]}">${v}</button>`);
       }
       return `<div class="at-escala at-escala-${nome}" role="radiogroup">${itens.join('')}</div>
-        <p class="at-rotulo" id="at-rot-${nome}" aria-live="polite">${valor == null ? 'Toque num número' : `${valor} · ${rot[valor]}`}</p>`;
+        <p class="at-rotulo" id="at-rot-${nome}" aria-live="polite">${valor == null ? (nome === 'sono' || nome === 'disp' ? 'Opcional: toque num número' : 'Toque num número') : `${valor} · ${rot[valor]}`}</p>`;
     }
 
     function blocoCompeticoes(atletaId) {
@@ -210,7 +222,7 @@
             <h2 id="at-h-hist">Minhas últimas respostas</h2>
             ${feitas.length ? `<ul class="at-lista">${feitas.map((x) => {
               const r = resp(x);
-              return `<li><div>${rotuloSessao(x)}</div><small>${r.faltou ? 'Você marcou que não foi' : `Esforço ${r.pse} · recuperação ${r.psr} · ${REG.DOR[r.dor || 0].toLowerCase()}`}</small></li>`;
+              return `<li><div>${rotuloSessao(x)}</div><small>${r.faltou ? 'Você marcou que não foi' : `Esforço ${r.pse} · recuperação ${r.psr} · ${REG.DOR[r.dor || 0].toLowerCase()}${r.sono ? ` · sono ${r.sono}/5` : ''}${r.disp ? ` · disposição ${r.disp}/5` : ''}`}</small></li>`;
             }).join('')}</ul>` : '<p class="vazio">Nenhuma resposta ainda.</p>'}
           </section>`;
       }
@@ -233,7 +245,7 @@
 
       root.querySelectorAll('[data-resp]').forEach((b) => b.addEventListener('click', () => {
         st.abrir = b.dataset.resp;
-        st.form = { participou: true, pse: null, psr: null, dor: 0 };
+        st.form = { participou: true, pse: null, psr: null, dor: 0, sono: null, disp: null };
         telaInicio();
         const card = root.querySelector(`[data-s="${st.abrir}"]`);
         if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -254,7 +266,7 @@
           f[nome] = v;
           card.querySelector('.form-erro').hidden = true;
           card.querySelectorAll(`[data-escala="${nome}"]`).forEach((o) => { const on = Number(o.dataset.v) === v; o.setAttribute('aria-pressed', String(on)); o.setAttribute('aria-checked', String(on)); });
-          card.querySelector(`#at-rot-${nome}`).textContent = `${v} · ${(nome === 'pse' ? PSE_ROT : PSR_ROT)[v]}`;
+          card.querySelector(`#at-rot-${nome}`).textContent = `${v} · ${ROT[nome][v]}`;
         }));
         card.querySelectorAll('[data-dor]').forEach((b) => b.addEventListener('click', () => {
           f.dor = Number(b.dataset.dor);
@@ -266,7 +278,7 @@
           const erro = card.querySelector('.form-erro');
           if (f.participou && f.pse == null) { erro.textContent = 'Escolha o esforço do treino (PSE).'; erro.hidden = false; return; }
           if (f.participou && f.psr == null) { erro.textContent = 'Escolha como você se sente de recuperação (PSR).'; erro.hidden = false; return; }
-          REG.responder(plano, x.s, a.id, f.participou ? { faltou: false, pse: f.pse, psr: f.psr, dor: f.dor } : { faltou: true });
+          REG.responder(plano, x.s, a.id, f.participou ? { faltou: false, pse: f.pse, psr: f.psr, dor: f.dor, sono: f.sono, disp: f.disp } : { faltou: true });
           st.abrir = null;
           st.aviso = 'Resposta enviada. Obrigado!';
           telaInicio();

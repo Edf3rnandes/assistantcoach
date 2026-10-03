@@ -390,6 +390,9 @@
           <h1>Registro do treino</h1>
           <p class="lead">O que de fato aconteceu em cada sessão do microciclo: presença, PSE e PSR de cada atleta da turma, mais as anotações do professor.</p>
         </div>
+        <div class="actions" style="align-items:flex-end">
+          <button class="btn" id="ir-semana" type="button">Resposta da semana</button>
+        </div>
         <div class="field">
           <label class="label" for="reg-plano">Turma ou atleta</label>
           <select class="select" id="reg-plano">
@@ -446,6 +449,7 @@
       const falhou = () => { estado.copiado = ''; msg.textContent = `Não consegui copiar sozinho. Copie manualmente: ${url}`; };
       try { navigator.clipboard.writeText(url).then(() => { estado.copiado = 'Link copiado.'; msg.textContent = 'Link copiado.'; }, falhou); } catch (e) { falhou(); }
     });
+    root.querySelector('#ir-semana').addEventListener('click', () => window.Farol.ir('treinos-microciclo', { planoId: plano.id }));
     root.querySelector('#ver-atleta').addEventListener('click', () => window.Farol.ir('atleta-previa', {}));
     const nl = root.querySelector('#novo-link'); if (nl) nl.addEventListener('click', () => { estado.confirmaLink = true; tela(root); });
     const nls = root.querySelector('#novo-link-sim'); if (nls) nls.addEventListener('click', () => { elenco.novoToken(plano.turma); estado.confirmaLink = false; estado.copiado = 'Novo link gerado. O anterior não funciona mais.'; tela(root); });

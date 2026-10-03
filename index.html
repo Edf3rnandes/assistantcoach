@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Farol Tático</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/farol.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <svg width="34" height="34" viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <path d="M3 17 L16 14 V20 Z" fill="#f2a900" opacity=".9"/>
+          <path d="M31 17 L18 14 V20 Z" fill="#f2a900" opacity=".55"/>
+          <path d="M14 13h4l1.5 17h-7z" fill="#e6eff3"/>
+          <path d="M13 22h8M12.6 26h8.8" stroke="#0b1f2d" stroke-width="1.6"/>
+          <rect x="14" y="8" width="6" height="5" rx="1" fill="#f2a900"/>
+          <path d="M13 8l4-4 4 4z" fill="#e6eff3"/>
+        </svg>
+        <div>
+          <div class="brand-name">Farol Tático</div>
+          <div class="brand-sub">Painel do profissional</div>
+        </div>
+        <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
+      </div>
+      <nav class="nav" id="nav" data-open="false" aria-label="Módulos"></nav>
+      <div class="side-foot">Treinos e Nutrição<br>Versão de desenho, dados de exemplo</div>
+    </aside>
+
+    <main class="main" id="conteudo"></main>
+  </div>
+
+  <script src="js/dados.js"></script>
+  <script src="js/periodizacao.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -83,7 +83,7 @@
       titulo: 'Análise',
       itens: [
         {
-          id: 'analise-comparar', nome: 'Comparativos', icone: 'versus', pronta: true,
+          id: 'analise', nome: 'Análise', icone: 'graf', pronta: true,
           resumo: '', bullets: [], tabelas: [],
         },
         {
@@ -118,7 +118,7 @@
     { id: 'planejamento-competicoes', rotulo: 'Competições', curto: 'Torneios' },
     { id: 'treino-registro', rotulo: 'Registro' },
     { id: 'quadro', rotulo: 'Quadro', icone: 'quadro' },
-    { id: 'analise-comparar', rotulo: 'Comparar' },
+    { id: 'analise', rotulo: 'Análise' },
   ];
   const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro'];
   let rotaAtual = null;
@@ -181,7 +181,8 @@
   }
 
   function rotear() {
-    const id = location.hash.slice(1);
+    let id = location.hash.slice(1);
+    if (id === 'analise-comparar') { id = 'analise'; window.Farol.params = { aba: 'comparar' }; }
     const rota = ROTAS[id] && !ROTAS[id].existente ? id : PADRAO;
     const item = ROTAS[rota];
     const main = document.getElementById('conteudo');

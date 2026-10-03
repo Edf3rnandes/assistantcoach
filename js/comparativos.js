@@ -271,17 +271,13 @@
 
   function render(root, foco) {
     root.innerHTML = `
-      <header class="page-head">
-        <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
-          <h1>Comparativos</h1>
-          <p class="lead">Veja onde cada atleta e cada grupo está em relação aos outros.</p>
-        </div>
+      <div class="cmp-modos">
         <div class="seg-ctl" role="group" aria-label="Tipo de comparação">
           <button class="seg-btn" data-modo="atleta" aria-pressed="${est.modo === 'atleta'}">Atleta</button>
           <button class="seg-btn" data-modo="grupos" aria-pressed="${est.modo === 'grupos'}">Grupos</button>
         </div>
-      </header>
+        <p class="cmp-intro">Veja onde cada atleta e cada grupo está em relação aos outros.</p>
+      </div>
       <div id="cmp-corpo" class="corpo"></div>
       <p class="hint">Os comparativos são só para o técnico. O atleta nunca vê a posição dos colegas.</p>`;
     root.querySelectorAll('[data-modo]').forEach((b) => b.addEventListener('click', () => { est.modo = b.dataset.modo; render(root, `[data-modo="${b.dataset.modo}"]`); }));
@@ -289,6 +285,8 @@
     if (foco) { const f = root.querySelector(foco); if (f) f.focus({ preventScroll: true }); }
   }
 
-  window.Farol.views = window.Farol.views || {};
-  window.Farol.views['analise-comparar'] = (root) => { raiz = root; render(root); };
+  window.Farol.comparativos = {
+    montar(root) { raiz = root; render(root); },
+    definirAtleta(id) { est.modo = 'atleta'; est.atletaId = id; if (est.outroId === id) est.outroId = 'a1'; },
+  };
 })();

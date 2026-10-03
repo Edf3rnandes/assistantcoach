@@ -12,7 +12,6 @@
   const { FUNDAMENTOS } = elenco;
 
   const TAGS = { saque: 'Saque', sideout: 'Side-out', break: 'Break point', defesa: 'Defesa', bloqueio: 'Bloqueio', transicao: 'Transição', exercicio: 'Exercício', outro: 'Outro' };
-  const FERRAMENTAS = [['mover', 'Mover'], ['desloc', 'Deslocar'], ['bola', 'Bola'], ['ataque', 'Ataque']];
   const ESTILO_SETA = {
     desloc: { cor: '--ink', w: 0.15, dash: '' },
     bola: { cor: '--court-ball', w: 0.16, dash: '0.42 0.3' },
@@ -93,8 +92,8 @@
 
   let ed = normal(copiar(lib[0]));
   const ui = {
-    ferr: 'mover', atual: 0, sel: null, tocando: false, aviso: '', confirmaExcluir: null,
-    desfazer: [], refazer: [], paleta: false, vertical: null, ativo: false,
+    ferr: 'mover', tipoSeta: 'desloc', atual: 0, sel: null, tocando: false, aviso: '',
+    desfazer: [], refazer: [], paleta: false, menu: false, sujo: false, confirmaExcluirAtual: false, vertical: null, ativo: false,
   };
 
   /* ---------- Desenho ---------- */
@@ -177,9 +176,35 @@
   let modo = 'completo';
   const frame = () => ed.frames[ui.atual];
   const parar = () => { ui.tocando = false; };
-  const iconeDesfazer = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>';
-  const iconeRefazer = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>';
-  const iconeLixo = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
+
+  const ic = (d, t = 20) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const ICONES = {
+    desfazer: ic('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'),
+    refazer: ic('<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>'),
+    lixo: ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+    mover: ic('<path d="M5 3l14 8-6 2-2 7z"/>'),
+    seta: ic('<path d="M5 19L19 5M9 5h10v10"/>'),
+    peca: ic('<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'),
+    mais: ic('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
+    tocar: ic('<path d="M7 4l13 8-13 8z"/>', 22),
+    parar: ic('<rect x="6" y="6" width="12" height="12" rx="1"/>', 22),
+    novo: ic('<path d="M12 5v14M5 12h14"/>', 22),
+  };
+  const PREVIA = {
+    'peca:a': '<circle cx="18" cy="18" r="11" style="fill:var(--accent)"/>',
+    'peca:b': '<circle cx="18" cy="18" r="11" style="fill:var(--ink-2)"/>',
+    'obj:cone': '<polygon points="18,6 28,29 8,29" style="fill:var(--beam);stroke:var(--ink);stroke-width:1.5"/>',
+    'obj:arco': '<circle cx="18" cy="18" r="11" fill="none" style="stroke:var(--ink);stroke-width:3"/>',
+    'obj:escada': '<rect x="3" y="11" width="30" height="14" fill="none" style="stroke:var(--ink);stroke-width:2"/><path d="M10 11v14M17 11v14M24 11v14" style="stroke:var(--ink);stroke-width:2"/>',
+    'obj:alvo': '<circle cx="18" cy="18" r="11" fill="none" style="stroke:var(--crit);stroke-width:3"/><circle cx="18" cy="18" r="3" style="fill:var(--crit)"/>',
+    'obj:bola': '<circle cx="18" cy="18" r="8" style="fill:var(--beam);stroke:var(--beam-ink);stroke-width:2"/>',
+  };
+  const AMOSTRA_SETA = {
+    desloc: '<line x1="2" y1="7" x2="34" y2="7" style="stroke:var(--ink);stroke-width:2.2" stroke-linecap="round"/>',
+    bola: '<line x1="2" y1="7" x2="34" y2="7" style="stroke:var(--court-ball);stroke-width:2.4" stroke-dasharray="5 4" stroke-linecap="round"/>',
+    ataque: '<line x1="2" y1="7" x2="34" y2="7" style="stroke:var(--crit);stroke-width:4.5" stroke-linecap="round"/>',
+  };
+  const NOME_SETA = { desloc: 'Deslocamento', bola: 'Bola', ataque: 'Ataque' };
 
   function tela(root, m) {
     renderRaiz = root;
@@ -187,156 +212,116 @@
     ui.ativo = true;
     if (ui.vertical == null) ui.vertical = modo === 'painel' || window.matchMedia('(max-width: 760px)').matches;
 
-    const selecionado = ui.sel;
-    const podeApagar = selecionado && (selecionado.tipo === 'seta' || selecionado.tipo === 'obj' || (selecionado.tipo === 'peca' && !NUCLEO.includes(selecionado.id)));
-    const objSel = selecionado && selecionado.tipo === 'obj' ? frame().objs.find((o) => o.id === selecionado.id) : null;
+    const sel = ui.sel;
+    const pecaSel = sel && sel.tipo === 'peca' ? sel : null;
+    const objSel = sel && sel.tipo === 'obj' ? frame().objs.find((o) => o.id === sel.id) : null;
+    const podeApagar = sel && (sel.tipo === 'seta' || sel.tipo === 'obj' || (sel.tipo === 'peca' && !NUCLEO.includes(sel.id)));
     const nPecas = (eq) => ed.pecas.filter((k) => k[0] === eq).length;
+    const estadoTxt = ui.sujo ? 'Alterações não salvas' : ed.id ? 'Salvo' : '';
 
-    const blocoQuadro = `
-      <div class="qd-wrap ${ui.ferr !== 'mover' ? 'desenhando' : ''} ${ui.tocando ? 'tocando' : ''} ${ui.vertical ? 'vertical' : ''}" id="qd-wrap"></div>
-      <div class="qd-eq" aria-hidden="true"><span><i class="qd-pt qd-pt-a"></i>Nossa dupla</span><span><i class="qd-pt qd-pt-b"></i>Adversários</span><span><i class="qd-pt qd-pt-bola"></i>Bola</span></div>`;
-
-    const blocoFerr = `
-      <div class="qd-barra" role="toolbar" aria-label="Ferramentas do quadro">
-        <button class="qd-ic" id="qd-desfazer" aria-label="Desfazer" ${ui.desfazer.length ? '' : 'disabled'}>${iconeDesfazer}</button>
-        <button class="qd-ic" id="qd-refazer" aria-label="Refazer" ${ui.refazer.length ? '' : 'disabled'}>${iconeRefazer}</button>
-        <span class="qd-sep"></span>
-        ${FERRAMENTAS.map(([k, n]) => `<button class="qd-fer" data-ferr="${k}" aria-pressed="${ui.ferr === k}">${n}</button>`).join('')}
-        <span class="qd-sep"></span>
-        <button class="qd-fer" id="qd-mais" aria-expanded="${ui.paleta}" aria-controls="qd-paleta">+ Peça</button>
-        ${objSel && objSel.t === 'escada' ? '<button class="qd-fer" id="qd-girar">Girar</button>' : ''}
-        <button class="qd-ic" id="qd-apagar" aria-label="Apagar item selecionado" title="Apagar item selecionado" ${podeApagar ? '' : 'disabled'}>${iconeLixo}</button>
-      </div>
-      <div class="qd-paleta" id="qd-paleta" ${ui.paleta ? '' : 'hidden'}>
-        <button class="btn btn-sm" data-add="peca:a" ${nPecas('a') >= 8 ? 'disabled' : ''}>Jogador nosso</button>
-        <button class="btn btn-sm" data-add="peca:b" ${nPecas('b') >= 8 ? 'disabled' : ''}>Jogador adversário</button>
-        ${Object.entries(OBJETOS).map(([k, n]) => `<button class="btn btn-sm" data-add="obj:${k}">${n}</button>`).join('')}
+    // Faixa que só mostra o que faz sentido para a seleção ou para a ferramenta atual.
+    let contextual = '';
+    if (pecaSel) {
+      contextual = `<div class="qd-ctx"><label class="label" for="qd-nome">Nome na peça</label><input class="input sm" id="qd-nome" type="text" maxlength="4" value="${esc(ed.nomes[pecaSel.id])}"><span class="qd-dica">até 4 letras</span></div>`;
+    } else if (objSel && objSel.t === 'escada') {
+      contextual = '<div class="qd-ctx"><button class="btn btn-sm" id="qd-girar">Girar escada</button></div>';
+    } else if (ui.ferr === 'seta') {
+      contextual = `<div class="qd-ctx qd-tipos" role="group" aria-label="Tipo de seta">
+        ${Object.keys(ESTILO_SETA).map((k) => `<button class="qd-tipo" data-tipo-seta="${k}" aria-pressed="${ui.tipoSeta === k}"><svg width="36" height="14" viewBox="0 0 36 14" aria-hidden="true">${AMOSTRA_SETA[k]}</svg>${NOME_SETA[k]}</button>`).join('')}
       </div>`;
+    }
 
-    const blocoFrames = `
-      <div class="qd-controle">
-        <div class="actions">
-          <button class="btn btn-sm" id="qd-ant" aria-label="Quadro anterior" ${ui.atual === 0 || ui.tocando ? 'disabled' : ''}>‹</button>
-          <span class="label num" id="qd-pos">Quadro ${ui.atual + 1} de ${ed.frames.length}</span>
-          <button class="btn btn-sm" id="qd-prox" aria-label="Próximo quadro" ${ui.atual >= ed.frames.length - 1 || ui.tocando ? 'disabled' : ''}>›</button>
-          <button class="btn btn-sm" id="qd-add" ${ui.tocando ? 'disabled' : ''}>Novo quadro</button>
-          <button class="btn btn-sm" id="qd-del" ${ed.frames.length < 2 || ui.tocando ? 'disabled' : ''}>Excluir quadro</button>
-          <button class="btn btn-sm" id="qd-auto" ${ui.atual > 0 && !ui.tocando ? '' : 'disabled'} title="Cria no quadro anterior as setas até as posições deste quadro">Setas até aqui</button>
+    const paleta = ui.paleta ? `
+      <div class="qd-paleta" id="qd-paleta" role="group" aria-label="Adicionar à quadra">
+        ${[['peca:a', 'Jogador nosso', nPecas('a') >= 8], ['peca:b', 'Adversário', nPecas('b') >= 8], ['obj:cone', 'Cone'], ['obj:arco', 'Arco'], ['obj:escada', 'Escada'], ['obj:alvo', 'Alvo'], ['obj:bola', 'Bola extra']].map(([k, n, off]) => `
+          <button class="qd-tile" data-add="${k}" ${off ? 'disabled' : ''}><svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">${PREVIA[k]}</svg><span>${n}</span></button>`).join('')}
+      </div>` : '';
+
+    const menu = ui.menu ? `
+      <div class="qd-menu" id="qd-menu">
+        <div class="qd-menu-grupo"><span class="label">Este quadro</span>
+          <button class="btn btn-sm" id="qd-auto" ${ui.atual > 0 ? '' : 'disabled'} title="Cria no quadro anterior as setas até as posições deste quadro">Criar setas desde o quadro anterior</button>
+          <button class="btn btn-sm" id="qd-del" ${ed.frames.length < 2 ? 'disabled' : ''}>Excluir este quadro</button></div>
+        <div class="qd-menu-grupo"><span class="label">Quadra</span>
+          <button class="btn btn-sm" id="qd-girar-q">${ui.vertical ? 'Mostrar na horizontal' : 'Mostrar na vertical'}</button>
+          <button class="btn btn-sm" id="qd-inverter">Inverter lados</button>
+          <button class="btn btn-sm" id="qd-fundo">${ed.fundo === 'livre' ? 'Usar quadra com rede' : 'Usar área livre'}</button></div>
+        <div class="qd-menu-grupo"><span class="label">Jogada</span>
+          <button class="btn btn-sm" id="qd-nova">Nova jogada</button>
+          ${ed.id ? '<button class="btn btn-sm" id="qd-copia">Salvar como cópia</button>' : ''}
+          ${ed.id ? (ui.confirmaExcluirAtual
+            ? '<button class="btn btn-sm btn-danger" id="qd-excluir-sim">Confirmar exclusão</button><button class="btn btn-sm" id="qd-excluir-nao">Manter</button>'
+            : '<button class="btn btn-sm btn-danger" id="qd-excluir">Excluir jogada</button>') : ''}
+          ${modo === 'painel' ? `<label class="label" for="qd-lib-sel" style="margin-top:6px">Abrir da biblioteca</label>
+            <select class="select sm" id="qd-lib-sel" style="min-width:0;width:100%"><option value="">Escolha uma jogada…</option>${lib.map((j) => `<option value="${j.id}">${esc(j.titulo)}</option>`).join('')}</select>` : ''}
         </div>
-        <button class="btn btn-primary" id="qd-tocar" ${ed.frames.length < 2 ? 'disabled' : ''}>${ui.tocando ? 'Parar' : 'Tocar'}</button>
+      </div>` : '';
+
+    const palco = `
+      <div class="qd-palco ${ui.vertical ? 'v' : 'h'}">
+        <div class="qd-wrap ${ui.ferr === 'seta' ? 'desenhando' : ''} ${ui.tocando ? 'tocando' : ''} ${ui.vertical ? 'vertical' : ''}" id="qd-wrap"></div>
+        <input class="qd-legenda" id="qd-legenda" type="text" maxlength="140" placeholder="Legenda deste quadro (opcional)" aria-label="Legenda deste quadro" value="${esc(frame().legenda)}" ${ui.tocando ? 'disabled' : ''}>
+        <div class="qd-barra" role="toolbar" aria-label="Ferramentas do quadro">
+          <button class="qd-ic" id="qd-desfazer" aria-label="Desfazer" ${ui.desfazer.length ? '' : 'disabled'}>${ICONES.desfazer}</button>
+          <button class="qd-ic" id="qd-refazer" aria-label="Refazer" ${ui.refazer.length ? '' : 'disabled'}>${ICONES.refazer}</button>
+          <span class="qd-sep"></span>
+          <button class="qd-fer" data-ferr="mover" aria-pressed="${ui.ferr === 'mover'}">${ICONES.mover}<span>Mover</span></button>
+          <button class="qd-fer" data-ferr="seta" aria-pressed="${ui.ferr === 'seta'}">${ICONES.seta}<span>Seta</span></button>
+          <button class="qd-fer" id="qd-mais-peca" aria-expanded="${ui.paleta}" aria-controls="qd-paleta">${ICONES.peca}<span>Peça</span></button>
+          <span class="qd-sep"></span>
+          <button class="qd-ic" id="qd-apagar" aria-label="Apagar item selecionado" title="Apagar item selecionado" ${podeApagar ? '' : 'disabled'}>${ICONES.lixo}</button>
+          <button class="qd-ic" id="qd-menu-btn" aria-label="Mais opções" aria-expanded="${ui.menu}" aria-controls="qd-menu">${ICONES.mais}</button>
+        </div>
+        ${contextual}${paleta}${menu}
+        <div class="qd-sequencia">
+          <div class="qd-faixa" id="qd-faixa" role="group" aria-label="Quadros da jogada"></div>
+          <button class="qd-tocar" id="qd-tocar" aria-label="${ui.tocando ? 'Parar' : 'Tocar sequência'}" ${ed.frames.length < 2 ? 'disabled' : ''}>${ui.tocando ? ICONES.parar : ICONES.tocar}</button>
+        </div>
+      </div>`;
+
+    const cabecalho = `
+      <div class="qd-cab">
+        <input class="qd-titulo" id="qd-titulo" type="text" maxlength="90" placeholder="Título da jogada" aria-label="Título da jogada" value="${esc(ed.titulo)}">
+        <span class="qd-estado" id="qd-estado" aria-live="polite">${estadoTxt}</span>
+        <button class="btn btn-primary" id="qd-salvar">Salvar</button>
       </div>
-      <div class="qd-faixa" id="qd-faixa" role="group" aria-label="Quadros da jogada"></div>
-      <div class="field" style="margin-top:10px">
-        <label class="label" for="qd-legenda">Legenda deste quadro</label>
-        <input class="input" id="qd-legenda" type="text" maxlength="140" placeholder="O que acontece neste momento?" value="${esc(frame().legenda)}" ${ui.tocando ? 'disabled' : ''}>
-      </div>`;
-
-    const blocoOpcoes = `
-      <div class="qd-opcoes">
-        <button class="btn btn-sm" id="qd-girar-q" aria-pressed="${ui.vertical}">${ui.vertical ? 'Quadra na horizontal' : 'Quadra na vertical'}</button>
-        <button class="btn btn-sm" id="qd-inverter">Inverter lados</button>
-        <button class="btn btn-sm" id="qd-fundo">${ed.fundo === 'livre' ? 'Usar quadra com rede' : 'Usar área livre'}</button>
-      </div>`;
-
-    const dica = ui.ferr === 'mover'
-      ? 'Arraste as peças. Toque numa seta ou peça para selecionar e use a lixeira para apagar.'
-      : 'Arraste sobre a quadra para traçar a seta. Volte para Mover para posicionar as peças.';
+      <div id="qd-aviso">${ui.aviso ? `<div class="aviso-ok" role="status">${esc(ui.aviso)}</div>` : ''}</div>`;
 
     if (modo === 'painel') {
-      root.innerHTML = `
-        <div class="qd qd-painel">
-          <div class="qd-topo">
-            <input class="input sm" id="qd-titulo" type="text" maxlength="90" placeholder="Título da jogada ou exercício" value="${esc(ed.titulo)}" aria-label="Título">
-            <button class="btn btn-primary btn-sm" id="qd-salvar-rapido">${ed.id ? 'Salvar' : 'Salvar na biblioteca'}</button>
-          </div>
-          <div id="qd-aviso">${ui.aviso ? `<div class="aviso-ok" role="status">${esc(ui.aviso)}</div>` : ''}</div>
-          ${blocoQuadro}
-          ${blocoFerr}
-          <p class="hint" id="qd-dica">${dica}</p>
-          ${blocoFrames}
-          ${blocoOpcoes}
-          <div class="qd-abrir">
-            <label class="label" for="qd-lib-sel">Abrir da biblioteca</label>
-            <select class="select sm" id="qd-lib-sel" style="min-width:0;width:100%">
-              <option value="">Escolha uma jogada…</option>
-              ${lib.map((j) => `<option value="${j.id}">${esc(j.titulo)}</option>`).join('')}
-            </select>
-            <button class="btn btn-sm" id="qd-nova">Nova jogada</button>
-          </div>
-        </div>`;
+      root.innerHTML = `<div class="qd qd-painel">${cabecalho}${palco}</div>`;
     } else {
       root.innerHTML = `
         <header class="page-head">
           <div>
-            <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
             <h1>Quadro técnico</h1>
-            <p class="lead">Desenhe a jogada ou o exercício em quadros: posicione as duplas e a bola, trace os deslocamentos, use cones e escadas e toque como animação. O quadro também abre sobre qualquer tela pelo botão “Quadro rápido”.</p>
+            <p class="lead">Desenhe jogadas e exercícios, quadro a quadro.</p>
           </div>
-          <button class="btn" id="qd-nova">Nova jogada</button>
         </header>
 
-        <div id="qd-aviso">${ui.aviso ? `<div class="aviso-ok" role="status">${esc(ui.aviso)}</div>` : ''}</div>
-
-        <section class="card qd qd-completo" aria-labelledby="h-qd">
-          <div class="card-head">
-            <h2 id="h-qd">${ed.titulo ? esc(ed.titulo) : 'Jogada sem título'}</h2>
-          </div>
-          <div class="qd-linha">
-            <div class="qd-col-quadra">
-              ${blocoQuadro}
-              ${blocoFerr}
-              <p class="hint" id="qd-dica">${dica}</p>
-            </div>
-            <div class="qd-col-lado">
-              ${blocoFrames}
-              ${blocoOpcoes}
-            </div>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="h-det">
-          <div class="card-head"><h2 id="h-det">Detalhes da jogada</h2></div>
-          <form id="qd-form" novalidate>
-            <div class="form-grid">
-              <div class="field field-wide"><label class="label" for="qd-titulo">Título</label><input class="input" id="qd-titulo" type="text" maxlength="90" value="${esc(ed.titulo)}" placeholder="Ex.: Saque na zona 5 com cobertura"></div>
+        <section class="card qd qd-completo" aria-label="Quadro">
+          ${cabecalho}
+          ${palco}
+          <details class="qd-detalhes">
+            <summary>Detalhes da jogada</summary>
+            <div class="form-grid" style="margin-top:12px">
               <div class="field"><label class="label" for="qd-tag">Situação de jogo</label>
                 <select class="select" id="qd-tag" style="min-width:0">${Object.entries(TAGS).map(([k, n]) => `<option value="${k}" ${k === ed.tag ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
-              <div class="field"><label class="label" for="qd-fund">Fundamento principal</label>
+              <div class="field" style="grid-column:span 2"><label class="label" for="qd-fund">Fundamento principal</label>
                 <select class="select" id="qd-fund" style="min-width:0">${Object.values(FUNDAMENTOS).map((f) => `<option value="${f.id}" ${f.id === ed.fundamento ? 'selected' : ''}>${esc(f.nome)}</option>`).join('')}</select></div>
+              <div class="field field-wide"><label class="label" for="qd-desc">Descrição</label>
+                <textarea class="input" id="qd-desc" rows="3" maxlength="400" placeholder="Explique a ideia em duas ou três frases.">${esc(ed.desc)}</textarea></div>
             </div>
-            <div class="field"><label class="label" for="qd-desc">Descrição</label>
-              <textarea class="input" id="qd-desc" rows="3" maxlength="400" placeholder="Explique a ideia em duas ou três frases.">${esc(ed.desc)}</textarea></div>
-            <fieldset class="reg-fund" style="margin-top:12px"><legend class="label">Nomes nas peças (até 4 letras)</legend>
-              <div class="qd-nomes">
-                ${ed.pecas.map((k) => `<div class="field"><label class="label" for="qd-n-${k}">${k[0] === 'a' ? 'Nosso' : 'Adversário'} ${k.slice(1)}</label><input class="input sm" id="qd-n-${k}" data-nome="${k}" type="text" maxlength="4" value="${esc(ed.nomes[k])}"></div>`).join('')}
-              </div>
-            </fieldset>
-            <p class="form-erro" id="qd-erro" role="alert" hidden></p>
-            <div class="actions" style="margin-top:14px">
-              <button class="btn btn-primary" type="submit">${ed.id ? 'Salvar alterações' : 'Salvar na biblioteca'}</button>
-              ${ed.id ? '<button class="btn" type="button" id="qd-copia">Salvar como cópia</button>' : ''}
-            </div>
-          </form>
+          </details>
         </section>
 
-        <section class="card" aria-labelledby="h-lib">
-          <div class="card-head"><h2 id="h-lib">Biblioteca de jogadas</h2><span class="label num">${plural(lib.length, 'jogada', 'jogadas')}</span></div>
+        <section aria-labelledby="h-lib">
+          <div class="card-head"><h2 id="h-lib">Biblioteca</h2><span class="label num">${plural(lib.length, 'jogada', 'jogadas')}</span></div>
           ${lib.length ? `<div class="qd-lib">${lib.map((j) => `
-            <article class="qd-card">
-              <div class="qd-card-svg">${svgQuadro(j.frames[0], j, { mini: true, id: `lb${j.id}` })}</div>
-              <div class="qd-card-corpo">
-                <h3>${esc(j.titulo)}</h3>
-                <div class="chips"><span class="chip">${esc(TAGS[j.tag] || 'Outro')}</span><span class="chip">${plural(j.frames.length, 'quadro', 'quadros')}</span></div>
-                <div class="actions">
-                  <button class="btn btn-sm btn-primary" data-lib-abrir="${j.id}">Abrir</button>
-                  <button class="btn btn-sm" data-lib-dup="${j.id}">Duplicar</button>
-                  ${ui.confirmaExcluir === j.id
-                    ? `<button class="btn btn-sm btn-danger" data-lib-exc-sim="${j.id}">Confirmar exclusão</button><button class="btn btn-sm" data-lib-exc-nao>Manter</button>`
-                    : `<button class="link-btn" style="margin:0" data-lib-exc="${j.id}">Excluir</button>`}
-                </div>
-              </div>
-            </article>`).join('')}</div>` : '<p class="vazio">Nenhuma jogada salva ainda.</p>'}
-          <p class="hint">As jogadas salvas podem ser marcadas no registro de cada treino.</p>
+            <button class="qd-lib-item" data-lib-abrir="${j.id}" aria-pressed="${j.id === ed.id}">
+              <span class="qd-lib-svg">${svgQuadro(j.frames[0], j, { mini: true, id: `lb${j.id}` })}</span>
+              <span class="qd-lib-tit">${esc(j.titulo)}</span>
+              <span class="qd-lib-meta">${esc(TAGS[j.tag] || 'Outro')} · ${plural(j.frames.length, 'quadro', 'quadros')}</span>
+            </button>`).join('')}</div>` : '<p class="vazio">Nenhuma jogada salva ainda.</p>'}
         </section>`;
     }
 
@@ -351,8 +336,8 @@
     faixa.innerHTML = ed.frames.map((f, i) => `
       <button class="qd-mini" data-frame="${i}" aria-pressed="${i === ui.atual}" aria-label="Quadro ${i + 1} de ${ed.frames.length}">
         <span class="qd-mini-svg">${svgQuadro(f, ed, { mini: true, id: `mf${i}` })}</span>
-        <span class="num">${i + 1}</span>
-      </button>`).join('');
+        <span class="qd-mini-n num">${i + 1}</span>
+      </button>`).join('') + `<button class="qd-mini qd-mini-add" id="qd-add" aria-label="Novo quadro" ${ui.tocando ? 'disabled' : ''}>${ICONES.novo}</button>`;
     faixa.querySelectorAll('[data-frame]').forEach((b) => b.addEventListener('click', () => { parar(); ui.atual = Number(b.dataset.frame); ui.sel = null; render(); }));
   }
 
@@ -363,10 +348,11 @@
     ui.desfazer.push(snapshot());
     if (ui.desfazer.length > 40) ui.desfazer.shift();
     ui.refazer = [];
+    ui.sujo = true;
   }
   function restaurar(s) {
     ed.frames = s.frames; ed.nomes = s.nomes; ed.pecas = s.pecas; ed.fundo = s.fundo;
-    ui.atual = Math.min(s.atual, s.frames.length - 1); ui.sel = null;
+    ui.atual = Math.min(s.atual, s.frames.length - 1); ui.sel = null; ui.sujo = true;
   }
 
   function apagarSelecionado() {
@@ -388,19 +374,29 @@
   function ligar() {
     const root = renderRaiz;
     const q = (s) => root.querySelector(s);
+    const marcarSujo = () => { ui.sujo = true; const e = q('#qd-estado'); if (e) e.textContent = 'Alterações não salvas'; };
 
-    q('#qd-nova').addEventListener('click', () => { parar(); ed = nova(); Object.assign(ui, { atual: 0, sel: null, desfazer: [], refazer: [], confirmaExcluir: null, paleta: false }); render(); });
-    root.querySelectorAll('[data-ferr]').forEach((b) => b.addEventListener('click', () => { ui.ferr = b.dataset.ferr; ui.sel = null; render(); }));
-
+    // Ferramentas
+    root.querySelectorAll('[data-ferr]').forEach((b) => b.addEventListener('click', () => { ui.ferr = b.dataset.ferr; ui.sel = null; ui.paleta = false; render(); }));
+    root.querySelectorAll('[data-tipo-seta]').forEach((b) => b.addEventListener('click', () => { ui.tipoSeta = b.dataset.tipoSeta; render(); }));
     q('#qd-desfazer').addEventListener('click', () => { const s = ui.desfazer.pop(); if (!s) return; ui.refazer.push(snapshot()); restaurar(s); render(); });
     q('#qd-refazer').addEventListener('click', () => { const s = ui.refazer.pop(); if (!s) return; ui.desfazer.push(snapshot()); restaurar(s); render(); });
     q('#qd-apagar').addEventListener('click', apagarSelecionado);
-    q('#qd-mais').addEventListener('click', () => { ui.paleta = !ui.paleta; q('#qd-paleta').hidden = !ui.paleta; q('#qd-mais').setAttribute('aria-expanded', String(ui.paleta)); });
-    const girarObj = q('#qd-girar');
-    if (girarObj) girarObj.addEventListener('click', () => {
+    q('#qd-mais-peca').addEventListener('click', () => { ui.paleta = !ui.paleta; ui.menu = false; if (ui.paleta) { ui.ferr = 'mover'; } render(); });
+    q('#qd-menu-btn').addEventListener('click', () => { ui.menu = !ui.menu; ui.paleta = false; render(); });
+
+    const girar = q('#qd-girar');
+    if (girar) girar.addEventListener('click', () => {
       empilhar();
       ed.frames.forEach((f) => f.objs.forEach((o) => { if (o.id === ui.sel.id) o.rot = ((o.rot || 0) + 90) % 360; }));
       render();
+    });
+    const nome = q('#qd-nome');
+    if (nome) nome.addEventListener('input', (e) => {
+      ed.nomes[ui.sel.id] = e.target.value.trim() || '?';
+      q('#qd-wrap').innerHTML = svgQuadro(frame(), ed, { id: 'qd', vertical: ui.vertical, sel: ui.sel });
+      desenhaFaixa();
+      marcarSujo();
     });
 
     root.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => {
@@ -420,23 +416,14 @@
         ed.frames.forEach((f) => f.objs.push({ id, t: v, x: 4 + (n % 5) * 0.9, y: 3.4 + (n % 3) * 0.9, rot: 0 }));
         ui.sel = { tipo: 'obj', id };
       }
+      ui.ferr = 'mover';
+      ui.paleta = false;
       render();
     }));
 
-    q('#qd-inverter').addEventListener('click', () => {
-      empilhar();
-      const esp = (p) => { p.x = +(16 - p.x).toFixed(2); };
-      ed.frames.forEach((f) => {
-        Object.values(f.j).forEach(esp); esp(f.bola);
-        f.objs.forEach(esp);
-        f.setas.forEach((s) => { s.x1 = +(16 - s.x1).toFixed(2); s.x2 = +(16 - s.x2).toFixed(2); });
-      });
-      render();
-    });
-    q('#qd-girar-q').addEventListener('click', () => { ui.vertical = !ui.vertical; render(); });
-    q('#qd-fundo').addEventListener('click', () => { empilhar(); ed.fundo = ed.fundo === 'livre' ? 'quadra' : 'livre'; render(); });
-
-    q('#qd-auto').addEventListener('click', () => {
+    // Menu "mais"
+    const ao = (id, fn) => { const el = q(id); if (el) el.addEventListener('click', fn); };
+    ao('#qd-auto', () => {
       const ant = ed.frames[ui.atual - 1], atu = frame();
       empilhar();
       ant.setas = ant.setas.filter((x) => !x.auto);
@@ -445,12 +432,36 @@
       ant.objs.forEach((o) => { const b = atu.objs.find((x) => x.id === o.id); if (b && mexeu(o, b)) ant.setas.push({ ...S('desloc', o.x, o.y, b.x, b.y), auto: true }); });
       if (mexeu(ant.bola, atu.bola)) ant.setas.push({ ...S('bola', ant.bola.x, ant.bola.y, atu.bola.x, atu.bola.y), auto: true });
       ui.aviso = 'Setas criadas no quadro anterior.';
+      ui.menu = false;
+      render();
+    });
+    ao('#qd-del', () => { empilhar(); ed.frames.splice(ui.atual, 1); ui.atual = Math.max(0, ui.atual - 1); ui.sel = null; ui.menu = false; render(); });
+    ao('#qd-girar-q', () => { ui.vertical = !ui.vertical; ui.menu = false; render(); });
+    ao('#qd-inverter', () => {
+      empilhar();
+      const esp = (p) => { p.x = +(16 - p.x).toFixed(2); };
+      ed.frames.forEach((f) => {
+        Object.values(f.j).forEach(esp); esp(f.bola);
+        f.objs.forEach(esp);
+        f.setas.forEach((st) => { st.x1 = +(16 - st.x1).toFixed(2); st.x2 = +(16 - st.x2).toFixed(2); });
+      });
+      ui.menu = false;
+      render();
+    });
+    ao('#qd-fundo', () => { empilhar(); ed.fundo = ed.fundo === 'livre' ? 'quadra' : 'livre'; ui.menu = false; render(); });
+    ao('#qd-nova', () => { parar(); ed = nova(); Object.assign(ui, { atual: 0, sel: null, desfazer: [], refazer: [], menu: false, paleta: false, sujo: false, confirmaExcluirAtual: false }); render(); });
+    ao('#qd-copia', () => salvar(true));
+    ao('#qd-excluir', () => { ui.confirmaExcluirAtual = true; render(); });
+    ao('#qd-excluir-nao', () => { ui.confirmaExcluirAtual = false; render(); });
+    ao('#qd-excluir-sim', () => {
+      lib = lib.filter((j) => j.id !== ed.id);
+      gravar();
+      ed = nova();
+      Object.assign(ui, { atual: 0, sel: null, desfazer: [], refazer: [], menu: false, sujo: false, confirmaExcluirAtual: false, aviso: 'Jogada excluída.' });
       render();
     });
 
-    /* quadros */
-    q('#qd-ant').addEventListener('click', () => { ui.atual--; ui.sel = null; render(); });
-    q('#qd-prox').addEventListener('click', () => { ui.atual++; ui.sel = null; render(); });
+    // Quadros
     q('#qd-add').addEventListener('click', () => {
       empilhar();
       const f = frame();
@@ -461,13 +472,11 @@
       render();
       q('#qd-legenda').focus();
     });
-    q('#qd-del').addEventListener('click', () => { empilhar(); ed.frames.splice(ui.atual, 1); ui.atual = Math.max(0, ui.atual - 1); ui.sel = null; render(); });
-    q('#qd-legenda').addEventListener('input', (e) => { frame().legenda = e.target.value; });
+    q('#qd-legenda').addEventListener('input', (e) => { frame().legenda = e.target.value; marcarSujo(); });
 
-    /* animação */
     q('#qd-tocar').addEventListener('click', () => {
       if (ui.tocando) { parar(); render(); return; }
-      ui.tocando = true; ui.sel = null; ui.atual = 0;
+      ui.tocando = true; ui.sel = null; ui.atual = 0; ui.menu = false; ui.paleta = false;
       render();
       let i = 0, t0 = null;
       const passo = (ts) => {
@@ -481,8 +490,7 @@
         if (!cur) { ui.tocando = false; return; }
         cur.innerHTML = svgQuadro(mistura(a, b, suave), ed, { id: 'qd', vertical: ui.vertical });
         const leg = root.querySelector('#qd-legenda'); if (leg) leg.value = a.legenda;
-        root.querySelectorAll('.qd-mini').forEach((m, n) => m.setAttribute('aria-pressed', String(n === i)));
-        const pos = root.querySelector('#qd-pos'); if (pos) pos.textContent = `Quadro ${i + 1} de ${ed.frames.length}`;
+        root.querySelectorAll('.qd-mini[data-frame]').forEach((mm, n) => mm.setAttribute('aria-pressed', String(n === i)));
         if (t >= DURACAO.pausa + DURACAO.move) {
           i++; t0 = null;
           if (i >= ed.frames.length - 1) { ui.tocando = false; ui.atual = ed.frames.length - 1; render(); return; }
@@ -492,7 +500,7 @@
       requestAnimationFrame(passo);
     });
 
-    /* quadra: arrastar peças e traçar setas */
+    // Quadra: arrastar peças e traçar setas
     const wrap = q('#qd-wrap');
     const ponto = (e) => {
       const svg = wrap.querySelector('svg');
@@ -536,8 +544,8 @@
           ui.sel = { tipo: 'seta', i: Number(seta.dataset.seta) };
           marcarSel();
           q('#qd-apagar').disabled = false;
-        } else {
-          ui.sel = null; marcarSel(); q('#qd-apagar').disabled = true;
+        } else if (ui.sel) {
+          ui.sel = null; render();
         }
       } else {
         let ini = p, melhor = 0.95;
@@ -545,7 +553,7 @@
         alvos.forEach((pos) => { const d = Math.hypot(pos.x - p.x, pos.y - p.y); if (d < melhor) { melhor = d; ini = { x: pos.x, y: pos.y }; } });
         const mundo = wrap.querySelector('#qd-mundo');
         const linha = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        const est = ESTILO_SETA[ui.ferr];
+        const est = ESTILO_SETA[ui.tipoSeta];
         linha.setAttribute('x1', ini.x); linha.setAttribute('y1', ini.y); linha.setAttribute('x2', ini.x); linha.setAttribute('y2', ini.y);
         linha.setAttribute('style', `stroke:var(${est.cor});stroke-width:${est.w};stroke-linecap:round;opacity:.7;pointer-events:none`);
         if (est.dash) linha.setAttribute('stroke-dasharray', est.dash);
@@ -572,7 +580,7 @@
 
     wrap.addEventListener('pointerup', (e) => {
       if (arrasto) {
-        if (arrasto.mexeu) { ui.desfazer.push(arrasto.antes); ui.refazer = []; if (ui.desfazer.length > 40) ui.desfazer.shift(); }
+        if (arrasto.mexeu) { ui.desfazer.push(arrasto.antes); ui.refazer = []; ui.sujo = true; if (ui.desfazer.length > 40) ui.desfazer.shift(); }
         arrasto = null;
         render();
       } else if (traco) {
@@ -580,7 +588,7 @@
         traco.linha.remove();
         if (Math.hypot(p.x - traco.ini.x, p.y - traco.ini.y) >= 0.6) {
           empilhar();
-          frame().setas.push(S(ui.ferr, +traco.ini.x.toFixed(2), +traco.ini.y.toFixed(2), +clamp(p.x, LIM.x0, LIM.x1).toFixed(2), +clamp(p.y, LIM.y0, LIM.y1).toFixed(2)));
+          frame().setas.push(S(ui.tipoSeta, +traco.ini.x.toFixed(2), +traco.ini.y.toFixed(2), +clamp(p.x, LIM.x0, LIM.x1).toFixed(2), +clamp(p.y, LIM.y0, LIM.y1).toFixed(2)));
           ui.sel = { tipo: 'seta', i: frame().setas.length - 1 };
           render();
         }
@@ -604,64 +612,42 @@
       const novo = renderRaiz.querySelector(`[data-pec="${k}"]`); if (novo) novo.focus();
     });
 
-    /* título e salvamento */
-    const titulo = q('#qd-titulo');
-    titulo.addEventListener('input', (e) => { ed.titulo = e.target.value; const h = q('#h-qd'); if (h) h.textContent = ed.titulo || 'Jogada sem título'; });
+    // Título, salvamento e detalhes
+    q('#qd-titulo').addEventListener('input', (e) => { ed.titulo = e.target.value; marcarSujo(); });
+    q('#qd-salvar').addEventListener('click', () => salvar(false));
+    if (q('#qd-tag')) {
+      q('#qd-tag').addEventListener('change', (e) => { ed.tag = e.target.value; marcarSujo(); });
+      q('#qd-fund').addEventListener('change', (e) => { ed.fundamento = e.target.value; marcarSujo(); });
+      q('#qd-desc').addEventListener('input', (e) => { ed.desc = e.target.value; marcarSujo(); });
+    }
 
-    const salvar = (copia) => {
-      const erro = q('#qd-erro');
+    function salvar(copia) {
       if (!ed.titulo.trim()) {
-        if (erro) { erro.textContent = 'Dê um título à jogada antes de salvar.'; erro.hidden = false; }
-        else { ui.aviso = ''; q('#qd-aviso').innerHTML = '<div class="form-erro" role="alert">Dê um título à jogada antes de salvar.</div>'; }
-        titulo.focus();
+        q('#qd-aviso').innerHTML = '<div class="form-erro" role="alert">Dê um título à jogada antes de salvar.</div>';
+        q('#qd-titulo').focus();
         return;
       }
-      const registro = copiar({ ...ed, titulo: ed.titulo.trim() });
+      const registro = copiar({ ...ed, titulo: copia ? `${ed.titulo.trim()} (cópia)` : ed.titulo.trim() });
       if (copia || !ed.id) { registro.id = `j${++seq}`; lib.push(registro); }
       else { const i = lib.findIndex((j) => j.id === ed.id); lib[i] = registro; }
       ed.id = registro.id;
+      if (copia) ed.titulo = registro.titulo;
       gravar();
+      ui.sujo = false; ui.menu = false;
       window.dispatchEvent(new CustomEvent('ft:jogada-salva', { detail: { id: registro.id, titulo: registro.titulo } }));
       ui.aviso = copia ? 'Cópia salva na biblioteca.' : 'Jogada salva na biblioteca.';
       render();
-    };
-    const sr = q('#qd-salvar-rapido'); if (sr) sr.addEventListener('click', () => salvar(false));
-
-    const form = q('#qd-form');
-    if (form) {
-      q('#qd-tag').addEventListener('change', (e) => { ed.tag = e.target.value; });
-      q('#qd-fund').addEventListener('change', (e) => { ed.fundamento = e.target.value; });
-      q('#qd-desc').addEventListener('input', (e) => { ed.desc = e.target.value; });
-      root.querySelectorAll('[data-nome]').forEach((i) => i.addEventListener('input', () => {
-        ed.nomes[i.dataset.nome] = i.value.trim() || '?';
-        q('#qd-wrap').innerHTML = svgQuadro(frame(), ed, { id: 'qd', vertical: ui.vertical, sel: ui.sel });
-        q('#qd-faixa').querySelectorAll('.qd-mini-svg').forEach((el, n) => { el.innerHTML = svgQuadro(ed.frames[n], ed, { mini: true, id: `mf${n}` }); });
-      }));
-      form.addEventListener('submit', (e) => { e.preventDefault(); salvar(false); });
-      const cp = q('#qd-copia'); if (cp) cp.addEventListener('click', () => salvar(true));
     }
 
-    /* biblioteca */
+    // Biblioteca
     const abrir = (id) => {
       parar();
       ed = normal(copiar(lib.find((j) => j.id === id)));
-      Object.assign(ui, { atual: 0, sel: null, desfazer: [], refazer: [], confirmaExcluir: null, aviso: '' });
+      Object.assign(ui, { atual: 0, sel: null, desfazer: [], refazer: [], aviso: '', sujo: false, menu: false, paleta: false, confirmaExcluirAtual: false });
       render();
     };
-    const sel = q('#qd-lib-sel'); if (sel) sel.addEventListener('change', () => { if (sel.value) abrir(sel.value); });
+    const selLib = q('#qd-lib-sel'); if (selLib) selLib.addEventListener('change', () => { if (selLib.value) abrir(selLib.value); });
     root.querySelectorAll('[data-lib-abrir]').forEach((b) => b.addEventListener('click', () => { abrir(b.dataset.libAbrir); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
-    root.querySelectorAll('[data-lib-dup]').forEach((b) => b.addEventListener('click', () => {
-      const j = copiar(lib.find((x) => x.id === b.dataset.libDup));
-      j.id = `j${++seq}`; j.titulo = `${j.titulo} (cópia)`;
-      lib.push(j); gravar(); ui.aviso = 'Jogada duplicada.'; render();
-    }));
-    root.querySelectorAll('[data-lib-exc]').forEach((b) => b.addEventListener('click', () => { ui.confirmaExcluir = b.dataset.libExc; render(); }));
-    root.querySelectorAll('[data-lib-exc-sim]').forEach((b) => b.addEventListener('click', () => {
-      lib = lib.filter((j) => j.id !== b.dataset.libExcSim);
-      if (ed.id === b.dataset.libExcSim) ed.id = null;
-      ui.confirmaExcluir = null; gravar(); ui.aviso = 'Jogada excluída.'; render();
-    }));
-    root.querySelectorAll('[data-lib-exc-nao]').forEach((b) => b.addEventListener('click', () => { ui.confirmaExcluir = null; render(); }));
   }
 
   // Delete apaga o item selecionado, quando o foco não está num campo de texto.

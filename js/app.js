@@ -39,15 +39,14 @@
       itens: [
         { id: 'treinos-periodizacao', nome: 'Periodização', icone: 'cal', pronta: true },
         {
-          id: 'treinos-microciclo', nome: 'Microciclo da semana', icone: 'pulso',
-          resumo: 'A semana de treino em uma tela: sessões planejadas, carga e como os atletas estão respondendo.',
+          id: 'treinos-microciclo', nome: 'Resposta da semana', icone: 'pulso',
+          resumo: 'Como os atletas estão respondendo à semana: PSE, PSR e bem-estar.',
           bullets: [
-            'Grade dia × turno com o tipo de cada sessão (técnica, tática, físico, jogo, recuperação), duração e objetivo.',
-            'Tipo do microciclo: ordinário, choque, recuperação, pré-competitivo ou competitivo.',
+            'Sessões da semana planejadas na Periodização, lado a lado com o que os atletas relataram.',
             'Por atleta: PSE, PSR, sono, dor e disposição, com semáforo e carga da semana (monotonia, strain, ACWR).',
             'Coleta em lote pelo técnico (toque em atleta × valor) ou pelo link do atleta.',
           ],
-          tabelas: ['microciclos', 'sessoes', 'pse_sessao', 'wellness_diario'],
+          tabelas: ['pse_sessao', 'wellness_diario'],
         },
       ],
     },

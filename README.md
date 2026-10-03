@@ -8,4 +8,4 @@ ou rode `python3 -m http.server` na raiz.
 - `css/farol.css`: tokens de cor e tipografia (claro e escuro) e componentes.
 - `js/dados.js`: dados de exemplo. É o único arquivo a trocar quando o Supabase (schema `ft`) entrar.
 - `js/app.js`: shell, menu e roteamento. Telas ainda não feitas aparecem como "em breve".
-- `js/periodizacao.js`: Treinos > Periodização.
+- `js/periodizacao.js`: casca da Periodização (plano, situação, abas). `js/macro.js`, `js/meso.js` e `js/micro.js` são as três escalas.

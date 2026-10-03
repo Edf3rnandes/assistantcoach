@@ -92,6 +92,17 @@
     },
   };
 
+  // Situação de saúde (de exemplo). Em produção vem do cadastro do atleta (`atletas_situacao`) e do relato de dor.
+  // tipo: lesao (fora dos treinos), retorno (treino adaptado) ou duvida (relato a avaliar).
+  const dia = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  const SITUACAO = {
+    a9: { tipo: 'lesao', local: 'Tornozelo direito', texto: 'Entorse de grau 1', desde: dia('2026-09-24'), retorno: dia('2026-10-17'), conduta: 'Fisioterapia diária, sem salto nem corrida na areia' },
+    d3: { tipo: 'lesao', local: 'Dedo da mão', texto: 'Fissura no dedo médio', desde: dia('2026-09-28'), retorno: dia('2026-10-26'), conduta: 'Imobilização, só treino físico de membros inferiores' },
+    c2: { tipo: 'retorno', local: 'Ombro direito', texto: 'Dor ao atacar', desde: dia('2026-09-14'), retorno: dia('2026-10-08'), conduta: 'Treino adaptado: sem ataque forte nem saque viagem' },
+    b4: { tipo: 'duvida', local: 'Lombar', texto: 'Dor relatada no último treino', desde: dia('2026-10-01'), retorno: null, conduta: 'Avaliar com o fisioterapeuta antes do próximo treino' },
+  };
+  const situacaoDe = (id) => SITUACAO[id] || null;
+
   const turmaPorToken = (t) => Object.values(TURMAS).find((x) => x.token === t) || null;
   // Novo link: o anterior deixa de valer. Em produção o token fica no banco (`tokens_atleta`).
   const novoToken = (turmaId) => {
@@ -101,5 +112,5 @@
   };
 
   window.Farol = window.Farol || {};
-  window.Farol.elenco = { turmaPorToken, novoToken, PROFS, ATLETAS, ATLETAS_LISTA, TURMAS, FUNDAMENTOS, FUNDAMENTOS_LISTA, GRUPOS_FUNDAMENTO, PRIORIDADES, PAUTA_PADRAO };
+  window.Farol.elenco = { SITUACAO, situacaoDe, turmaPorToken, novoToken, PROFS, ATLETAS, ATLETAS_LISTA, TURMAS, FUNDAMENTOS, FUNDAMENTOS_LISTA, GRUPOS_FUNDAMENTO, PRIORIDADES, PAUTA_PADRAO };
 })();

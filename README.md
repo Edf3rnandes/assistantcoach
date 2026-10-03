@@ -37,8 +37,13 @@ Item **Scout** na barra fixa. Duas telas: `analise-scout` (jogos, relatório e f
 - Dados: `js/scout-dados.js` (modelo `jogos` / `acoes_scout`; estatísticas calculadas das ações). Jogos de exemplo gerados jogada a jogada; o que for coletado fica no navegador (`localStorage`, chave `ft.scout.v1`).
 
 
-## Início e navegação de volta (etapa 11)
+## Início e navegação de volta (etapas 11 e 12)
 
-- **Início** (`js/inicio.js`) é a tela de abertura e o ponto de volta de todas as outras. Mostra o jogo em andamento (se houver), quatro indicadores (sessões de hoje, sessões para registrar, atletas em atenção, dias até a próxima competição), os atalhos **Criar ou começar** (registrar treino, coletar jogo, treino de fundamento, quadro técnico, novo plano, nova competição), **Hoje**, **Para registrar** (com quantos atletas já responderam), **Semana atual** por plano, **Atenção agora**, **Próximas competições** com o preparo e os atalhos **Acessar** para cada área, além do que vem em breve.
-- **Voltar**: toda tela fora do Início mostra o botão **‹ Início** logo abaixo do logotipo. O logotipo e o item **Início** da barra também levam para lá. Tocar no item da tela em que já está volta ao começo dela (por exemplo, sai do relatório de um jogo).
-- A barra fixa agora é: Início, Plano, Torneios, Registro, Quadro, Análise, Scout. O antigo item "Mais" foi para o Início ("Em breve").
+O **Início** (`js/inicio.js`) é o painel geral e o ponto de volta de todas as telas. Lê na ordem em que o técnico decide:
+
+1. **Faixa do dia**, com paisagem de praia: data, sessões de hoje (toque para registrar), jogo em andamento e os atalhos para criar ou começar algo (registrar treino, coletar jogo, quadro técnico, fundamento, novo plano, nova competição). Quatro indicadores logo abaixo: atletas disponíveis, lesionados ou em retorno, sessões sem registro e dias até a próxima competição.
+2. **Planejamento**: fase atual, semana, linha do ciclo com "hoje", bandeiras das competições e o alvo, mais as **prioridades da fase** (fundamentos de prioridade alta e as ideias da pauta). Seletor entre os planos. **Competições**: as três próximas, com contagem de dias e o preparo (duplas, viagem, equipe).
+3. **Elenco e saúde**: um cartão por turma (disponíveis, atenção de carga, em retorno, lesionados, com os nomes) e a lista de **lesões e retornos** com local, conduta e data de volta. A situação de saúde vem de `SITUACAO` em `js/elenco.js` (dados de exemplo; em produção, o cadastro do atleta).
+4. **Em seguida**: **últimos testes** (evolução média da turma por teste, quem mais evoluiu, quem olhar e a próxima avaliação sugerida), **treinos para rever** (sessões dos últimos 14 dias com esforço acima do alvo, recuperação baixa ou presença baixa) e **em atraso** (sessões sem registro, atletas sem responder, competições com preparo pendente, retornos de lesão próximos, reavaliação física).
+
+**Voltar**: toda tela fora do Início mostra **‹ Início** logo abaixo do logotipo. O logotipo e o item Início da barra também levam para lá, e tocar no item da tela em que já está volta ao começo dela. A barra fixa é: Início, Plano, Torneios, Registro, Quadro, Análise, Scout.

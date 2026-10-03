@@ -80,13 +80,13 @@ Tela `treinos-biblioteca` (`js/biblioteca.js`, dados em `js/prescricao.js`), abe
 - **Página do atleta**: o atleta vê "Meu treino físico" com o treino dele, as trocas e as cargas individuais. Exercícios que ainda conflitam com a saúde dele aparecem marcados com "fale com o professor antes".
 - Os dados ficam no navegador (`ft.prescricao.v1`) até o Supabase entrar (tabelas previstas `exercicios`, `planos_treino` e `treino_prescrito`).
 
-## Scout por toque e pressão (etapa 16)
+## Scout por toque e pressão (etapas 16 e 17)
 
-A coleta ao vivo (`js/scout-coleta.js`) foi refeita em cima do mesmo registro de ações:
+A coleta ao vivo (`js/scout-coleta.js`) usa o mesmo registro de ações, com poucos pontos para tocar:
 
 - **Placar dividido**: azul é a nossa dupla e vermelho o adversário, com números enormes, o sacador, o relógio do jogo e **+** e **−** de cada lado. O **−** desfaz o último ponto do lado (só quando foi dele).
-- **Toque no +** abre as ações do ponto. Nosso ponto: ataque, bloqueio, ace, erro deles, outro. Ponto deles: ataque, saque, bloqueio, **erro nosso** (pergunta quem errou e em qual fundamento) e outro. A escolha de quem fez fica nos dois atletas, sempre à vista.
-- **Toque registra o padrão; segure e deslize** abre uma **roda** de detalhes: tipo de ataque (diagonal, paralela, largada, usada), tipo de saque (viagem, flutuante), qual erro do adversário, qualidade da recepção. Soltar no centro vale "geral". Também dá para tocar nas fatias, ou usar **Shift+Enter** no teclado e as setas.
-- **Sem ponto**: faixa com recepção, defesa, ataque defendido e saque em jogo, com a mesma regra (toque = padrão, segure = detalhe). Depois de recepção ou defesa, a vez passa para o parceiro.
-- **Última ação** com o destino opcional na quadra (3 × 3). Troca de lado, tempo técnico e sacador continuam automáticos.
-- **Relatório do jogo** ganhou **Linha da partida** (uma bolinha por ponto, com o que o originou), **rosquinhas** (origem dos pontos, ataques convertidos por tipo, erros cometidos, origem dos pontos do adversário) e os tipos passam a aparecer nas jogadas. Os jogos gravados mudaram de chave (`ft.scout.v2`).
+- **Uma roda só.** Tocar no **+** abre uma roda com **quatro opções nas laterais** e o centro sem nome (um **?**, que vale "outro"): nosso ponto = Ataque, Bloqueio, Ace, Erro deles; ponto deles = Ataque, Saque, Bloqueio, Erro nosso. **Erro nosso** abre outra roda com Saque, Recepção, Ataque e Defesa. Dá para tocar na fatia, ou **segurar o + e deslizar** até a opção e soltar. No teclado: Enter, setas e Esc.
+- **A escolha já registra.** Os detalhes são opcionais e aparecem como **quatro botões** na "Última ação", que também servem para **corrigir**: tipo de ataque (diagonal, paralela, largada, usada), tipo de saque (viagem, flutuante), qual erro do adversário, qualidade da recepção (perfeita, boa, ruim, erro; trocar para erro refaz o ponto).
+- **Jogada sem ponto**: um botão só, com a roda Recepção, Ataque (defendido), Saque (em jogo) e Defesa. Depois de recepção ou defesa, a vez passa para o parceiro.
+- Os dois atletas ficam à vista (quem está na bola). O destino na quadra (3 × 3) fica recolhido na "Última ação". Troca de lado, tempo técnico e sacador continuam automáticos.
+- **Relatório do jogo**: Linha da partida (uma bolinha por ponto, com o que o originou) e rosquinhas (origem dos pontos, ataques convertidos por tipo, erros cometidos, origem dos pontos do adversário). Os jogos gravados mudaram de chave (`ft.scout.v2`).

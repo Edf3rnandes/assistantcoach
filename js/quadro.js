@@ -210,7 +210,8 @@
     renderRaiz = root;
     modo = m || modo;
     ui.ativo = true;
-    if (ui.vertical == null) ui.vertical = modo === 'painel' || window.matchMedia('(max-width: 760px)').matches;
+    // Tela cheia no celular: quadra em pé. Gaveta: em pé só no painel lateral do computador (no celular ela é uma folha baixa e larga).
+    if (ui.vertical == null) ui.vertical = modo === 'painel' ? window.matchMedia('(min-width: 900px)').matches : window.matchMedia('(max-width: 760px)').matches;
 
     const sel = ui.sel;
     const pecaSel = sel && sel.tipo === 'peca' ? sel : null;
@@ -329,6 +330,22 @@
     root.querySelector('#qd-wrap').innerHTML = svgQuadro(frame(), ed, { id: 'qd', vertical: ui.vertical, sel: ui.sel });
     desenhaFaixa();
     ligar();
+  }
+
+  // Atualização leve depois de arrastar: refaz só a quadra, a faixa de quadros e o estado dos botões (sem remontar a tela).
+  function leve() {
+    const root = renderRaiz;
+    const w = root && root.querySelector('#qd-wrap');
+    if (!w) { render(); return; }
+    w.innerHTML = svgQuadro(frame(), ed, { id: 'qd', vertical: ui.vertical, sel: ui.sel });
+    desenhaFaixa();
+    if (ui.sel && ui.sel.tipo !== 'seta') {
+      const alvo = w.querySelector(`[data-pec="${ui.sel.tipo === 'obj' ? `obj:${ui.sel.id}` : ui.sel.id}"]`);
+      if (alvo) alvo.classList.add('sel');
+    }
+    const desab = (id, off) => { const b = root.querySelector(id); if (b) b.disabled = off; };
+    desab('#qd-desfazer', !ui.desfazer.length); desab('#qd-refazer', !ui.refazer.length);
+    const st = root.querySelector('#qd-estado'); if (st) st.textContent = ui.sujo ? 'Alterações não salvas' : ed.id ? 'Salvo' : '';
   }
 
   function desenhaFaixa() {
@@ -478,7 +495,7 @@
       if (ui.tocando) { parar(); render(); return; }
       ui.tocando = true; ui.sel = null; ui.atual = 0; ui.menu = false; ui.paleta = false;
       render();
-      let i = 0, t0 = null;
+      let i = 0, t0 = null, seg = -1, refs = null;
       const passo = (ts) => {
         if (!ui.tocando || !root.isConnected) { ui.tocando = false; return; }
         if (t0 == null) t0 = ts;
@@ -488,9 +505,18 @@
         const a = ed.frames[i], b = ed.frames[i + 1];
         const cur = root.querySelector('#qd-wrap');
         if (!cur) { ui.tocando = false; return; }
-        cur.innerHTML = svgQuadro(mistura(a, b, suave), ed, { id: 'qd', vertical: ui.vertical });
-        const leg = root.querySelector('#qd-legenda'); if (leg) leg.value = a.legenda;
-        root.querySelectorAll('.qd-mini[data-frame]').forEach((mm, n) => mm.setAttribute('aria-pressed', String(n === i)));
+        if (seg !== i) {
+          // Monta a quadra uma vez por passo e depois só move as peças (muito mais leve que refazer o SVG a cada quadro).
+          seg = i;
+          cur.innerHTML = svgQuadro(mistura(a, b, 0), ed, { id: 'qd', vertical: ui.vertical });
+          refs = new Map([...cur.querySelectorAll('[data-pec]')].map((el) => [el.dataset.pec, el]));
+          const leg = root.querySelector('#qd-legenda'); if (leg) leg.value = a.legenda;
+          root.querySelectorAll('.qd-mini[data-frame]').forEach((mm, n) => mm.setAttribute('aria-pressed', String(n === i)));
+        }
+        const m = mistura(a, b, suave);
+        Object.keys(m.j).forEach((id) => { const el = refs.get(id); if (el) el.setAttribute('transform', `translate(${m.j[id].x} ${m.j[id].y})`); });
+        const bl = refs.get('bola'); if (bl) bl.setAttribute('transform', `translate(${m.bola.x} ${m.bola.y})`);
+        (m.objs || []).forEach((o) => { const el = refs.get(`obj:${o.id}`); if (el) el.setAttribute('transform', `translate(${o.x} ${o.y}) rotate(${o.rot || 0})`); });
         if (t >= DURACAO.pausa + DURACAO.move) {
           i++; t0 = null;
           if (i >= ed.frames.length - 1) { ui.tocando = false; ui.atual = ed.frames.length - 1; render(); return; }
@@ -502,12 +528,12 @@
 
     // Quadra: arrastar peças e traçar setas
     const wrap = q('#qd-wrap');
+    // A matriz de tela é lida uma vez por gesto: ler a cada movimento força o navegador a recalcular o layout.
+    let inversa = null;
+    const prepararMatriz = () => { const mundo = wrap.querySelector('#qd-mundo'); inversa = mundo ? mundo.getScreenCTM().inverse() : null; };
     const ponto = (e) => {
-      const svg = wrap.querySelector('svg');
-      const mundo = svg.querySelector('#qd-mundo');
-      const pt = svg.createSVGPoint();
-      pt.x = e.clientX; pt.y = e.clientY;
-      const r = pt.matrixTransform(mundo.getScreenCTM().inverse());
+      if (!inversa) prepararMatriz();
+      const r = new DOMPoint(e.clientX, e.clientY).matrixTransform(inversa);
       return { x: r.x, y: r.y };
     };
     const posDe = (k) => {
@@ -528,6 +554,8 @@
 
     wrap.addEventListener('pointerdown', (e) => {
       if (ui.tocando) return;
+      prepararMatriz();
+      const selAntes = ui.sel ? `${ui.sel.tipo}:${ui.sel.id}` : '';
       const p = ponto(e);
       if (ui.ferr === 'mover') {
         const peca = e.target.closest('[data-pec]');
@@ -536,8 +564,8 @@
           const k = peca.dataset.pec;
           const pos = posDe(k);
           ui.sel = k === 'bola' ? null : k.startsWith('obj:') ? { tipo: 'obj', id: k.slice(4) } : { tipo: 'peca', id: k };
-          arrasto = { k, dx: pos.x - p.x, dy: pos.y - p.y, antes: snapshot(), mexeu: false, el: peca };
-          wrap.setPointerCapture(e.pointerId);
+          arrasto = { k, dx: pos.x - p.x, dy: pos.y - p.y, antes: snapshot(), mexeu: false, el: peca, selMudou: selAntes !== (ui.sel ? `${ui.sel.tipo}:${ui.sel.id}` : ''), quadro: 0, ult: null };
+          try { wrap.setPointerCapture(e.pointerId); } catch (er) { /* ponteiro já encerrado */ }
           marcarSel();
           e.preventDefault();
         } else if (seta) {
@@ -559,30 +587,41 @@
         if (est.dash) linha.setAttribute('stroke-dasharray', est.dash);
         mundo.appendChild(linha);
         traco = { ini, linha };
-        wrap.setPointerCapture(e.pointerId);
+        try { wrap.setPointerCapture(e.pointerId); } catch (er) { /* ponteiro já encerrado */ }
         e.preventDefault();
       }
     });
 
+    // Um movimento por quadro de tela: o dedo gera muito mais eventos do que a tela consegue desenhar.
+    const aplicarArrasto = () => {
+      if (!arrasto) return;
+      arrasto.quadro = 0;
+      const e = arrasto.ult; if (!e) return;
+      const p = ponto(e);
+      const pos = posDe(arrasto.k);
+      pos.x = clamp(p.x + arrasto.dx, LIM.x0, LIM.x1);
+      pos.y = clamp(p.y + arrasto.dy, LIM.y0, LIM.y1);
+      arrasto.el.setAttribute('transform', `translate(${pos.x} ${pos.y}) rotate(${arrasto.el.dataset.rot || 0})`);
+    };
+    let tracoQuadro = 0, tracoUlt = null;
     wrap.addEventListener('pointermove', (e) => {
       if (arrasto) {
-        const p = ponto(e);
-        const pos = posDe(arrasto.k);
-        pos.x = clamp(p.x + arrasto.dx, LIM.x0, LIM.x1);
-        pos.y = clamp(p.y + arrasto.dy, LIM.y0, LIM.y1);
         arrasto.mexeu = true;
-        arrasto.el.setAttribute('transform', `translate(${pos.x} ${pos.y}) rotate(${arrasto.el.dataset.rot || 0})`);
+        arrasto.ult = e;
+        if (!arrasto.quadro) arrasto.quadro = requestAnimationFrame(aplicarArrasto);
       } else if (traco) {
-        const p = ponto(e);
-        traco.linha.setAttribute('x2', p.x); traco.linha.setAttribute('y2', p.y);
+        tracoUlt = e;
+        if (!tracoQuadro) tracoQuadro = requestAnimationFrame(() => { tracoQuadro = 0; if (!traco || !tracoUlt) return; const p = ponto(tracoUlt); traco.linha.setAttribute('x2', p.x); traco.linha.setAttribute('y2', p.y); });
       }
     });
 
     wrap.addEventListener('pointerup', (e) => {
       if (arrasto) {
+        cancelAnimationFrame(arrasto.quadro); arrasto.ult = e; aplicarArrasto();
+        const mudouSel = arrasto.selMudou;
         if (arrasto.mexeu) { ui.desfazer.push(arrasto.antes); ui.refazer = []; ui.sujo = true; if (ui.desfazer.length > 40) ui.desfazer.shift(); }
         arrasto = null;
-        render();
+        if (mudouSel) render(); else leve();
       } else if (traco) {
         const p = ponto(e);
         traco.linha.remove();

@@ -90,3 +90,10 @@ A coleta ao vivo (`js/scout-coleta.js`) usa o mesmo registro de ações, com pou
 - **Jogada sem ponto**: um botão só, com a roda Recepção, Ataque (defendido), Saque (em jogo) e Defesa. Depois de recepção ou defesa, a vez passa para o parceiro.
 - Os dois atletas ficam à vista (quem está na bola). O destino na quadra (3 × 3) fica recolhido na "Última ação". Troca de lado, tempo técnico e sacador continuam automáticos.
 - **Relatório do jogo**: Linha da partida (uma bolinha por ponto, com o que o originou) e rosquinhas (origem dos pontos, ataques convertidos por tipo, erros cometidos, origem dos pontos do adversário). Os jogos gravados mudaram de chave (`ft.scout.v2`).
+
+## Quadro rápido e fluidez (etapa 18)
+
+- **Gaveta do quadro** fecha sozinha ao trocar de tela, então o botão **Quadro** volta a abrir em qualquer página (antes ela ficava aberta sobre a página nova e o toque seguinte a fechava). No celular virou uma **folha baixa** acima da barra (a tela de trás, como o placar do Scout, continua visível); no computador é um painel lateral. Os dois entram com uma animação curta.
+- **Arrastar** peças e traçar setas ficou mais leve: a matriz de tela é lida uma vez por gesto, o movimento é aplicado uma vez por quadro de tela e, ao soltar, só a quadra, a faixa de quadros e os botões são atualizados (a tela não é remontada, salvo quando a seleção muda).
+- **Reproduzir** a sequência monta a quadra uma vez por passo e só move as peças a cada quadro, em vez de refazer o SVG inteiro.
+- Na folha do celular a quadra abre na horizontal (no painel lateral do computador, em pé); dá para girar no menu.

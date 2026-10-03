@@ -1028,14 +1028,16 @@ select.st-prevista { border-color: var(--warn); }
 .qd-lib-meta { padding: 2px 10px 10px; font-size: 13px; color: var(--ink-2); }
 .qd-painel { display: flex; flex-direction: column; }
 
-.gaveta { position: fixed; z-index: 40; inset: 0 0 calc(var(--barra-h) + env(safe-area-inset-bottom, 0px)) 0; background: var(--bg); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
-.gaveta-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.gaveta-topo strong { font-family: var(--font-display); font-size: 22px; margin-right: auto; white-space: nowrap; }
+.gaveta { position: fixed; z-index: 40; left: 0; right: 0; bottom: calc(var(--barra-h) + env(safe-area-inset-bottom, 0px)); height: min(66vh, 580px); display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-bottom: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.28); animation: gaveta-sobe 0.2s ease-out; overflow: hidden; }
+.gaveta-topo { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); flex: none; }
+.gaveta-topo strong { font-family: var(--font-display); font-size: 21px; margin-right: auto; white-space: nowrap; }
 .gaveta-topo .link-btn { white-space: nowrap; }
-.gaveta-corpo { flex: 1; overflow-y: auto; padding: 12px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+.gaveta-corpo { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 16px; }
+@keyframes gaveta-sobe { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes gaveta-entra { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 @media (min-width: 900px) {
-  .gaveta { inset: 0 0 calc(var(--barra-h) + 24px) auto; width: 480px; border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25); }
+  .gaveta { left: auto; top: 0; bottom: calc(var(--barra-h) + 24px); width: 480px; height: auto; border-radius: 0; border-top: 0; border-bottom: 0; border-right: 0; box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25); animation-name: gaveta-entra; }
 }
 
 

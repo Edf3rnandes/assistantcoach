@@ -137,6 +137,8 @@
   }
 
   function rotear() {
+    // A gaveta do quadro pertence à tela em que foi aberta: ao trocar de tela, fecha, e o botão Quadro volta a abrir.
+    if (gaveta.aberta) gaveta.fechar(false);
     let id = location.hash.slice(1);
     if (id === 'analise-comparar') { id = 'analise'; window.Farol.params = { aba: 'comparar' }; }
     const rota = ROTAS[id] && !ROTAS[id].existente ? id : PADRAO;
@@ -178,7 +180,7 @@
       window.Farol.quadro.montar(document.getElementById('gaveta-corpo'), 'painel');
       document.getElementById('gaveta-fechar').focus();
     },
-    fechar() {
+    fechar(devolverFoco = true) {
       const el = document.getElementById('gaveta-quadro');
       if (!el || !this.aberta) return;
       this.aberta = false;
@@ -187,7 +189,7 @@
       document.getElementById('gaveta-corpo').innerHTML = '';
       window.Farol.quadro.desmontar();
       const bt = document.getElementById('bt-quadro');
-      if (bt) bt.focus();
+      if (bt && devolverFoco) bt.focus();
     },
   };
   window.Farol.gaveta = gaveta;

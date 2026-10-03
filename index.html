@@ -12,7 +12,7 @@
 <body>
   <div class="app">
     <header class="topo">
-      <div class="brand">
+      <a class="brand" href="#inicio" aria-label="Farol Tático, ir para o início">
         <svg width="34" height="34" viewBox="0 0 34 34" fill="none" aria-hidden="true">
           <path d="M3 17 L16 14 V20 Z" fill="#f2a900" opacity=".9"/>
           <path d="M31 17 L18 14 V20 Z" fill="#f2a900" opacity=".55"/>
@@ -25,14 +25,14 @@
           <div class="brand-name">Farol Tático</div>
           <div class="brand-sub">Painel do técnico</div>
         </div>
-      </div>
+      </a>
     </header>
+    <div class="voltar" id="voltar-w" hidden><a class="voltar-link" href="#inicio">‹ Início</a></div>
 
     <main class="main" id="conteudo"></main>
   </div>
 
   <nav class="barra" id="barra" aria-label="Módulos"></nav>
-  <div class="folha" id="folha-mais" role="menu" aria-label="Mais telas" hidden></div>
 
   <aside class="gaveta" id="gaveta-quadro" aria-label="Quadro técnico rápido" hidden>
     <div class="gaveta-topo">
@@ -64,6 +64,7 @@
   <script src="js/comparativos.js"></script>
   <script src="js/analise.js"></script>
   <script src="js/scout.js"></script>
+  <script src="js/inicio.js"></script>
   <script src="js/atleta.js"></script>
   <script src="js/app.js"></script>
 </body>

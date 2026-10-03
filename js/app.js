@@ -21,12 +21,14 @@
     alvo: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
     mais: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
     placar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M7 9h2M15 9h2"/>',
+    casa: '<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/>',
   };
   const icon = (nome, t = 18) =>
     `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nome]}</svg>`;
 
   // `pronta` indica se a tela já foi construída; as demais mostram o que entra nela.
   const GRUPOS = [
+    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }] },
     {
       titulo: 'Já existe',
       itens: [
@@ -94,12 +96,13 @@
 
   const ROTAS = {};
   GRUPOS.forEach((g) => g.itens.forEach((i) => { ROTAS[i.id] = i; }));
-  const PADRAO = 'treinos-periodizacao';
+  const PADRAO = 'inicio';
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   // Itens que ficam sempre na barra. "Quadro" abre a gaveta do quadro rápido; o resto navega.
   const BARRA = [
+    { id: 'inicio', rotulo: 'Início' },
     { id: 'treinos-periodizacao', rotulo: 'Periodização', curto: 'Plano' },
     { id: 'planejamento-competicoes', rotulo: 'Competições', curto: 'Torneios' },
     { id: 'treino-registro', rotulo: 'Registro' },
@@ -118,19 +121,7 @@
       if (b.id === 'quadro') return `<button class="bar-item" id="bt-quadro" type="button" aria-pressed="false" aria-controls="gaveta-quadro" aria-label="Quadro técnico rápido">${icon(b.icone, 20)}${rotuloBarra(b)}</button>`;
       return `<a class="bar-item" href="#${b.id}" data-rota="${b.id}" aria-label="${esc(ROTAS[b.id].nome)}">${icon(ROTAS[b.id].icone, 20)}${rotuloBarra(b)}</a>`;
     });
-    itens.push(`<button class="bar-item" id="bt-mais" type="button" aria-expanded="false" aria-controls="folha-mais" aria-label="Mais telas">${icon('mais', 20)}<span>Mais</span></button>`);
     document.getElementById('barra').innerHTML = `<div class="barra-itens">${itens.join('')}</div>`;
-  }
-
-  function montarFolha() {
-    const todos = GRUPOS.flatMap((g) => g.itens).filter((i) => !i.oculta && !ID_NA_BARRA.includes(i.id));
-    const breve = todos.filter((i) => !i.existente);
-    const atuais = todos.filter((i) => i.existente);
-    document.getElementById('folha-mais').innerHTML = `
-      <div class="folha-titulo label">Em breve</div>
-      ${breve.map((i) => `<a class="folha-link" role="menuitem" href="#${i.id}" data-rota="${i.id}">${icon(i.icone, 20)}${esc(i.nome)}<span class="folha-tag">em breve</span></a>`).join('')}
-      <div class="folha-titulo label">No sistema atual</div>
-      ${atuais.map((i) => `<span class="folha-link" role="menuitem" aria-disabled="true">${icon(i.icone, 20)}${esc(i.nome)}</span>`).join('')}`;
   }
 
   function atualizarBarra() {
@@ -139,16 +130,6 @@
     });
     const q = document.getElementById('bt-quadro');
     if (q) q.setAttribute('aria-pressed', String(rotaAtual === 'treino-quadro' || gaveta.aberta));
-    const maisAtivo = rotaAtual && !ID_NA_BARRA.includes(rotaAtual) && rotaAtual !== 'atleta-previa';
-    const m = document.getElementById('bt-mais');
-    if (m) { if (maisAtivo) m.setAttribute('aria-current', 'page'); else m.removeAttribute('aria-current'); }
-  }
-
-  function fecharFolha() {
-    const f = document.getElementById('folha-mais');
-    if (!f || f.hidden) return;
-    f.hidden = true;
-    document.getElementById('bt-mais').setAttribute('aria-expanded', 'false');
   }
 
   function pendente(item) {
@@ -183,8 +164,8 @@
 
     document.title = `${item.nome} | Farol Tático`;
     rotaAtual = rota;
-    fecharFolha();
     atualizarBarra();
+    document.getElementById('voltar-w').hidden = rota === 'inicio';
   }
 
   // Navega para outra tela levando parâmetros (por exemplo, abrir uma semana ou uma competição).
@@ -223,6 +204,7 @@
     },
   };
   window.Farol.gaveta = gaveta;
+  window.Farol.rota = (id) => ROTAS[id] || null;
 
   function ligarGaveta() {
     const bt = document.getElementById('bt-quadro');
@@ -230,7 +212,6 @@
     // Na tela cheia do quadro o item já está ativo; nas demais, abre e fecha a gaveta.
     bt.addEventListener('click', () => {
       if (rotaAtual === 'treino-quadro') return;
-      fecharFolha();
       if (gaveta.aberta) { gaveta.fechar(); bt.focus(); } else gaveta.abrir();
     });
     document.getElementById('gaveta-fechar').addEventListener('click', () => gaveta.fechar());
@@ -240,7 +221,6 @@
 
   function iniciar() {
     montarBarra();
-    montarFolha();
     ligarGaveta();
 
     // Tocar no item da tela em que já está volta ao início dela (por exemplo, sai do relatório de um jogo).
@@ -248,18 +228,6 @@
       const a = e.target.closest('a.bar-item[data-rota]');
       if (a && a.dataset.rota === location.hash.slice(1)) { e.preventDefault(); window.Farol.ir(a.dataset.rota); }
     });
-
-    const mais = document.getElementById('bt-mais');
-    mais.addEventListener('click', () => {
-      const f = document.getElementById('folha-mais');
-      f.hidden = !f.hidden;
-      mais.setAttribute('aria-expanded', String(!f.hidden));
-    });
-    document.addEventListener('click', (e) => {
-      const f = document.getElementById('folha-mais');
-      if (!f.hidden && !f.contains(e.target) && !mais.contains(e.target)) fecharFolha();
-    });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharFolha(); });
 
     window.addEventListener('hashchange', rotear);
     rotear();

@@ -374,7 +374,9 @@
       </tr>`;
   }
 
-  function tela(root) {
+  function tela(root, params) {
+    if (params && params.planoId) window.Farol.compartilhado.planoId = params.planoId;
+    if (params && params.abrir) { estado.abrir = params.abrir; estado.filtro = 'todos'; }
     const plano = dados.plano(window.Farol.compartilhado.planoId);
     const todos = sessoesRegistraveis(plano);
     const aguardando = todos.filter((x) => x.st === 'aguardando' || x.st === 'semregistro');

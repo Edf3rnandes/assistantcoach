@@ -540,6 +540,7 @@
   }
 
   function tela(root, params) {
+    if (params && params.nova) { estado.sel = null; estado.nova = true; }
     if (params && params.competicao) { estado.sel = params.competicao; estado.aviso = ''; estado.editar = false; }
     if (estado.sel) detalhe(root); else lista(root);
   }

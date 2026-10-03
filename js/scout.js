@@ -713,6 +713,7 @@
     est.sel = params && params.jogo ? params.jogo : null;
     if (params && params.aba) est.aba = params.aba;
     if (params && params.novo) { est.aba = 'jogos'; abrirNovo(params.novo); }
+    if (params && params.novoTreino) { est.aba = 'fund'; est.treino = null; est.novoTreino = { fund: 'saque', nome: '', meta: 70, turmaId: 'sub18' }; }
     render(root);
   };
   window.Farol.views['scout-coleta'] = (root, params) => {

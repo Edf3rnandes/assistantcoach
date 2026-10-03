@@ -35,3 +35,10 @@ Item **Scout** na barra fixa. Duas telas: `analise-scout` (jogos, relatório e f
 - **Relatório do período**: filtros por dupla, tipo e período; evolução jogo a jogo; **Foco para o treino**, com metas sugeridas a partir de referências do clube (editáveis em `REF`, em `js/scout-dados.js`) que abrem um treino de fundamento já preenchido.
 - **Competições**: cada competição ganhou a seção "Scout dos jogos" para coletar jogos por dupla confirmada.
 - Dados: `js/scout-dados.js` (modelo `jogos` / `acoes_scout`; estatísticas calculadas das ações). Jogos de exemplo gerados jogada a jogada; o que for coletado fica no navegador (`localStorage`, chave `ft.scout.v1`).
+
+
+## Início e navegação de volta (etapa 11)
+
+- **Início** (`js/inicio.js`) é a tela de abertura e o ponto de volta de todas as outras. Mostra o jogo em andamento (se houver), quatro indicadores (sessões de hoje, sessões para registrar, atletas em atenção, dias até a próxima competição), os atalhos **Criar ou começar** (registrar treino, coletar jogo, treino de fundamento, quadro técnico, novo plano, nova competição), **Hoje**, **Para registrar** (com quantos atletas já responderam), **Semana atual** por plano, **Atenção agora**, **Próximas competições** com o preparo e os atalhos **Acessar** para cada área, além do que vem em breve.
+- **Voltar**: toda tela fora do Início mostra o botão **‹ Início** logo abaixo do logotipo. O logotipo e o item **Início** da barra também levam para lá. Tocar no item da tela em que já está volta ao começo dela (por exemplo, sai do relatório de um jogo).
+- A barra fixa agora é: Início, Plano, Torneios, Registro, Quadro, Análise, Scout. O antigo item "Mais" foi para o Início ("Em breve").

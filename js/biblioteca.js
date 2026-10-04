@@ -7,7 +7,7 @@
 (function () {
   const { util, elenco, dados, registros: REG } = window.Farol;
   const P = window.Farol.prescricao;
-  const { esc, dd, plural, HOJE, iso, ms } = util;
+  const { esc, num, dd, plural, HOJE, iso, ms } = util;
   const { ATLETAS, TURMAS } = elenco;
   const DIAS = dados.DIAS;
   const TURNO = { manha: 'manhã', tarde: 'tarde', noite: 'noite' };
@@ -108,7 +108,12 @@
     const re = (foco) => { const y = window.scrollY; render(raiz, foco); window.scrollTo({ top: y }); };
     const nv = $('#bb-nova'); if (nv) nv.addEventListener('click', () => { est.form = novoFormPresc(); est.aviso = ''; render(raiz, '#bb-plano'); });
     el.querySelectorAll('[data-abrir]').forEach((b) => b.addEventListener('click', () => { est.sel = b.dataset.abrir; est.aviso = ''; render(raiz); window.scrollTo({ top: 0 }); }));
-    el.querySelectorAll('[data-feita]').forEach((b) => b.addEventListener('click', () => { const p = P.presc(b.dataset.feita); P.atualizarPrescricao(p.id, { status: p.status === 'feita' ? 'prescrita' : 'feita' }); est.aviso = p.status === 'feita' ? 'Prescrição marcada como feita.' : 'Prescrição reaberta.'; re(`[data-feita="${p.id}"]`); }));
+    el.querySelectorAll('[data-feita]').forEach((b) => b.addEventListener('click', () => {
+      const p = P.presc(b.dataset.feita);
+      if (p.status === 'feita') { P.reabrir(p.id); est.aviso = 'Prescrição reaberta.'; re(`[data-feita="${p.id}"]`); return; }
+      if (p.sessao) { P.atualizarPrescricao(p.id, { status: 'feita' }); est.aviso = 'Prescrição marcada como feita.'; re(`[data-feita="${p.id}"]`); return; }
+      est.sel = p.id; est.focoExec = true; est.aviso = ''; render(raiz); // sem sessão ligada: pede duração e PSE
+    }));
     ligarExcluir(el, re);
     const f = $('#bb-form'); if (!f) return;
     const ler = () => {
@@ -159,6 +164,67 @@
     return linhas.join('\n');
   }
 
+  /* ---------- Como foi o treino: duração e PSE entram na carga ---------- */
+
+  function execCartao(p, m, ids) {
+    const ses = sessaoDe(p.sessao);
+    if (p.sessao) {
+      return `<section class="card" aria-labelledby="bb-ex-t" id="bb-exec"><div class="card-head"><h2 id="bb-ex-t">Como foi o treino</h2></div>
+        <p class="hint" style="margin:0">Esta prescrição está ligada à sessão física de ${esc(ses ? dataCurta(ses.t) : 'outro dia')}. A carga (duração × PSE) já vem do registro dessa sessão, então não é somada de novo.</p></section>`;
+    }
+    const e = p.exec || { duracao: P.minutos(m), fez: {}, pse: {} };
+    const fez = (id) => (p.exec ? !!e.fez[id] : true);
+    const total = (id) => (fez(id) && e.pse[id] != null ? e.duracao * e.pse[id] : null);
+    return `<section class="card" aria-labelledby="bb-ex-t" id="bb-exec">
+      <div class="card-head"><h2 id="bb-ex-t">Como foi o treino</h2><span class="label">${p.status === 'feita' ? 'conta na carga do atleta' : 'ao salvar, vira treino feito'}</span></div>
+      <div class="bb-ex-topo">
+        <div class="field"><label class="label" for="bb-ex-dur">Duração (min)</label><input class="input num" id="bb-ex-dur" type="number" min="5" max="240" step="5" value="${e.duracao}" style="width:110px"></div>
+        <div class="field"><label class="label" for="bb-ex-todos">PSE de todos</label><select class="select" id="bb-ex-todos" style="min-width:120px"><option value="">–</option>${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => `<option value="${n}">${n}</option>`).join('')}</select></div>
+      </div>
+      <div class="table-scroll"><table class="an-tab bb-tab" id="bb-ex-tab">
+        <thead><tr><th>Atleta</th><th>Fez</th><th>PSE (1 a 10)</th><th class="r">Carga</th></tr></thead>
+        <tbody>${ids.map((id) => `<tr data-ex-atleta="${id}"><td><b>${esc(prim(id))}</b></td>
+          <td><input type="checkbox" class="bb-ex-fez" aria-label="${esc(prim(id))} fez o treino" ${fez(id) ? 'checked' : ''}></td>
+          <td><select class="select sm bb-ex-pse" aria-label="PSE de ${esc(prim(id))}"><option value="">–</option>${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => `<option value="${n}" ${e.pse[id] === n ? 'selected' : ''}>${n}</option>`).join('')}</select></td>
+          <td class="r num bb-ex-carga">${total(id) == null ? '–' : `${num(total(id))} UA`}</td></tr>`).join('')}</tbody></table></div>
+      <div class="actions" style="margin-top:12px"><button class="btn btn-primary" id="bb-ex-salvar">${p.status === 'feita' ? 'Salvar alterações' : 'Salvar e marcar como feita'}</button></div>
+      <p class="hint">Quem fez sem PSE conta como feito, mas fica fora da carga. Carga = duração × PSE, somada ao treino de quadra na Análise.</p>
+    </section>`;
+  }
+
+  function ligarExec(el, p, re) {
+    const $ = (s) => el.querySelector(s);
+    if (!$('#bb-ex-salvar')) return;
+    const linhas = () => [...el.querySelectorAll('[data-ex-atleta]')];
+    const atualizar = () => {
+      const dur = Number($('#bb-ex-dur').value) || 0;
+      linhas().forEach((tr) => {
+        const pse = tr.querySelector('.bb-ex-pse').value, fez = tr.querySelector('.bb-ex-fez').checked;
+        tr.querySelector('.bb-ex-carga').textContent = fez && pse && dur ? `${num(dur * Number(pse))} UA` : '–';
+        tr.querySelector('.bb-ex-pse').disabled = !fez;
+      });
+    };
+    $('#bb-ex-dur').addEventListener('input', atualizar);
+    el.querySelectorAll('.bb-ex-pse, .bb-ex-fez').forEach((x) => x.addEventListener('change', atualizar));
+    $('#bb-ex-todos').addEventListener('change', (e) => { if (!e.target.value) return; linhas().forEach((tr) => { if (tr.querySelector('.bb-ex-fez').checked) tr.querySelector('.bb-ex-pse').value = e.target.value; }); atualizar(); });
+    $('#bb-ex-salvar').addEventListener('click', () => {
+      const dur = Number($('#bb-ex-dur').value);
+      if (!(dur >= 5 && dur <= 240)) { est.aviso = 'Informe a duração entre 5 e 240 minutos.'; re('#bb-ex-dur'); return; }
+      const fez = {}, pse = {};
+      linhas().forEach((tr) => {
+        const id = tr.dataset.exAtleta;
+        fez[id] = tr.querySelector('.bb-ex-fez').checked;
+        const v = tr.querySelector('.bb-ex-pse').value;
+        if (fez[id] && v) pse[id] = Number(v);
+      });
+      const sem = Object.keys(fez).filter((id) => fez[id] && pse[id] == null).length;
+      P.registrarExecucao(p.id, { duracao: dur, fez, pse });
+      est.aviso = sem ? `Treino registrado. ${plural(sem, 'atleta ficou', 'atletas ficaram')} sem PSE e fora da carga.` : 'Treino registrado. A carga entra na Análise.';
+      re('#bb-feita');
+    });
+    atualizar();
+  }
+
   function detalhe(el, p) {
     const m = P.plano(p.plano), ids = P.atletasDe(p);
     const ses = sessaoDe(p.sessao);
@@ -188,6 +254,8 @@
           <tbody>${base.map((x) => `<tr><td class="num">${x.i + 1}</td><td><b>${esc(x.e.nome)}</b><small class="sub-linha">${esc(x.e.grupos.map((g) => P.GRUPOS[g]).join(', '))}${x.it.obs ? ` · ${esc(x.it.obs)}` : ''}</small></td>
             <td class="num">${x.it.series} × ${esc(x.it.reps)}</td><td>${esc(cargaTxt(x.it))}</td><td class="r num">${x.it.desc ? `${x.it.desc} s` : '–'}</td></tr>`).join('')}</tbody></table></div>
       </section>
+
+      ${execCartao(p, m, ids)}
 
       <section class="card" aria-labelledby="bb-cf-t">
         <div class="card-head"><h2 id="bb-cf-t">Conflitos com a saúde</h2>
@@ -222,7 +290,13 @@
     const $ = (s) => el.querySelector(s);
     const re = (foco) => { est.cargasAbertas = !!(el.querySelector('#bb-cargas') || {}).open; const y = window.scrollY; render(raiz, foco); window.scrollTo({ top: y }); };
     $('#bb-voltar').addEventListener('click', () => { est.sel = null; est.aviso = ''; render(raiz); window.scrollTo({ top: 0 }); });
-    $('#bb-feita').addEventListener('click', () => { P.atualizarPrescricao(p.id, { status: p.status === 'feita' ? 'prescrita' : 'feita' }); est.aviso = p.status === 'feita' ? 'Prescrição marcada como feita.' : 'Prescrição reaberta.'; re('#bb-feita'); });
+    $('#bb-feita').addEventListener('click', () => {
+      if (p.status === 'feita') { P.reabrir(p.id); est.aviso = 'Prescrição reaberta.'; re('#bb-feita'); return; }
+      if (p.sessao) { P.atualizarPrescricao(p.id, { status: 'feita' }); est.aviso = 'Prescrição marcada como feita.'; re('#bb-feita'); return; }
+      const c = $('#bb-exec'); c.scrollIntoView({ behavior: 'smooth', block: 'center' }); $('#bb-ex-dur').focus({ preventScroll: true });
+    });
+    ligarExec(el, p, re);
+    if (est.focoExec) { est.focoExec = false; const c = $('#bb-exec'); if (c) { c.scrollIntoView({ block: 'center' }); const f = $('#bb-ex-dur'); if (f) f.focus({ preventScroll: true }); } }
     const sg = $('#bb-sugerir'); if (sg) sg.addEventListener('click', () => { P.sugerirTrocas(p.id); est.aviso = 'Trocas sugeridas aplicadas. Revise cada uma antes de enviar.'; re('#bb-sugerir'); });
     el.querySelectorAll('[data-troca]').forEach((s) => s.addEventListener('change', () => { const [id, i] = s.dataset.troca.split('|'); P.trocar(p.id, id, Number(i), s.value || null); est.aviso = ''; re(`[data-troca="${s.dataset.troca}"]`); }));
     el.querySelectorAll('[data-kg]').forEach((inp) => inp.addEventListener('change', () => { const [id, i] = inp.dataset.kg.split('|'); P.carga(p.id, id, Number(i), inp.value === '' ? null : Number(inp.value)); re(`[data-kg="${inp.dataset.kg}"]`); }));

@@ -60,11 +60,14 @@
       const dor = rel.length ? Math.max(...rel.map((c) => c.dor || 0)) : null;
       const ultimoRel = rel[rel.length - 1];
       const sono = ultimoRel ? ultimoRel.sono : null, disp = ultimoRel ? ultimoRel.disp : null;
-      const cron = previas.length >= 3 ? media(previas.map((w) => w.registro.porAtleta[id].carga)) : null;
-      const diasComCarga = dias.filter((v) => v > 0).length;
-      const dsv = A.desvio(dias);
-      const monotonia = diasComCarga >= 4 && dsv > 0 ? media(dias) / dsv : null;
-      const acwr = cron && completa ? carga / cron : null;
+      // Treino físico feito na semana (fora das sessões acima) soma na carga total.
+      const pReg = semana.registro.porAtleta[id];
+      const fisica = pReg ? pReg.fisica : 0;
+      if (pReg) pReg.diasF.forEach((v, i) => { dias[i] += v; });
+      const total = carga + fisica;
+      const monotonia = window.Farol.carga.monotonia(dias);
+      const infoAcwr = completa ? window.Farol.carga.acwr([...previas.map((w) => w.registro.porAtleta[id].total), total], previas.length) : null;
+      const acwr = infoAcwr && infoAcwr.confiavel ? infoAcwr.valor : null;
       const pseM = media(pses), psrM = media(psrs);
       const pctPres = respondidas >= 3 ? (100 * pres) / respondidas : null;
       const sit = window.Farol.elenco.situacaoDe(id);
@@ -82,7 +85,7 @@
       if (pctPres != null && pctPres < 60) add('warn', 'Presença abaixo de 60%');
       if (monotonia != null && monotonia > 2) add('warn', 'Semana monótona');
       const nivel = motivos.some((m) => m.nivel === 'crit') ? 'crit' : motivos.length ? 'warn' : 'ok';
-      return { id, celulas, carga, pctPlano: cargaPlano && respondidas ? (100 * carga) / cargaPlano : null, pseM, psrM, acwr, monotonia, dor, sono, disp, pctPres, motivos, nivel, sit, respondidas };
+      return { id, celulas, carga: total, cargaQuadra: carga, fisica, pctPlano: cargaPlano && respondidas ? (100 * carga) / cargaPlano : null, pseM, psrM, acwr, monotonia, dor, sono, disp, pctPres, motivos, nivel, sit, respondidas };
     });
     return { plano, semana, cols, linhas, cargaPlano, alvoPse, completa };
   }
@@ -182,6 +185,7 @@
     const respostasTot = L.reduce((a, l) => a + l.respondidas, 0), esperadas = L.length * dadas;
     const pseMed = media(L.map((l) => l.pseM).filter((v) => v != null)), psrMed = media(L.map((l) => l.psrM).filter((v) => v != null));
     const cargaMed = media(L.filter((l) => l.respondidas).map((l) => l.carga));
+    const cargaMedQuadra = media(L.filter((l) => l.respondidas).map((l) => l.cargaQuadra));
     const nAt = L.filter((l) => l.nivel !== 'ok').length, nCrit = L.filter((l) => l.nivel === 'crit').length;
     const nDor = L.filter((l) => l.dor >= 2).length;
     const tm = dados.TIPOS_MICRO[semana.microTipo];
@@ -214,7 +218,7 @@
       return `<tr class="${sit && sit.tipo === 'lesao' ? 'sw-fora' : ''}">
         <th scope="row" class="sw-nome"><span class="sw-nome-i">${l.nivel === 'ok' ? '' : `<span class="selo-ic selo-${l.nivel}" role="img" aria-label="${NOME_NIVEL[l.nivel]}" title="${NOME_NIVEL[l.nivel]}">${ICO[l.nivel]}</span>`}<span><b>${esc(ATLETAS[l.id].nome)}</b>${sit ? `<small class="sw-sit ${sit.tipo}">${sit.tipo === 'lesao' ? 'Lesionado' : sit.tipo === 'retorno' ? 'Em retorno' : 'Dúvida'}, ${esc(sit.local.toLowerCase())}</small>` : ''}</span></span></th>
         ${l.celulas.map((c) => celula(c, M.alvoPse)).join('')}
-        <td class="r num">${l.respondidas ? num(l.carga) : '–'}${l.pctPlano != null ? `<small class="sw-pc">${Math.round(l.pctPlano)}% do plano</small>` : ''}</td>
+        <td class="r num">${l.respondidas ? num(l.carga) : '–'}${l.fisica ? `<small class="sw-pc" title="Treino físico incluído na carga">inclui ${num(l.fisica)} de físico</small>` : ''}${l.pctPlano != null ? `<small class="sw-pc">${Math.round(l.pctPlano)}% do plano</small>` : ''}</td>
         <td class="r num">${l.acwr != null ? dec(l.acwr, 2) : '–'}</td>
         <td class="sw-bem">${l.dor == null && l.sono == null ? '<span class="sw-nd">sem relato</span>' : `${l.dor != null ? `<span class="sw-b ${l.dor >= 2 ? 'ruim' : ''}">${DOR_ROT[l.dor]}</span>` : ''}${l.sono != null ? `<span class="sw-b ${l.sono <= 2 ? 'ruim' : ''}">sono ${l.sono}/5</span>` : ''}${l.disp != null ? `<span class="sw-b ${l.disp <= 2 ? 'ruim' : ''}">disp. ${l.disp}/5</span>` : ''}`}</td>
       </tr>`;
@@ -244,7 +248,7 @@
         ${kpi('Respostas', esperadas ? Math.round((100 * respostasTot) / esperadas) : '–', '%', `${respostasTot} de ${esperadas} possíveis nas sessões que já aconteceram`)}
         ${kpi('PSE médio', pseMed == null ? 'n/d' : dec(pseMed), '/10', M.alvoPse ? `planejado ${dec(M.alvoPse)}` : '')}
         ${kpi('PSR médio', psrMed == null ? 'n/d' : dec(psrMed), '/10', '10 é totalmente recuperado')}
-        ${kpi('Carga por atleta', cargaMed == null ? 'n/d' : num(cargaMed), 'UA', M.cargaPlano ? `${Math.round((100 * cargaMed) / M.cargaPlano)}% do plano até agora` : '')}
+        ${kpi('Carga por atleta', cargaMed == null ? 'n/d' : num(cargaMed), 'UA', M.cargaPlano ? `${Math.round((100 * cargaMedQuadra) / M.cargaPlano)}% do plano de quadra até agora` : '')}
         ${kpi('Em atenção', String(nAt), `de ${L.length}`, nCrit ? `${plural(nCrit, 'em alerta', 'em alerta')}` : 'ninguém em alerta')}
         ${kpi('Dor relatada', String(nDor), '', sonoMed != null ? `sono médio ${dec(sonoMed)}/5 · disposição ${dec(dispMed)}/5` : 'sem relatos de bem-estar')}
       </div>` : `<section class="card an-vazio"><h2>Sem respostas nesta semana</h2><p>${M.cols.every((c) => c.st === 'futuro') ? 'A semana ainda não começou.' : 'Ainda não há registros nem respostas dos atletas. Registre as sessões ou envie o link da turma na tela Registro do treino.'}</p></section>`}
@@ -279,7 +283,7 @@
               <li><b>Carga</b>: duração × PSE das sessões em que o atleta esteve presente. <b>% do plano</b> compara com o planejado das sessões que já aconteceram.</li>
               <li><b>Alerta</b>: dor forte, PSR até 5 com PSE acima do alvo, ou ACWR acima de 1,5.</li>
               <li><b>Atenção</b>: dor moderada, PSR até 5,5, sono ou disposição 2 ou menos, presença abaixo de 60%, ACWR fora de 0,8 a 1,3 ou semana monótona.</li>
-              <li>ACWR só aparece em semana completa, com pelo menos 3 semanas anteriores. O semáforo ajuda a olhar primeiro para quem precisa; a decisão é sua.</li>
+              <li>ACWR só aparece em semana completa, com pelo menos 3 semanas anteriores, e usa a carga total (quadra e treino físico). O semáforo ajuda a olhar primeiro para quem precisa; a decisão é sua.</li>
             </ul>
           </details>
         </aside>

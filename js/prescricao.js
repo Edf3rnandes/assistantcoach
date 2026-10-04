@@ -5,9 +5,12 @@
    - Plano de treino (modelo): lista ordenada de exercícios com séries, repetições, carga e descanso.
    - Prescrição: um plano aplicado a uma turma ou a atletas, numa data, opcionalmente ligado a uma sessão física do
      microciclo. Atletas com lesão ou restrição ativa aparecem com conflito e recebem sugestão de troca.
+   - Execução: ao marcar como feita, o técnico informa a duração e o PSE de cada atleta (`exec`). Esse treino entra na carga
+     total do atleta (duração × PSE), junto com o treino de quadra. Se a prescrição está ligada a uma sessão do microciclo,
+     a carga já vem do registro dessa sessão e não é contada de novo.
    O que o técnico criar fica no navegador (`ft.prescricao.v1`). */
 (function () {
-  const { HOJE, DIA, ms } = window.Farol.util;
+  const { HOJE, DIA, ms, hash, clamp } = window.Farol.util;
   const { ATLETAS, TURMAS } = window.Farol.elenco;
 
   /* ---------- Vocabulário ---------- */
@@ -85,9 +88,21 @@
   ];
 
   const prox = (offs) => HOJE + offs * DIA;
+
+  // Execução de exemplo das prescrições já feitas: duração e PSE por atleta, com algumas faltas.
+  function execExemplo(p) {
+    const pse = {}, fez = {};
+    window.Farol.elenco.TURMAS[p.alvo.turmaId].atletas.forEach((id) => {
+      const r = hash(p.id + id + 'x');
+      fez[id] = r < 0.9;
+      if (fez[id]) pse[id] = clamp(Math.round(p.exec.base + (hash(p.id + id + 'e') - 0.5) * 3), 1, 10);
+    });
+    return { duracao: p.exec.duracao, fez, pse };
+  }
   const PRESCRICOES = [
     { id: 'p1', plano: 'm3', alvo: { tipo: 'turma', turmaId: 'sub18' }, data: prox(2), sessao: null, status: 'prescrita', aj: {}, nota: 'Segunda: treino físico depois do aquecimento na areia.' },
-    { id: 'p2', plano: 'm2', alvo: { tipo: 'turma', turmaId: 'adulto' }, data: prox(-5), sessao: null, status: 'feita', aj: {}, nota: '' },
+    { id: 'p2', plano: 'm2', alvo: { tipo: 'turma', turmaId: 'adulto' }, data: prox(-14), sessao: null, status: 'feita', aj: {}, nota: '', exec: { duracao: 55, base: 6 } },
+    { id: 'p4', plano: 'm4', alvo: { tipo: 'turma', turmaId: 'sub18' }, data: prox(-6), sessao: null, status: 'feita', aj: {}, nota: '', exec: { duracao: 40, base: 4 } },
     { id: 'p3', plano: 'm6', alvo: { tipo: 'atletas', ids: ['a9'] }, data: prox(2), sessao: null, status: 'prescrita', aj: {}, nota: 'Sem corrida e sem salto até a liberação da fisioterapia.' },
   ];
 
@@ -96,11 +111,13 @@
   const CHAVE = 'ft.prescricao.v1';
   let exercicios = EXERCICIOS.map((x) => ({ ...x }));
   let planos = PLANOS.map((x) => ({ ...x, itens: x.itens.map((i) => ({ ...i })) }));
-  let prescricoes = PRESCRICOES.map((x) => ({ ...x, aj: {} }));
+  let prescricoes = PRESCRICOES.map((x) => ({ ...x, aj: {}, exec: x.exec ? execExemplo(x) : null }));
   let seq = { e: 100, m: 100, p: 100 };
   try {
     const g = JSON.parse(localStorage.getItem(CHAVE) || 'null');
     if (g && g.exercicios && g.planos && g.prescricoes) { exercicios = g.exercicios; planos = g.planos; prescricoes = g.prescricoes; seq = g.seq || seq; }
+    PRESCRICOES.filter((x) => x.exec && !prescricoes.some((p) => p.id === x.id)).forEach((x) => prescricoes.push({ ...x, aj: {}, exec: execExemplo(x) }));
+    prescricoes.forEach((p) => { const seed = PRESCRICOES.find((x) => x.id === p.id && x.exec); if (seed && p.status === 'feita' && p.exec === undefined) { p.exec = seed.exec; p.exec = execExemplo(p); if (p.id === 'p2') p.data = seed.data; } });
   } catch (e) { /* segue em memória */ }
   const gravar = () => { try { localStorage.setItem(CHAVE, JSON.stringify({ exercicios, planos, prescricoes, seq })); } catch (e) { /* ignora */ } };
   const novoId = (p) => `${p}${++seq[p]}`;
@@ -176,7 +193,7 @@
       gravar(); return plano(d.id);
     },
     duplicarPlano(id) { const m = plano(id); const c = { ...m, id: novoId('m'), nome: `${m.nome} (cópia)`, itens: m.itens.map((i) => ({ ...i })) }; planos.push(c); gravar(); return c; },
-    excluirPlano(id) { planos = planos.filter((x) => x.id !== id); prescricoes = prescricoes.filter((p) => p.plano !== id); gravar(); },
+    excluirPlano(id) { planos = planos.filter((x) => x.id !== id); prescricoes = prescricoes.filter((p) => p.plano !== id); gravar(); if (window.Farol.dados) window.Farol.dados.recarregar(); },
 
     prescrever(d) { const p = { id: novoId('p'), status: 'prescrita', aj: {}, nota: '', sessao: null, ...d }; prescricoes.push(p); gravar(); return p; },
     atualizarPrescricao(id, patch) { Object.assign(presc(id), patch); gravar(); },
@@ -198,7 +215,26 @@
         if (alt) API.trocar(id, aid, x.i, alt.id);
       }));
     },
-    excluirPrescricao(id) { prescricoes = prescricoes.filter((x) => x.id !== id); gravar(); },
+    // Registra como foi o treino: duração e, por atleta, se fez e o PSE (1 a 10, ou vazio). Marca a prescrição como feita.
+    registrarExecucao(id, exec) {
+      const p = presc(id);
+      p.exec = { duracao: exec.duracao, fez: exec.fez, pse: exec.pse };
+      p.status = 'feita';
+      gravar();
+      if (window.Farol.dados) window.Farol.dados.recarregar();
+    },
+    reabrir(id) {
+      presc(id).status = 'prescrita';
+      gravar();
+      if (window.Farol.dados) window.Farol.dados.recarregar();
+    },
+    // Treinos físicos que o atleta fez em [ini, fim) e que ainda não estão em nenhuma sessão do microciclo.
+    execucoes(atletaId, ini, fim) {
+      return prescricoes.filter((p) => p.status === 'feita' && p.exec && !p.sessao && p.data >= ini && p.data < fim
+        && p.exec.fez[atletaId] && p.exec.pse[atletaId] != null && atletasDe(p).includes(atletaId))
+        .map((p) => ({ id: p.id, data: p.data, nome: plano(p.plano).nome, dur: p.exec.duracao, pse: p.exec.pse[atletaId], carga: p.exec.duracao * p.exec.pse[atletaId] }));
+    },
+    excluirPrescricao(id) { prescricoes = prescricoes.filter((x) => x.id !== id); gravar(); if (window.Farol.dados) window.Farol.dados.recarregar(); },
     // Prescrições de um atleta daqui para frente (para a página do atleta).
     doAtleta(atletaId) {
       return prescricoes.filter((p) => p.status === 'prescrita' && p.data >= HOJE - DIA && atletasDe(p).includes(atletaId)).sort((a, b) => a.data - b.data);
@@ -206,5 +242,7 @@
   };
 
   window.Farol.prescricao = API;
+  // Os planos foram montados antes desta tela carregar: refaz para incluir o treino físico já feito.
+  if (window.Farol.dados && window.Farol.dados.recarregar) window.Farol.dados.recarregar();
   void ms; void ATLETAS;
 })();

@@ -23,7 +23,9 @@
     { id: 'psr', grupo: 'treino', nome: 'PSR médio', un: '', melhor: 'alto', casas: 1 },
     { id: 'pres', grupo: 'treino', nome: 'Presença', un: '%', melhor: 'alto', casas: 0 },
   ];
-  const METRICAS = [...TESTES, ...TREINO];
+  // Avaliação corporal: o peso não tem lado melhor nem ranking entre atletas, só a evolução do próprio atleta.
+  const CORPO = [{ id: 'peso', grupo: 'corpo', nome: 'Peso corporal', un: 'kg', melhor: null, casas: 1 }];
+  const METRICAS = [...TESTES, ...CORPO, ...TREINO];
   const metrica = (id) => METRICAS.find((m) => m.id === id);
 
   // Valores típicos (média, desvio) por teste, gênero e faixa. Servem só para gerar os dados de exemplo.
@@ -45,6 +47,34 @@
     return Math.round(v * f) / f;
   }
 
+  /* ---------- Peso ---------- */
+
+  const BASE_PESO = { M: { 'Sub-18': 70, Adulto: 80 }, F: { 'Sub-16': 56, 'Sub-19': 61, Adulto: 63 }, sd: 6 };
+  const CHAVE_PESO = 'ft.avaliacao.v1';
+  let pesosSalvos = {}; // { atletaId: [{ t, kg }] } lançados pelo técnico
+  try { const g = JSON.parse(localStorage.getItem(CHAVE_PESO) || 'null'); if (g && g.peso) pesosSalvos = g.peso; } catch (e) { /* segue em memória */ }
+  const gravarPeso = () => { try { localStorage.setItem(CHAVE_PESO, JSON.stringify({ peso: pesosSalvos })); } catch (e) { /* ignora */ } };
+
+  // Histórico de peso do atleta, do mais antigo ao mais novo: as duas avaliações de exemplo mais o que o técnico lançou.
+  function pesoSerie(id) {
+    const a = ATLETAS[id];
+    const atual = Math.round((BASE_PESO[a.genero][a.faixa] + (hash(id + 'peso') - 0.5) * 2 * BASE_PESO.sd) * 10) / 10;
+    const anterior = Math.round((atual - (hash(id + 'pesog') - 0.5) * 2.4) * 10) / 10;
+    const base = [{ t: AVALIACOES.anterior, kg: anterior, origem: 'avaliação' }, { t: AVALIACOES.atual, kg: atual, origem: 'avaliação' }];
+    const meus = (pesosSalvos[id] || []).map((x) => ({ ...x, origem: 'lançado' }));
+    return [...base, ...meus].sort((x, y) => x.t - y.t);
+  }
+  function registrarPeso(id, t, kg) {
+    pesosSalvos[id] = (pesosSalvos[id] || []).filter((x) => x.t !== t);
+    pesosSalvos[id].push({ t, kg: Math.round(kg * 10) / 10 });
+    gravarPeso();
+  }
+  function removerPeso(id, t) { pesosSalvos[id] = (pesosSalvos[id] || []).filter((x) => x.t !== t); gravarPeso(); }
+  function valorPeso(id, quando) {
+    const s = pesoSerie(id);
+    return quando === 'anterior' ? (s.length > 1 ? s[s.length - 2].kg : null) : s[s.length - 1].kg;
+  }
+
   // Treino: últimas 4 semanas completas do plano em que o atleta está.
   function treinoDe(id) {
     const plano = dados.planos.find((p) => p.mock && p.atletas.includes(id));
@@ -56,7 +86,7 @@
       if (!r || !r.completo) continue;
       const p = r.porAtleta[id];
       if (!p || !p.sessoes) continue;
-      cargas.push(p.carga); pse.push(...p.pse); psr.push(...p.psr);
+      cargas.push(p.total); pse.push(...p.pse); psr.push(...p.psr);
       pres += p.presencas; tot += p.sessoes;
     }
     if (!tot) return null;
@@ -65,6 +95,7 @@
 
   function valor(id, m, quando = 'atual') {
     if (metrica(m).grupo === 'teste') return valorTeste(id, m, quando);
+    if (metrica(m).grupo === 'corpo') return valorPeso(id, quando);
     if (quando === 'anterior') return null;
     const t = treinoDe(id);
     return t && t[m] != null ? t[m] : null;
@@ -119,7 +150,7 @@
   }
 
   window.Farol.medidas = {
-    AVALIACOES, TESTES, TREINO, METRICAS, metrica, valor, valoresDe,
+    AVALIACOES, TESTES, CORPO, TREINO, METRICAS, pesoSerie, registrarPeso, removerPeso, metrica, valor, valoresDe,
     listaGrupos, grupo, generosDe, mesmaFaixaGenero, turmaDe,
     mediana, media, posicao, formatar,
   };

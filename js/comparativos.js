@@ -6,7 +6,7 @@
      atleta dentro da própria faixa e gênero, que é a forma justa de comparar gêneros diferentes. */
 (function () {
   const { util, elenco, medidas: M } = window.Farol;
-  const { esc, plural, dd } = util;
+  const { esc, plural, dd, HOJE, iso } = util;
   const { ATLETAS, TURMAS } = elenco;
 
   let raiz = null;
@@ -133,6 +133,28 @@
     return `<div class="cmp-linha"><div class="cmp-nome"><b>${esc(m.nome)}</b>${m.un ? `<small>${esc(m.un)}</small>` : ''}</div><div class="cmp-grafico">${meio}</div><div class="cmp-num">${num}</div></div>`;
   }
 
+  // Peso do atleta: valor atual, variação desde a avaliação anterior, histórico e lançamento de um novo peso.
+  function blocoPeso(id) {
+    const serie = M.pesoSerie(id);
+    const at = serie[serie.length - 1], ant = serie.length > 1 ? serie[serie.length - 2] : null;
+    const d = ant ? +(at.kg - ant.kg).toFixed(1) : null;
+    const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const ini = serie[0];
+    const total = +(at.kg - ini.kg).toFixed(1);
+    return `<div class="cmp-corpo">
+        <div class="cmp-peso"><span class="label">Peso atual · ${dd(at.t)}</span><b class="num">${fmt(at.kg)} <small>kg</small></b>
+          ${d != null ? `<span class="chip">${d === 0 ? 'sem mudança' : `${d > 0 ? '+' : '−'}${fmt(Math.abs(d))} kg desde ${dd(ant.t)}`}</span>` : ''}
+          ${serie.length > 2 ? `<span class="cmp-n num">${total === 0 ? 'igual ao' : `${total > 0 ? '+' : '−'}${fmt(Math.abs(total))} kg desde o`} primeiro registro (${fmt(ini.kg)} kg)</span>` : ''}</div>
+        <ul class="cmp-hist" aria-label="Histórico de peso">${serie.slice(-5).reverse().map((x) => `<li><span class="num">${dd(x.t)}</span><b class="num">${fmt(x.kg)} kg</b><small>${x.origem}</small>${x.origem === 'lançado' ? `<button class="link-btn" data-peso-del="${x.t}" style="margin:0" aria-label="Remover o peso de ${dd(x.t)}">remover</button>` : ''}</li>`).join('')}</ul>
+        <form class="cmp-peso-form" id="cmp-peso-form">
+          <div class="field"><label class="label" for="cmp-peso-data">Data</label><input class="input" id="cmp-peso-data" type="date" value="${iso(HOJE)}" max="${iso(HOJE)}"></div>
+          <div class="field"><label class="label" for="cmp-peso-kg">Peso (kg)</label><input class="input num" id="cmp-peso-kg" type="number" min="30" max="200" step="0.1" inputmode="decimal" placeholder="ex.: 72,5" style="width:120px"></div>
+          <button class="btn" type="submit">Registrar peso</button>
+          <span class="hint" id="cmp-peso-msg" role="status" style="margin:0"></span>
+        </form>
+      </div>`;
+  }
+
   function atleta(el) {
     const id = est.atletaId;
     const a = ATLETAS[id];
@@ -163,6 +185,11 @@
         ${M.TESTES.map((m) => linhaAtleta(m, ctx)).join('')}
       </section>
 
+      <section class="card" aria-labelledby="h-corpo">
+        <div class="card-head"><h2 id="h-corpo">Avaliação corporal</h2><span class="label">peso: só a evolução do próprio atleta, sem ranking</span></div>
+        ${blocoPeso(id)}
+      </section>
+
       ${mostraTreino ? `
       <section class="card" aria-labelledby="h-treino">
         <div class="card-head"><h2 id="h-treino">Treino</h2><span class="label">últimas 4 semanas completas</span></div>
@@ -173,6 +200,15 @@
     el.querySelector('#cmp-atl').addEventListener('change', (e) => { est.atletaId = e.target.value; if (est.outroId === est.atletaId) est.outroId = 'a1'; render(raiz, '#cmp-atl'); });
     el.querySelector('#cmp-ref').addEventListener('change', (e) => { est.ref = e.target.value; render(raiz, '#cmp-ref'); });
     const o = el.querySelector('#cmp-outro'); if (o) o.addEventListener('change', (e) => { est.outroId = e.target.value; render(raiz, '#cmp-outro'); });
+    el.querySelector('#cmp-peso-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const kg = Number(el.querySelector('#cmp-peso-kg').value.replace(',', '.')), data = el.querySelector('#cmp-peso-data').value;
+      const msg = el.querySelector('#cmp-peso-msg');
+      if (!(kg >= 30 && kg <= 200) || !data) { msg.textContent = 'Informe a data e um peso entre 30 e 200 kg.'; return; }
+      M.registrarPeso(id, util.ms(data), kg);
+      render(raiz, '#cmp-peso-kg');
+    });
+    el.querySelectorAll('[data-peso-del]').forEach((b) => b.addEventListener('click', () => { M.removerPeso(id, Number(b.dataset.pesoDel)); render(raiz, '#cmp-peso-kg'); }));
   }
 
   /* ---------- Modo grupos ---------- */

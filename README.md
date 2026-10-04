@@ -20,7 +20,7 @@ ou rode `python3 -m http.server` na raiz.
 - `js/util.js`, `js/elenco.js`, `js/calendario.js`, `js/registros.js`, `js/dados.js`: dados de exemplo e regras.
   É aqui que o Supabase (schema `ft`) entra no lugar do mock.
 - `js/periodizacao.js` (casca), `js/macro.js`, `js/meso.js`, `js/micro.js`, `js/criar.js`, `js/pauta.js`.
-- `js/medidas.js` (testes e métricas de treino), `js/analise-dados.js` (carga, ACWR, semáforo), `js/graficos.js` (gráficos em SVG), `js/analise.js` e `js/comparativos.js`.
+- `js/medidas.js` (testes, peso e métricas de treino), `js/carga.js` (contas de carga e velocímetro), `js/analise-dados.js` (carga, ACWR, semáforo), `js/analise-carga.js` (aba Carga), `js/graficos.js` (gráficos em SVG), `js/analise.js` e `js/comparativos.js`.
 - `js/registro.js`, `js/competicoes.js`, `js/quadro.js`, `js/atleta.js`, `js/app.js` (menu, rotas e gaveta do quadro).
 - `css/farol.css`: tokens de cor e tipografia (claro e escuro) e componentes.
 
@@ -104,3 +104,15 @@ A coleta ao vivo (`js/scout-coleta.js`) usa o mesmo registro de ações, com pou
 - **Mexer em seta**: toque na seta para selecioná-la; surgem duas **alças nas pontas** (arraste para ajustar só aquela ponta) e dá para **arrastar a seta inteira** pelo corpo. As pontas **encaixam** em atletas, bola e cones próximos (o alvo acende em verde). Cada ajuste é um passo de desfazer.
 - Ao traçar uma seta nova, a prévia já mostra a ponta da seta e o encaixe.
 - Limites: sem teste em aparelho real (só toque simulado); alças e encaixe valem para o quadro atual, não para a reprodução.
+
+## Carga interna e avaliação corporal (etapa 20)
+
+Inspirada em planilha de controle de carga interna (Foster e Gabbett); só a lógica foi reescrita, nada copiado.
+
+- **Contas num lugar só** (`js/carga.js`): carga = duração × PSE; ACWR = carga da semana ÷ média das **semanas anteriores** (até 4, sem contar a própria semana); monotonia com desvio **amostral**; strain = carga × monotonia. O ACWR já aparece na 2ª semana, mas é **provisório** até haver 4 semanas de base e só **dispara alerta** no semáforo com 3 ou mais semanas de base.
+- **Velocímetro do ACWR**: destreino (< 0,8), ótimo (0,8 a 1,3), risco (1,3 a 1,5) e risco alto (> 1,5), sempre com número e nome da faixa (não só cor). Aparece na Visão geral (turma) e na nova aba **Análise › Carga**.
+- **Análise › Carga** (`js/analise-carga.js`): por atleta e semana, com velocímetro, carga (quadra + físico), tempo treinado, monotonia, strain, PSE e PSR; carga por dia; **comparação de duas semanas do mesmo atleta** (A × B, com diferença) e as últimas 8 semanas. O ACWR da tabela de Atletas abre essa aba.
+- **Dois treinos no mesmo dia**: já existia (turnos manhã, tarde e noite no microciclo); a carga do dia soma todas as sessões.
+- **Carga total (quadra + físico)**: em *Exercícios e prescrição*, o cartão **Como foi o treino** pede duração e PSE por atleta; ao salvar, a prescrição vira feita e a carga entra no ACWR, na monotonia e no strain. Prescrição ligada a uma sessão do microciclo não é somada de novo (a carga já vem do registro da sessão). O comparativo "planejado × realizado" continua só de quadra.
+- **Peso nas avaliações** (Análise › Comparativos › atleta): cartão **Avaliação corporal** com peso atual, variação desde a avaliação anterior e desde o primeiro registro, histórico e lançamento de novo peso (`ft.avaliacao.v1`). Peso **não tem ranking nem lado melhor**: só a evolução do próprio atleta.
+- Limites: o atleta ainda não informa PSE do treino físico pela própria página; o velocímetro não aparece no Início nem na página do atleta; tudo continua com dados de exemplo e salvo só no navegador.

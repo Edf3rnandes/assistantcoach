@@ -1,7 +1,8 @@
 /* Análise
-   Central de dados do técnico, em quatro abas:
+   Central de dados do técnico, em cinco abas:
    - Visão geral: indicadores da turma, carga planejada × realizada, ACWR, PSE e PSR, quem pede atenção;
    - Atletas: todos os atletas lado a lado, com mapa de carga das últimas semanas e semáforo;
+   - Carga: um atleta de perto, com velocímetro do ACWR, carga por dia e comparação de duas semanas (ver analise-carga.js);
    - Comparativos: atleta e grupos contra referências (ver comparativos.js);
    - Competições: resultados, aproveitamento e preparo das próximas.
    Tudo vem dos registros de treino e do calendário. As regras do semáforo ficam à vista na própria tela. */
@@ -10,9 +11,10 @@
   const { esc, num, dec, dd, plural, media } = util;
   const { ATLETAS } = elenco;
   const { TIPOS_SESSAO } = dados;
+  const C = window.Farol.carga;
 
   const est = { aba: 'geral', ordem: 'atencao' };
-  const ABAS = [['geral', 'Visão geral'], ['atletas', 'Atletas'], ['comparar', 'Comparativos'], ['competicoes', 'Competições']];
+  const ABAS = [['geral', 'Visão geral'], ['atletas', 'Atletas'], ['carga', 'Carga'], ['comparar', 'Comparativos'], ['competicoes', 'Competições']];
   let raiz = null;
 
   /* ---------- Peças visuais ---------- */
@@ -38,8 +40,8 @@
     }
     return `<article class="kpi" aria-label="${esc(o.rot)}">
       <span class="kpi-rot">${esc(o.rot)}</span>
-      <span class="kpi-valor">${o.valor}${o.un ? `<small>${esc(o.un)}</small>` : ''}</span>
-      ${o.selo || ''}${delta}
+      ${o.gauge ? `<span class="kpi-gauge">${o.gauge}</span>` : `<span class="kpi-valor">${o.valor}${o.un ? `<small>${esc(o.un)}</small>` : ''}</span>
+      ${o.selo || ''}`}${delta}
       ${o.sub ? `<span class="kpi-sub">${o.sub}</span>` : ''}
       ${o.spark ? `<span class="kpi-spark">${o.spark}</span>` : ''}
     </article>`;
@@ -63,12 +65,11 @@
     const atencao = AT.filter((a) => a.nivel !== 'ok').sort((x, y) => (y.nivel === 'crit') - (x.nivel === 'crit'));
     const nCrit = AT.filter((a) => a.nivel === 'crit').length;
 
-    const faixa = w.acwr == null ? null : w.acwr > A.FAIXA_ACWR.ate ? 'acima' : w.acwr < A.FAIXA_ACWR.de ? 'abaixo' : 'dentro';
     const kpis = [
       kpi({ rot: `Carga na ${w.rotulo}`, valor: num(w.realizado), un: 'UA', delta: p ? pct(w.realizado, p.realizado) : null, deltaTxt: p ? `${sinal(pct(w.realizado, p.realizado))}${Math.abs(Math.round(pct(w.realizado, p.realizado)))}% na semana` : '', bom: null,
         sub: `${Math.round((w.realizado / w.planejado) * 100)}% do planejado`, spark: G.spark(T.slice(-8).map((x) => x.realizado)) }),
-      kpi({ rot: 'ACWR da turma', valor: w.acwr == null ? 'n/d' : dec(w.acwr, 2), selo: faixa ? selo(faixa === 'dentro' ? 'ok' : 'warn', faixa === 'dentro' ? 'Na faixa segura' : faixa === 'acima' ? 'Acima da faixa' : 'Abaixo da faixa') : '',
-        sub: 'faixa segura: 0,8 a 1,3', spark: G.spark(T.map((x) => x.acwr)) }),
+      kpi({ rot: 'ACWR da turma', gauge: C.velocimetro(w.acwr, { mini: true }),
+        sub: w.acwr == null ? 'precisa de ao menos 2 semanas completas' : `ótimo: 0,8 a 1,3${w.acwrProvisorio ? ` · provisório (${plural(w.acwrBase, 'semana', 'semanas')} de base)` : ''}`, spark: G.spark(T.map((x) => x.acwr)) }),
       kpi({ rot: 'PSR médio', valor: dec(w.psr), un: '/10', delta: p && p.psr != null ? w.psr - p.psr : null, deltaTxt: p && p.psr != null ? `${sinal(w.psr - p.psr)}${dec(Math.abs(w.psr - p.psr))} na semana` : '', bom: true,
         sub: '10 é totalmente recuperado', spark: G.spark(T.slice(-8).map((x) => x.psr)) }),
       kpi({ rot: 'Presença', valor: Math.round(w.pres), un: '%', delta: p ? w.pres - p.pres : null, deltaTxt: p ? `${sinal(w.pres - p.pres)}${Math.abs(Math.round(w.pres - p.pres))} pontos` : '', bom: true,
@@ -95,9 +96,9 @@
       rotulo: 'ACWR da turma por semana', rotuloX: 'Semana', altura: 200, yMin: 0.5, yMax: 1.75, nMarcas: 5, margemEsq: 40,
       x: T.map((s) => s.rotulo), tituloDica: (i) => `Semana ${T[i].n} · ${dd(T[i].inicio)}`,
       series: [{ id: 'acwr', nome: 'ACWR', tipo: 'linha', cor: 'a', y: T.map((s) => s.acwr), fmt: (v) => dec(v, 2) }],
-      faixa: { de: A.FAIXA_ACWR.de, ate: A.FAIXA_ACWR.ate, rotulo: 'faixa segura 0,8 a 1,3' },
+      faixa: { de: A.FAIXA_ACWR.de, ate: A.FAIXA_ACWR.ate, rotulo: 'faixa ótima 0,8 a 1,3' },
       fmtY: (v) => dec(v, 2),
-      nota: 'ACWR é a carga da semana dividida pela média das 4 últimas semanas. As três primeiras semanas ainda não têm base para o cálculo.',
+      nota: 'ACWR é a carga total da semana (quadra e treino físico) dividida pela média das até 4 semanas anteriores. A partir da 2ª semana já há número, mas ele é provisório até haver 4 semanas de base.',
     };
     const cfgPse = {
       rotulo: 'PSE e PSR médios por semana', rotuloX: 'Semana', altura: 200, yMin: 0, yMax: 10, nMarcas: 5, margemEsq: 34,
@@ -141,7 +142,7 @@
             <summary>Como lemos estes números</summary>
             <ul class="ideias">
               <li><b>Carga</b>: duração × PSE das sessões em que o atleta esteve presente. Faltas contam zero.</li>
-              <li><b>ACWR</b>: carga da semana ÷ média das 4 últimas semanas. De 0,8 a 1,3 é a faixa segura.</li>
+              <li><b>ACWR</b>: carga total da semana (quadra e físico) ÷ média das até 4 semanas anteriores. De 0,8 a 1,3 é a faixa ótima; acima de 1,5, risco alto. Com menos de 3 semanas de base o número aparece, mas não dispara alerta.</li>
               <li><b>Alerta</b>: ACWR acima de 1,5, ou PSR até 5 com PSE acima do alvo, ou dor forte relatada.</li>
               <li><b>Atenção</b>: ACWR fora da faixa, PSR até 5,5, presença abaixo de 60%, semana monótona (monotonia acima de 2) ou dor moderada.</li>
               <li>O semáforo ajuda a olhar primeiro para quem precisa. A decisão é sua.</li>
@@ -193,7 +194,7 @@
       return `<tr>
         <td class="at-quem"><div class="at-quem-i">${seloIc(a.nivel)}<div><button class="link-btn at-link" data-atleta="${a.id}">${esc(a.nome)}</button>${a.motivos.length ? `<small>${esc(a.motivos.map((m) => m.texto).join(' · '))}</small>` : ''}</div></div></td>
         <td><div class="heat" role="img" aria-label="Carga das últimas ${a.cargas8.length} semanas">${a.cargas8.map((v, i) => `<i style="--o:${(0.1 + 0.85 * (v / maxC)).toFixed(2)}" title="${esc(a.rotulos8[i])}: ${num(v)} UA"></i>`).join('')}</div></td>
-        <td class="r num">${a.acwr == null ? '–' : `<span class="${fora ? 'fora' : ''}">${fora ? (a.acwr > 1 ? ICO.sobe : ICO.desce) : ''}${dec(a.acwr, 2)}</span>`}</td>
+        <td class="r num">${a.acwr == null ? '–' : `<button class="link-btn cg-abre ${fora ? 'fora' : ''}" data-carga="${a.id}" title="${esc(a.zona.nome)}${a.acwrInfo.provisorio ? ' (provisório)' : ''}: abrir a carga de ${esc(a.nome.split(' ')[0])}">${fora ? (a.acwr > 1 ? ICO.sobe : ICO.desce) : ''}${dec(a.acwr, 2)}${a.acwrInfo.provisorio ? '*' : ''}</button>`}</td>
         <td class="r num">${a.pse == null ? '–' : dec(a.pse)}</td>
         <td class="r num"><span class="${a.psr != null && a.psr <= 5.5 ? 'fora' : ''}">${a.psr == null ? '–' : dec(a.psr)}</span>${seta ? `<span class="tend ${a.tendencia > 0 ? 'bom' : 'ruim'}" title="PSR ${a.tendencia > 0 ? 'subindo' : 'caindo'} nas últimas semanas">${seta}</span>` : ''}</td>
         <td class="r num">${a.pres == null ? '–' : `${Math.round(a.pres)}%`}</td>
@@ -215,10 +216,16 @@
           </table>
         </div>
         <div class="an-escala" aria-hidden="true"><span>menos carga</span><i class="an-grad"></i><span>mais carga</span></div>
-        <p class="hint">Toque no nome para comparar o atleta com a turma, a faixa ou outro atleta.</p>
+        <p class="hint">Toque no nome para comparar o atleta com a turma, a faixa ou outro atleta; toque no ACWR para ver a carga dele de perto. * = provisório (menos de 4 semanas de base).</p>
       </section>`;
 
     el.querySelector('#an-ordem').addEventListener('change', (e) => { est.ordem = e.target.value; render(raiz, '#an-ordem'); });
+    el.querySelectorAll('[data-carga]').forEach((b) => b.addEventListener('click', () => {
+      window.Farol.analiseCarga.definir(b.dataset.carga);
+      est.aba = 'carga';
+      render(raiz, '[data-aba-tab="carga"]');
+      window.scrollTo({ top: 0 });
+    }));
     el.querySelectorAll('[data-atleta]').forEach((b) => b.addEventListener('click', () => {
       window.Farol.comparativos.definirAtleta(b.dataset.atleta);
       est.aba = 'comparar';
@@ -273,7 +280,7 @@
   function render(root, foco) {
     const planoId = window.Farol.compartilhado.planoId;
     const plano = dados.plano(planoId);
-    const comPlano = est.aba === 'geral' || est.aba === 'atletas';
+    const comPlano = est.aba === 'geral' || est.aba === 'atletas' || est.aba === 'carga';
 
     root.innerHTML = `
       <header class="page-head">
@@ -293,6 +300,7 @@
     const corpo = root.querySelector('#an-corpo');
     if (est.aba === 'geral') geral(corpo, plano);
     else if (est.aba === 'atletas') atletas(corpo, plano);
+    else if (est.aba === 'carga') window.Farol.analiseCarga.montar(corpo, plano);
     else if (est.aba === 'comparar') window.Farol.comparativos.montar(corpo);
     else competicoes(corpo);
 

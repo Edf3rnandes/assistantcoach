@@ -1,45 +1,40 @@
-/* Dados da Análise: tudo calculado a partir dos registros de treino (presença, PSE e PSR de cada atleta).
-   - carga semanal = soma de duração × PSE das sessões em que o atleta esteve presente (UA);
-   - ACWR = carga da semana ÷ média das 4 últimas semanas (a faixa segura é de 0,8 a 1,3);
-   - monotonia = média da carga diária ÷ desvio da carga diária na semana; strain = carga × monotonia;
+/* Dados da Análise: tudo calculado a partir dos registros de treino (presença, PSE e PSR de cada atleta) e dos treinos físicos feitos.
+   As contas (carga, ACWR, monotonia, strain e as faixas do velocímetro) ficam em carga.js e estão descritas lá.
+   - carga semanal = duração × PSE do treino de quadra (UA); a carga total soma o treino físico feito fora do microciclo;
+   - ACWR e monotonia usam a carga total;
    - semáforo: regras simples e auditáveis, listadas na tela. A decisão final é sempre do profissional. */
 (function () {
   const { media, clamp, dd } = window.Farol.util;
+  const C = window.Farol.carga;
   const { registros: REG, elenco, dados, calendario: CAL } = window.Farol;
   const { ATLETAS } = elenco;
 
   const FAIXA_ACWR = { de: 0.8, ate: 1.3 };
 
-  const desvio = (v) => {
-    if (v.length < 2) return 0;
-    const m = media(v);
-    return Math.sqrt(v.reduce((a, x) => a + (x - m) ** 2, 0) / v.length);
-  };
+  const desvio = C.desvio;
 
   // Índices das semanas já completas e registradas.
   const semanasCompletas = (plano) => plano.semanas.map((s, i) => (s.registro && s.registro.completo ? i : -1)).filter((i) => i >= 0);
 
-  function cargasDiarias(plano, semana, id) {
-    const dias = [0, 0, 0, 0, 0, 0, 0];
-    semana.sessoes.forEach((s) => {
-      if (REG.estado(plano, semana, s) !== 'registrado') return;
-      const reg = REG.obter(plano, semana, s);
-      if (reg.presenca[id] === 'presente' && reg.pse[id] != null) dias[s.dia] += reg.duracao * reg.pse[id];
-    });
-    return dias;
-  }
+  // Carga de cada dia da semana (seg a dom): quadra + treino físico.
+  const cargasDiarias = (semana, id) => {
+    const p = semana.registro.porAtleta[id];
+    return p.diasQ.map((v, i) => v + p.diasF[i]);
+  };
 
   // Série semanal da turma (média por atleta).
   function turma(plano) {
     const idx = semanasCompletas(plano);
     const semanas = idx.map((i) => {
       const s = plano.semanas[i];
-      return { i, n: s.n, inicio: s.inicio, rotulo: `S${s.n}`, planejado: s.planejado, realizado: s.realizado, pse: s.registro.pseMedio, psr: s.registro.psrMedio, pres: s.registro.presencaPct, pseAlvo: s.registro.pseAlvo, acwr: null };
+      return { i, n: s.n, inicio: s.inicio, rotulo: `S${s.n}`, planejado: s.planejado, realizado: s.realizado, total: s.registro.realizadoTotal, pse: s.registro.pseMedio, psr: s.registro.psrMedio, pres: s.registro.presencaPct, pseAlvo: s.registro.pseAlvo, acwr: null };
     });
+    const totais = semanas.map((w) => w.total);
     semanas.forEach((w, k) => {
-      if (k < 3) return;
-      const cron = media(semanas.slice(k - 3, k + 1).map((x) => x.realizado));
-      w.acwr = cron ? +(w.realizado / cron).toFixed(2) : null;
+      const r = C.acwr(totais, k);
+      w.acwr = r ? r.valor : null;
+      w.acwrBase = r ? r.base : 0;
+      w.acwrProvisorio = r ? r.provisorio : false;
     });
     return semanas;
   }
@@ -62,14 +57,15 @@
     }));
 
     return plano.atletas.map((id) => {
-      const cargas = idx.map((i) => plano.semanas[i].registro.porAtleta[id].carga);
+      const cargas = idx.map((i) => plano.semanas[i].registro.porAtleta[id].total);
       const k = cargas.length - 1;
-      const cronica = k >= 3 ? media(cargas.slice(k - 3, k + 1)) : null;
-      const acwr = cronica ? +(cargas[k] / cronica).toFixed(2) : null;
-      const dias = cargasDiarias(plano, semUlt, id);
-      const dsv = desvio(dias);
-      const monotonia = dsv > 0 ? +(media(dias) / dsv).toFixed(2) : null;
-      const strain = monotonia != null ? Math.round(cargas[k] * monotonia) : null;
+      const info = C.acwr(cargas, k);
+      const acwr = info ? info.valor : null;
+      const dias = cargasDiarias(semUlt, id);
+      const monotonia = C.monotonia(dias);
+      const mono = monotonia != null ? +monotonia.toFixed(2) : null;
+      const strain = mono != null ? Math.round(cargas[k] * mono) : null;
+      const pUlt = semUlt.registro.porAtleta[id];
 
       const pse = [], psr = [], psrSem = [];
       let pres = 0, tot = 0;
@@ -86,22 +82,24 @@
 
       const motivos = [];
       const add = (nivel, texto) => motivos.push({ nivel, texto });
-      if (acwr != null && acwr > 1.5) add('crit', `ACWR alto (${acwr.toLocaleString('pt-BR')}): carga subiu rápido demais`);
-      else if (acwr != null && acwr > FAIXA_ACWR.ate) add('warn', `ACWR acima da faixa segura (${acwr.toLocaleString('pt-BR')})`);
-      else if (acwr != null && acwr < FAIXA_ACWR.de) add('warn', `ACWR baixo (${acwr.toLocaleString('pt-BR')}): carga caiu`);
+      const ac = info && info.confiavel ? acwr : null; // com menos de 3 semanas de base o número é só indicativo
+      if (ac != null && ac > 1.5) add('crit', `ACWR alto (${ac.toLocaleString('pt-BR')}): carga subiu rápido demais`);
+      else if (ac != null && ac > FAIXA_ACWR.ate) add('warn', `ACWR acima da faixa segura (${ac.toLocaleString('pt-BR')})`);
+      else if (ac != null && ac < FAIXA_ACWR.de) add('warn', `ACWR baixo (${ac.toLocaleString('pt-BR')}): carga caiu`);
       if (psrM != null && psrM <= 5 && pseM != null && alvo != null && pseM - alvo >= 0.5) add('crit', 'PSR baixo e PSE acima do alvo');
       else if (psrM != null && psrM <= 5.5) add('warn', 'PSR baixo');
       if (presPct != null && presPct < 60) add('warn', 'Presença abaixo de 60%');
-      if (monotonia != null && monotonia > 2) add('warn', 'Carga muito monótona na semana');
+      if (mono != null && mono > 2) add('warn', 'Carga muito monótona na semana');
       if (dor[id] >= 3) add('crit', 'Relatou dor forte');
       else if (dor[id] === 2) add('warn', 'Relatou dor moderada');
       const nivel = motivos.some((m) => m.nivel === 'crit') ? 'crit' : motivos.length ? 'warn' : 'ok';
 
       return {
         id, nome: ATLETAS[id].nome, nivel, motivos,
-        cargas8: ultimas8.map((i) => plano.semanas[i].registro.porAtleta[id].carga),
+        cargas8: ultimas8.map((i) => plano.semanas[i].registro.porAtleta[id].total),
+        cargasQ8: ultimas8.map((i) => plano.semanas[i].registro.porAtleta[id].carga),
         rotulos8: ultimas8.map((i) => `S${plano.semanas[i].n}`),
-        cargaUlt: cargas[k], acwr, monotonia, strain, pse: pseM, psr: psrM, pres: presPct, tendencia,
+        cargaUlt: cargas[k], cargaQuadraUlt: pUlt.carga, fisicaUlt: pUlt.fisica, acwr, acwrInfo: info, zona: C.zona(acwr), dias, monotonia: mono, strain, cargasTotais: cargas, pse: pseM, psr: psrM, pres: presPct, tendencia,
         psrSerie: psrSem,
       };
     });
@@ -149,5 +147,5 @@
     return { realizadas, linhas, v, d, duplas, aproveitamento: v + d ? (100 * v) / (v + d) : null, melhor, proximas };
   }
 
-  window.Farol.analise = { FAIXA_ACWR, turma, atletas, mixSessoes, competicoes, semanasCompletas, desvio };
+  window.Farol.analise = { FAIXA_ACWR, cargasDiarias, turma, atletas, mixSessoes, competicoes, semanasCompletas, desvio };
 })();

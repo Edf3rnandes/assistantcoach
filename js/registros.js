@@ -77,7 +77,9 @@
 
   function resumoSemana(plano, semana) {
     const porAtleta = {};
-    plano.atletas.forEach((id) => { porAtleta[id] = { sessoes: 0, presencas: 0, pse: [], psr: [], carga: 0 }; });
+    // carga = treino de quadra; fisica = treino físico feito fora das sessões do microciclo; total = as duas juntas.
+    // diasQ e diasF guardam a carga de cada um dos 7 dias (seg a dom).
+    plano.atletas.forEach((id) => { porAtleta[id] = { sessoes: 0, presencas: 0, pse: [], psr: [], carga: 0, fisica: 0, total: 0, min: 0, minF: 0, diasQ: [0, 0, 0, 0, 0, 0, 0], diasF: [0, 0, 0, 0, 0, 0, 0], treinosFisicos: [] }; });
     const cont = { registrado: 0, aguardando: 0, futuro: 0, semregistro: 0 };
     let planejadoParcial = 0, durTotal = 0, pseAlvoSoma = 0;
     const pses = [], psrs = [];
@@ -97,15 +99,28 @@
         p.sessoes++;
         if (reg.presenca[id] === 'presente') {
           p.presencas++;
+          p.min += reg.duracao;
           if (reg.pse[id] != null) p.pse.push(reg.pse[id]);
           if (reg.psr[id] != null) p.psr.push(reg.psr[id]);
         }
         p.carga += r.carga(id);
+        p.diasQ[s.dia] += r.carga(id);
       });
       if (r.pseMedio != null) pses.push(r.pseMedio);
       if (r.psrMedio != null) psrs.push(r.psrMedio);
       presencas += r.presentes;
       possiveis += r.total;
+    });
+
+    plano.atletas.forEach((id) => {
+      const p = porAtleta[id];
+      window.Farol.carga.fisica(id, semana.inicio, semana.inicio + 7 * DIA).forEach((t) => {
+        p.diasF[Math.floor((t.data - semana.inicio) / DIA)] += t.carga;
+        p.fisica += t.carga;
+        p.minF += t.dur;
+        p.treinosFisicos.push(t);
+      });
+      p.total = p.carga + p.fisica;
     });
 
     const realizadoParcial = cont.registrado ? media(plano.atletas.map((id) => porAtleta[id].carga)) : null;
@@ -114,6 +129,7 @@
       registradas: cont.registrado, aguardando: cont.aguardando, futuras: cont.futuro, semRegistro: cont.semregistro,
       completo, realizado: completo ? realizadoParcial : null,
       realizadoParcial, planejadoParcial,
+      realizadoTotal: completo ? media(plano.atletas.map((id) => porAtleta[id].total)) : null,
       pseMedio: media(pses), psrMedio: media(psrs),
       pseAlvo: durTotal ? pseAlvoSoma / durTotal : null,
       presencaPct: possiveis ? Math.round((presencas / possiveis) * 100) : null,

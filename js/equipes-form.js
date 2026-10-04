@@ -79,7 +79,7 @@
           <button class="btn" type="button" id="ef-cancela">Cancelar</button>
           ${edicao && !temPlano ? '<button class="btn btn-danger" type="button" id="ef-excluir" style="margin-left:auto">Excluir equipe</button>' : ''}
         </div>
-        ${edicao && temPlano ? '<p class="hint">Esta equipe tem plano de treino, por isso ainda não dá para excluí-la por aqui.</p>' : ''}
+        ${edicao && temPlano ? '<p class="hint">Esta equipe tem periodização, por isso ainda não dá para excluí-la por aqui.</p>' : ''}
       </form>`;
 
     const $ = (s) => root.querySelector(s);

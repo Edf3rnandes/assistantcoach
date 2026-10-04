@@ -122,9 +122,9 @@
   function semPlano(root, t) {
     root.innerHTML = `
       <header class="page-head"><div><h1>${esc(t.nome)}</h1><p class="lead">${plural(t.atletas.length, 'atleta', 'atletas')} · ${esc(t.faixa)}</p></div></header>
-      <section class="card eq-vazio"><h2>Esta equipe ainda não tem plano de treino</h2>
-        <p>Com o plano, o painel mostra a semana, os dias de treino e as sessões a registrar.</p>
-        <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="eq-criar">Criar o plano da equipe</button><button class="btn" id="eq-editar">Editar equipe</button></div></section>
+      <section class="card eq-vazio"><h2>Esta equipe ainda não tem periodização</h2>
+        <p>Com a periodização, o painel mostra a semana, os dias de treino e as sessões a registrar.</p>
+        <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="eq-criar">Criar a periodização da equipe</button><button class="btn" id="eq-editar">Editar equipe</button></div></section>
       ${blocoAtletas(t, situacoes(t, null))}`;
     root.querySelector('#eq-criar').addEventListener('click', () => window.Farol.ir('treinos-periodizacao', { nivel: 'criar', editor: null, turmaId: t.id }));
     root.querySelector('#eq-editar').addEventListener('click', () => window.Farol.ir('equipes-editar', { turmaId: t.id }));
@@ -234,7 +234,7 @@
       </div>
 
       <nav class="eq-links" aria-label="Mais sobre a equipe">
-        <button class="eq-link" data-ir="treinos-periodizacao">Plano da equipe<small>macro, meso e microciclo</small></button>
+        <button class="eq-link" data-ir="treinos-periodizacao">Periodização da equipe<small>ciclos, blocos e semanas</small></button>
         <button class="eq-link" data-ir="analise">Análise da equipe<small>carga, ACWR e comparativos</small></button>
         <button class="eq-link" data-ir="treinos-microciclo">Resposta da semana<small>como os atletas se sentiram</small></button>
         <button class="eq-link" id="eq-link-copiar">Link dos atletas<small id="eq-link-msg">copiar para enviar</small></button>

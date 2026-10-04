@@ -54,7 +54,7 @@
 
   function vazioSemRegistro() {
     return `<section class="card an-vazio"><h2>Ainda não há dados para analisar</h2>
-      <p>As análises aparecem quando houver semanas completas com registro de treino. Crie o plano da equipe, registre as sessões na tela da equipe e volte aqui.</p></section>`;
+      <p>As análises aparecem quando houver semanas completas com registro de treino. Crie a periodização da equipe, registre as sessões na tela da equipe e volte aqui.</p></section>`;
   }
 
   function geral(el, plano) {

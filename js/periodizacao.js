@@ -69,9 +69,9 @@
     root.innerHTML = `
       <header class="page-head"><div><h1>Periodização</h1>
         <p class="lead">Planeje a temporada em três escalas. A competição alvo define o fim de cada ciclo.</p></div></header>
-      <section class="card eq-vazio"><h2>${temEquipes ? 'Nenhuma equipe tem plano ainda' : 'Cadastre uma equipe para planejar'}</h2>
-        <p>${temEquipes ? 'O plano divide a temporada em fases até a competição alvo e gera a semana de treino.' : 'O plano é sempre de uma equipe. Cadastre a equipe e os atletas no Início.'}</p>
-        <button class="btn btn-primary" id="pl-vazio">${temEquipes ? 'Criar o primeiro plano' : 'Cadastrar equipe e atletas'}</button></section>`;
+      <section class="card eq-vazio"><h2>${temEquipes ? 'Nenhuma equipe tem periodização ainda' : 'Cadastre uma equipe para planejar'}</h2>
+        <p>${temEquipes ? 'A periodização divide a temporada em fases até a competição alvo e gera a semana de treino.' : 'A periodização é sempre de uma equipe. Cadastre a equipe e os atletas no Início.'}</p>
+        <button class="btn btn-primary" id="pl-vazio">${temEquipes ? 'Criar a primeira periodização' : 'Cadastrar equipe e atletas'}</button></section>`;
     root.querySelector('#pl-vazio').addEventListener('click', () => {
       if (temEquipes && livres.length) { estado.nivel = 'criar'; estado.editor = null; render(root); } else window.Farol.ir('equipes-nova');
     });
@@ -109,7 +109,7 @@
               ${dados.planos.map((p) => `<option value="${p.id}" ${p.id === plano.id ? 'selected' : ''}>${esc(p.nome)} (${esc(p.detalhe)})</option>`).join('')}
             </select>
           </div>` : ''}
-          ${criando ? '' : '<button class="btn" id="novo-plano">Novo plano</button>'}
+          ${criando ? '' : '<button class="btn" id="novo-plano">Nova periodização</button>'}
         </div>
       </header>
 

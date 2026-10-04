@@ -3,7 +3,7 @@
    1. Quais são as minhas equipes e como está a semana de cada uma? (cartões que abrem a tela da equipe)
    2. O que acontece hoje? (sessões do dia, de todas as equipes, com o atalho para registrar)
    3. O que está pendente? (três atalhos: treinos sem registro, lesionados e a próxima competição)
-   O resto (plano da fase, atletas, competições da equipe, testes) fica dentro de cada equipe e nas áreas Plano, Jogos e Análise. */
+   O resto (plano da fase, atletas, competições da equipe, testes) fica dentro de cada equipe e nas áreas Periodização, Jogos e Análise. */
 (function () {
   const { dados, util, elenco, scoutDados: SD, calendario: CAL, equipes: EQ } = window.Farol;
   const { esc, plural, dd, HOJE, DIA } = util;
@@ -73,8 +73,8 @@
     return `<button class="ix2-eq" data-equipe="${t.id}" style="--c:var(${meso ? meso.cor : '--accent'})" aria-label="Abrir a equipe ${esc(t.nome)}">
       <span class="ix2-eq-top"><span class="ix2-eq-faixa">${esc(t.faixa)}</span><span class="ix2-eq-seta" aria-hidden="true">${ic('seta', 18)}</span></span>
       <b class="ix2-eq-nome">${esc(t.nome)}</b>
-      <span class="ix2-eq-fase">${plano && semana ? (R.comeca ? `Plano começa em ${esc(dd(R.comeca))}` : `${meso ? `<i class="ix2-eq-dot"></i>${esc(meso.nome)} · ` : ''}semana ${semana.n}`) : plano ? 'Fora do período do plano' : 'Sem plano de treino'}</span>
-      ${sessoes.length ? `<span class="ix2-eq-semana" role="img" aria-label="Sessões da semana: ${R.nReg} de ${sessoes.length} registradas">${sessoes.map((x) => `<i class="${x.st} ${x.t === HOJE ? 'hoje' : ''}" style="--s:var(${dados.TIPOS_SESSAO[x.s.tipo].cor})" title="${esc(dados.TIPOS_SESSAO[x.s.tipo].nome)}, ${esc(dd(x.t))}"></i>`).join('')}<small class="num">${R.nReg}/${sessoes.length}</small></span>` : '<span class="ix2-eq-semana vazio"><small>Crie o plano para ver a semana</small></span>'}
+      <span class="ix2-eq-fase">${plano && semana ? (R.comeca ? `Periodização começa em ${esc(dd(R.comeca))}` : `${meso ? `<i class="ix2-eq-dot"></i>${esc(meso.nome)} · ` : ''}semana ${semana.n}`) : plano ? 'Fora do período do plano' : 'Sem periodização'}</span>
+      ${sessoes.length ? `<span class="ix2-eq-semana" role="img" aria-label="Sessões da semana: ${R.nReg} de ${sessoes.length} registradas">${sessoes.map((x) => `<i class="${x.st} ${x.t === HOJE ? 'hoje' : ''}" style="--s:var(${dados.TIPOS_SESSAO[x.s.tipo].cor})" title="${esc(dados.TIPOS_SESSAO[x.s.tipo].nome)}, ${esc(dd(x.t))}"></i>`).join('')}<small class="num">${R.nReg}/${sessoes.length}</small></span>` : '<span class="ix2-eq-semana vazio"><small>Crie a periodização para ver a semana</small></span>'}
       <span class="ix2-eq-pe">
         <span class="ix2-pill ${ok === R.membros.length ? 'ok' : ''}"><b class="num">${ok}</b> de ${R.membros.length} disponíveis</span>
         ${fora ? `<span class="ix2-pill lesao">${plural(fora, 'fora', 'fora')}</span>` : ''}
@@ -128,7 +128,7 @@
       ${!turmas.length ? `<section class="ix2-onb" aria-labelledby="ix2-onb-t">
         <h2 id="ix2-onb-t">Comece pela sua primeira equipe</h2>
         <ol><li><b>Cadastre a equipe</b><span>Nome, faixa e os atletas, um por um ou colando a lista.</span></li>
-          <li><b>Crie o plano da temporada</b><span>O app distribui as fases até a competição alvo.</span></li>
+          <li><b>Crie a periodização da temporada</b><span>O app distribui as fases até a competição alvo.</span></li>
           <li><b>Registre os treinos</b><span>PSE e PSR de cada atleta alimentam a carga e os alertas.</span></li></ol>
         <div class="actions"><button class="btn btn-primary" id="ix2-onb-bt">Cadastrar equipe e atletas</button></div></section>` : `
       <section aria-labelledby="ix2-eq-t">

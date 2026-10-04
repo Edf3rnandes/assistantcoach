@@ -90,7 +90,7 @@
   // A barra tem só quatro portas. Quadro, registro, saúde e scout moram dentro delas (equipe, sessão e jogos).
   const BARRA = [
     { id: 'inicio', rotulo: 'Início' },
-    { id: 'treinos-periodizacao', rotulo: 'Plano' },
+    { id: 'treinos-periodizacao', rotulo: 'Periodização' },
     { id: 'planejamento-competicoes', rotulo: 'Jogos', icone: 'placar' },
     { id: 'analise', rotulo: 'Análise' },
   ];
@@ -104,7 +104,7 @@
   const VOLTA = { 'equipes-editar': ['equipe', 'Equipe'], 'treino-registro': ['equipe', 'Equipe'], 'treinos-microciclo': ['equipe', 'Equipe'], 'scout-coleta': ['analise-scout', 'Scout'] };
   // Abas de cada porta (a barra de baixo troca de porta; esta linha troca de assunto dentro dela).
   const SUBNAV = [
-    { ids: ['treinos-periodizacao', 'treinos-biblioteca'], itens: [['treinos-periodizacao', 'Periodização'], ['treinos-biblioteca', 'Exercícios e prescrição']] },
+    { ids: ['treinos-periodizacao', 'treinos-biblioteca'], itens: [['treinos-periodizacao', 'Temporada'], ['treinos-biblioteca', 'Exercícios e prescrição']] },
     { ids: ['planejamento-competicoes', 'analise-scout', 'scout-coleta'], itens: [['planejamento-competicoes', 'Competições'], ['analise-scout', 'Scout']] },
   ];
   let rotaAtual = null;
@@ -114,9 +114,9 @@
     const temEquipes = Object.keys(window.Farol.elenco.TURMAS).length > 0;
     main.innerHTML = `
       <header class="page-head"><div><h1>${esc(item.nome)}</h1></div></header>
-      <section class="card eq-vazio"><h2>${temEquipes ? 'Crie o plano de uma equipe primeiro' : 'Cadastre uma equipe primeiro'}</h2>
-        <p>${temEquipes ? 'Esta tela trabalha em cima das sessões do plano de treino.' : 'Esta tela trabalha em cima das equipes e do plano de treino. Comece cadastrando a equipe e os atletas.'}</p>
-        <button class="btn btn-primary" id="sp-ir">${temEquipes ? 'Criar plano' : 'Cadastrar equipe e atletas'}</button></section>`;
+      <section class="card eq-vazio"><h2>${temEquipes ? 'Crie a periodização de uma equipe primeiro' : 'Cadastre uma equipe primeiro'}</h2>
+        <p>${temEquipes ? 'Esta tela trabalha em cima das sessões da periodização.' : 'Esta tela trabalha em cima das equipes e da periodização. Comece cadastrando a equipe e os atletas.'}</p>
+        <button class="btn btn-primary" id="sp-ir">${temEquipes ? 'Criar periodização' : 'Cadastrar equipe e atletas'}</button></section>`;
     main.querySelector('#sp-ir').addEventListener('click', () => (temEquipes ? window.Farol.ir('treinos-periodizacao', { nivel: 'criar', editor: null }) : window.Farol.ir('equipes-nova')));
   }
 

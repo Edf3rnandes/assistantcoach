@@ -1,20 +1,18 @@
-/* Início: o painel geral do técnico, ponto de partida e de volta de todas as telas.
-   Lê da esquerda para a direita e de cima para baixo, na ordem em que o técnico decide:
-   1. faixa do dia, com os atalhos para criar ou começar algo;
-   2. planejamento (fase, semana, prioridades) e competições;
-   3. elenco e saúde: como estão os times e quem está lesionado ou em retorno;
-   4. o que vem em seguida: últimos testes, treinos para rever e o que está em atraso.
-   Tudo é lido das mesmas fontes das outras telas; nada é duplicado aqui. */
+/* Início: o painel geral do técnico, ponto de partida de tudo.
+   Três perguntas, nessa ordem:
+   1. Quais são as minhas equipes e como está a semana de cada uma? (cartões que abrem a tela da equipe)
+   2. O que acontece hoje? (sessões do dia, de todas as equipes, com o atalho para registrar)
+   3. O que está pendente? (três atalhos: treinos sem registro, lesionados e a próxima competição)
+   O resto (plano da fase, atletas, competições da equipe, testes) fica dentro de cada equipe e nas áreas Plano, Jogos e Análise. */
 (function () {
-  const { dados, util, elenco, registros: REG, calendario: CAL, scoutDados: SD, analise: A, medidas: M } = window.Farol;
-  const { esc, num, dec, dd, plural, HOJE, DIA } = util;
-  const { ATLETAS, ATLETAS_LISTA, TURMAS, FUNDAMENTOS } = elenco;
+  const { dados, util, elenco, scoutDados: SD, calendario: CAL, equipes: EQ } = window.Farol;
+  const { esc, plural, dd, HOJE, DIA } = util;
+  const { TURMAS } = elenco;
 
-  const DIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   const DIAS_LONGO = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'];
   const MESES_LONGO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const TURNO = { manha: 'manhã', tarde: 'tarde', noite: 'noite' };
-  const est = { planoId: null };
+  const ORD_TURNO = { manha: 0, tarde: 1, noite: 2 };
 
   /* ---------- Ícones e peças ---------- */
 
@@ -36,12 +34,7 @@
   const ic = (k, t = 20) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
 
   const dataLonga = (t) => { const d = new Date(t); return `${DIAS_LONGO[(d.getUTCDay() + 6) % 7]}, ${d.getUTCDate()} de ${MESES_LONGO[d.getUTCMonth()]}`; };
-  const dataSes = (semana, s) => semana.inicio + s.dia * DIA;
-  const rotuloSes = (semana, s) => `${DIAS[s.dia]} ${dd(dataSes(semana, s))}, ${TURNO[s.turno]}`;
-  const iniciais = (n) => n.split(' ').filter((x) => x.length > 2).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
   const emDias = (t) => Math.round((t - HOJE) / DIA);
-  const prim = (id) => ATLETAS[id].nome.split(' ')[0];
-  const ordTurno = { manha: 0, tarde: 1, noite: 2 };
 
   // Paisagem da faixa do dia: farol, sol baixo, mar, areia e rede. Só desenho, sem informação.
   const PAISAGEM = `
@@ -68,315 +61,115 @@
       <path d="M300 128q40-72 80-52" fill="none" stroke="#fffdf4" stroke-width="2" stroke-dasharray="3 6" stroke-linecap="round" opacity=".8"/>
     </svg>`;
 
-  /* ---------- Coleta de dados ---------- */
 
-  function coletar() {
-    const planos = dados.planos.filter((p) => p.semanaAtual >= 0);
-    const hoje = [], pendentes = [], registradas = [];
-    planos.forEach((p) => p.semanas.forEach((semana) => semana.sessoes.forEach((s) => {
-      const t = dataSes(semana, s), st = REG.estado(p, semana, s);
-      const it = { p, semana, s, t, st };
-      if (t === HOJE) hoje.push(it);
-      if (st === 'aguardando') pendentes.push(it);
-      if (st === 'registrado' && t < HOJE && t >= HOJE - 14 * DIA) registradas.push(it);
-    })));
-    hoje.sort((a, b) => ordTurno[a.s.turno] - ordTurno[b.s.turno]);
-    pendentes.sort((a, b) => a.t - b.t);
+  /* ---------- Peças ---------- */
 
-    // Elenco por turma: lesionados, em retorno, atenção de carga e disponíveis.
-    const nivel = {};
-    planos.filter((p) => p.mock).forEach((p) => { let l = []; try { l = A.atletas(p); } catch (e) { l = []; } l.forEach((a) => { nivel[a.id] = a; }); });
-    const turmas = Object.values(TURMAS).map((t) => {
-      const membros = t.atletas.map((id) => {
-        const sit = elenco.situacaoDe(id), an = nivel[id];
-        const estado = sit ? (sit.tipo === 'lesao' ? 'lesao' : 'retorno') : an && an.nivel !== 'ok' ? 'atencao' : 'ok';
-        return { id, sit, an, estado };
-      });
-      const c = { lesao: 0, retorno: 0, atencao: 0, ok: 0 };
-      membros.forEach((m) => { c[m.estado]++; });
-      return { t, membros, c };
-    });
-    const lesoes = ATLETAS_LISTA.map((a) => ({ a, sit: elenco.situacaoDe(a.id) })).filter((x) => x.sit)
-      .sort((x, y) => ({ lesao: 0, retorno: 1, duvida: 2 }[x.sit.tipo] - { lesao: 0, retorno: 1, duvida: 2 }[y.sit.tipo]) || (x.sit.retorno || 9e15) - (y.sit.retorno || 9e15));
+  const saudacao = () => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'; };
 
-    const comps = CAL.lista().filter((c) => !CAL.passada(c)).slice(0, 3);
-    const jogos = SD.jogos();
-    const andamento = jogos.filter((j) => !SD.estado(j).encerrado)[0] || null;
-    return { planos, hoje, pendentes, registradas, turmas, lesoes, comps, andamento, nivel };
+  function cartaoEquipe(R) {
+    const { t, plano, meso, semana, sessoes, c } = R;
+    const fora = c.lesao + c.retorno;
+    const ok = c.ok;
+    return `<button class="ix2-eq" data-equipe="${t.id}" style="--c:var(${meso ? meso.cor : '--accent'})" aria-label="Abrir a equipe ${esc(t.nome)}">
+      <span class="ix2-eq-top"><span class="ix2-eq-faixa">${esc(t.faixa)}</span><span class="ix2-eq-seta" aria-hidden="true">${ic('seta', 18)}</span></span>
+      <b class="ix2-eq-nome">${esc(t.nome)}</b>
+      <span class="ix2-eq-fase">${plano && semana ? `${meso ? `<i class="ix2-eq-dot"></i>${esc(meso.nome)} · ` : ''}semana ${semana.n}` : plano ? 'Fora do período do plano' : 'Sem plano de treino'}</span>
+      ${sessoes.length ? `<span class="ix2-eq-semana" role="img" aria-label="Sessões da semana: ${R.nReg} de ${sessoes.length} registradas">${sessoes.map((x) => `<i class="${x.st} ${x.t === HOJE ? 'hoje' : ''}" style="--s:var(${dados.TIPOS_SESSAO[x.s.tipo].cor})" title="${esc(dados.TIPOS_SESSAO[x.s.tipo].nome)}, ${esc(dd(x.t))}"></i>`).join('')}<small class="num">${R.nReg}/${sessoes.length}</small></span>` : '<span class="ix2-eq-semana vazio"><small>Crie o plano para ver a semana</small></span>'}
+      <span class="ix2-eq-pe">
+        <span class="ix2-pill ${ok === R.membros.length ? 'ok' : ''}"><b class="num">${ok}</b> de ${R.membros.length} disponíveis</span>
+        ${fora ? `<span class="ix2-pill lesao">${plural(fora, 'fora', 'fora')}</span>` : ''}
+        ${R.pendentes ? `<span class="ix2-pill atencao">${plural(R.pendentes, 'sem registro', 'sem registro')}</span>` : ''}
+        ${R.proxComp ? `<span class="ix2-pill">${esc(R.proxComp.nome.split(' ')[0])} em ${emDias(R.proxComp.data)} d</span>` : ''}
+      </span>
+    </button>`;
   }
 
-  /* ---------- Planejamento e prioridades ---------- */
-
-  function blocoPlano(D) {
-    const plano = dados.plano(est.planoId) || D.planos[0];
-    const semana = plano.semanas[plano.semanaAtual];
-    const ciclo = plano.ciclos[plano.cicloAtual];
-    const meso = plano.mesos.find((m) => m.id === plano.mesoAtual);
-    const mesosCiclo = plano.mesos.filter((m) => m.ciclo === ciclo.idx);
-    const totSem = ciclo.semanas;
-    const pos = ((plano.semanaAtual - ciclo.semanaIni + (HOJE - semana.inicio) / (7 * DIA)) / totSem) * 100;
-    const alvo = ciclo.alvo;
-    const comps = [];
-    plano.semanas.slice(ciclo.semanaIni, ciclo.semanaIni + totSem).forEach((s, i) => s.competicoes.forEach((c) => comps.push({ c, x: ((i + 0.5) / totSem) * 100 })));
-    const alta = meso.pauta.fundamentos.filter((f) => f.prio === 'alta');
-    const media = meso.pauta.fundamentos.filter((f) => f.prio === 'media');
-    const sessoes = semana.sessoes;
-    const reg = sessoes.filter((s) => REG.estado(plano, semana, s) === 'registrado').length;
-    const tm = dados.TIPOS_MICRO[semana.microTipo];
-    const seletor = D.planos.length > 1 ? `<div class="ix-seg" role="group" aria-label="Plano">${D.planos.map((p) => `<button type="button" data-plano="${p.id}" aria-pressed="${p.id === plano.id}">${esc(p.nome.split(' ')[0] === 'Mariana' ? 'Mariana' : p.nome.replace(' Masculino', '').replace(' Misto, areia', ''))}</button>`).join('')}</div>` : '';
-
-    return `
-      <section class="ix-card ix-plano" aria-labelledby="ix-pl-t">
-        <div class="ix-head"><h2 id="ix-pl-t">${ic('plano', 18)} Planejamento</h2>${seletor}</div>
-        <div class="ix-fase" style="--c:var(${meso.cor})">
-          <span class="ix-fase-n">${esc(meso.nome)}</span>
-          <div class="ix-fase-t"><b>${esc(ciclo.nome)} · semana ${semana.n}</b><small>${esc(tm.nome)} · ${num(semana.planejado)} UA planejadas · ${reg} de ${sessoes.length} sessões registradas</small></div>
-          <button class="btn btn-sm" data-micro="${plano.id}|${semana.idx}">Abrir semana</button>
-        </div>
-        <div class="ix-linha" role="img" aria-label="Linha do ${esc(ciclo.nome)}: ${mesosCiclo.map((m) => `${m.nome} ${m.semanas} semanas`).join(', ')}. Hoje na semana ${plano.semanaAtual - ciclo.semanaIni + 1} de ${totSem}.">
-          ${mesosCiclo.map((m) => `<i style="flex:${m.semanas};background:var(${m.cor})" title="${esc(m.nome)}, ${m.semanas} semanas"><span>${m.semanas >= 4 ? esc(m.nome) : ''}</span></i>`).join('')}
-          ${comps.map((k) => `<b class="ix-bandeira ${k.c.id === alvo.id ? 'alvo' : ''}" style="left:${k.x}%" title="${esc(k.c.nome)}, ${dd(k.c.data)}"></b>`).join('')}
-          <u class="ix-hoje" style="left:${Math.max(0, Math.min(100, pos))}%"><em>hoje</em></u>
-        </div>
-        <p class="ix-alvo">${ic('alvo', 15)}<span>Alvo do ciclo: <b>${esc(alvo.nome)}</b>, ${dd(alvo.data)}, em ${emDias(alvo.data)} dias.</span></p>
-        <div class="ix-prio">
-          <span class="label">Prioridades desta fase</span>
-          <div class="ix-chips">${alta.map((f) => `<span class="ix-chip alta" title="${esc(f.ideia || FUNDAMENTOS[f.id].nome)}">${esc(FUNDAMENTOS[f.id].nome.replace(/ \(.*\)/, ''))}</span>`).join('')}${media.map((f) => `<span class="ix-chip" title="${esc(f.ideia || '')}">${esc(FUNDAMENTOS[f.id].nome.replace(/ \(.*\)/, ''))}</span>`).join('')}</div>
-          ${meso.pauta.ideias.length ? `<ul class="ix-ideias">${meso.pauta.ideias.slice(0, 2).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-          <button class="link-btn" data-ir="treinos-periodizacao" data-params='${esc(JSON.stringify({ planoId: plano.id, nivel: 'meso', mesoId: meso.id }))}' style="margin:0">Ver e editar a pauta da fase</button>
-          <button class="link-btn" data-ir="treinos-microciclo" data-params='${esc(JSON.stringify({ planoId: plano.id, semana: semana.idx }))}' style="margin:0">Ver a resposta dos atletas nesta semana</button>
-        </div>
-      </section>`;
-  }
-
-  /* ---------- Competições ---------- */
-
-  function blocoComps(D) {
-    return `
-      <section class="ix-card" aria-labelledby="ix-co-t">
-        <div class="ix-head"><h2 id="ix-co-t">${ic('comp', 18)} Competições</h2><button class="link-btn" data-ir="planejamento-competicoes" style="margin:0">Ver todas</button></div>
-        <ul class="ix-comps">${D.comps.map((c) => {
-          const p = CAL.plan(c.id), d = new Date(c.data), dias = emDias(c.data);
-          const pr = CAL.prontidao(c.id).filter((x) => x.estado !== 'na');
-          return `<li><button class="ix-comp" data-comp="${c.id}">
-            <span class="ix-data"><b class="num">${d.getUTCDate()}</b><small>${util.mes(c.data)}</small></span>
-            <span class="ix-comp-m"><b>${esc(c.nome)}</b><small>${esc(c.local)} · ${p.duplas.filter((x) => x.status === 'confirmada').length} duplas confirmadas</small>
-              <span class="ix-pontos" aria-label="Preparo">${pr.map((x) => `<span class="ix-pt ${x.estado}" title="${esc(x.nome)}: ${esc(x.texto)}"><i></i>${esc(x.nome)}</span>`).join('')}</span></span>
-            <span class="ix-dias"><b class="num">${dias}</b><small>dias</small></span></button></li>`;
-        }).join('')}</ul>
-      </section>`;
-  }
-
-  /* ---------- Elenco e saúde ---------- */
-
-  const NOME_ESTADO = { lesao: 'Lesionado', retorno: 'Em retorno', duvida: 'Dúvida', atencao: 'Atenção', ok: 'Disponível' };
-
-  function blocoElenco(D) {
-    const total = ATLETAS_LISTA.length;
-    const nOk = D.turmas.reduce((a, x) => a + x.c.ok, 0);
-    const turmaCard = ({ t, membros, c }) => {
-      const n = membros.length;
-      const fora = membros.filter((m) => m.estado !== 'ok');
-      const seg = [['ok', c.ok], ['atencao', c.atencao], ['retorno', c.retorno], ['lesao', c.lesao]].filter(([, v]) => v);
-      return `<article class="ix-turma">
-        <div class="ix-turma-h"><b>${esc(t.nome)}</b><span class="num">${c.ok} de ${n} disponíveis</span></div>
-        <div class="ix-barra" role="img" aria-label="${esc(t.nome)}: ${seg.map(([k, v]) => `${v} ${NOME_ESTADO[k].toLowerCase()}`).join(', ')}">${seg.map(([k, v]) => `<i class="${k}" style="flex:${v}"></i>`).join('')}</div>
-        <div class="ix-avatares">${fora.length ? fora.map((m) => `<span class="ix-av ${m.estado}" title="${esc(ATLETAS[m.id].nome)}: ${esc(m.sit ? `${NOME_ESTADO[m.sit.tipo]}, ${m.sit.local.toLowerCase()}` : m.an.motivos.map((x) => x.texto).join(', '))}"><i>${esc(iniciais(ATLETAS[m.id].nome))}</i>${esc(prim(m.id))}</span>`).join('') : '<small class="ix-ok">Todos disponíveis e dentro dos limites de carga.</small>'}</div>
-      </article>`;
-    };
-    const sitCard = (x) => {
-      const dias = x.sit.retorno ? emDias(x.sit.retorno) : null;
-      return `<li class="ix-les ${x.sit.tipo}">
-        <span class="ix-av ${x.sit.tipo === 'lesao' ? 'lesao' : 'retorno'}"><i>${esc(iniciais(x.a.nome))}</i></span>
-        <div class="ix-les-m"><button class="link-btn at-link" data-ir="saude" data-params='${esc(JSON.stringify({ foco: x.a.id }))}' style="margin:0">${esc(x.a.nome)}</button><small>${esc(x.sit.local)} · ${esc(x.sit.texto)}</small><small class="conduta">${esc(x.sit.conduta)}</small></div>
-        <div class="ix-les-r"><span class="ix-sel ${x.sit.tipo}">${NOME_ESTADO[x.sit.tipo]}</span>${dias != null ? `<small class="num">${dias <= 0 ? 'retorno hoje' : `volta em ${dias} dias`}<br>${dd(x.sit.retorno)}</small>` : '<small>sem data</small>'}</div></li>`;
-    };
-    return `
-      <section class="ix-card ix-elenco" aria-labelledby="ix-el-t">
-        <div class="ix-head"><h2 id="ix-el-t">${ic('pessoas', 18)} Elenco e saúde</h2>
-          <span class="ix-resumo"><b class="num">${nOk}</b> de ${total} disponíveis · <button class="link-btn" data-ir="analise" data-params='${esc(JSON.stringify({ aba: 'atletas' }))}' style="margin:0">Carga por atleta</button></span></div>
-        <div class="actions ix-el-acoes"><button class="btn btn-sm btn-primary" data-ir="saude" data-params='${esc(JSON.stringify({ novo: true }))}'>Registrar lesão ou queixa</button><button class="btn btn-sm" data-ir="saude">Abrir cadastro de saúde</button></div>
-        <div class="ix-elenco-g">
-          <div class="ix-turmas">${D.turmas.map(turmaCard).join('')}</div>
-          <div class="ix-lesoes">
-            <span class="label">Lesões e retornos <span class="num">${D.lesoes.length}</span></span>
-            ${D.lesoes.length ? `<ul class="ix-ul">${D.lesoes.map(sitCard).join('')}</ul>` : '<p class="vazio" style="padding:6px 0">Ninguém lesionado agora.</p>'}
-            <p class="ix-leg"><span class="ix-sel ok">Disponível</span><span class="ix-sel atencao">Atenção de carga</span><span class="ix-sel retorno">Em retorno</span><span class="ix-sel lesao">Lesionado</span></p>
-          </div>
-        </div>
-      </section>`;
-  }
-
-  /* ---------- Testes, treinos para rever e atrasos ---------- */
-
-  const nomeCurto = (t) => t.nome.toLowerCase().replace(/ \(.*\)/, '').replace(', 3 kg', '').replace(' de medicine ball', '');
-
-  function blocoTestes(D) {
-    const plano = dados.plano(est.planoId) || D.planos[0];
-    const ids = plano.atletas;
-    const itens = M.TESTES.map((tt) => {
-      const pares = ids.map((id) => ({ id, a: M.valor(id, tt.id, 'anterior'), b: M.valor(id, tt.id, 'atual') })).filter((x) => x.a && x.b);
-      if (!pares.length) return null;
-      const pct = (x) => ((tt.melhor === 'baixo' ? x.a - x.b : x.b - x.a) / x.a) * 100;
-      const lista = pares.map((x) => ({ id: x.id, v: pct(x) }));
-      const med = lista.reduce((a, x) => a + x.v, 0) / lista.length;
-      return { tt, med, valor: pares.reduce((a, x) => a + x.b, 0) / pares.length, lista };
-    }).filter(Boolean);
-    const prox = M.AVALIACOES.atual + (M.AVALIACOES.atual - M.AVALIACOES.anterior);
-    const todos = itens.flatMap((i) => i.lista.map((x) => ({ ...x, teste: i.tt })));
-    const melhor = todos.slice().sort((a, b) => b.v - a.v)[0];
-    const pior = todos.slice().sort((a, b) => a.v - b.v)[0];
-    const mx = Math.max(6, ...itens.map((i) => Math.abs(i.med)));
-    return `
-      <section class="ix-card" aria-labelledby="ix-te-t">
-        <div class="ix-head"><h2 id="ix-te-t">${ic('teste', 18)} Últimos testes</h2><span class="label num">${dd(M.AVALIACOES.atual)}</span></div>
-        ${itens.length ? `<ul class="ix-testes">${itens.map((i) => `<li><span class="ix-t-n">${esc(i.tt.nome.replace(', 3 kg', ''))}</span>
-          <span class="ix-t-v num">${esc(M.formatar(i.valor, i.tt))} <small>${esc(i.tt.un)}</small></span>
-          <span class="ix-t-b" aria-hidden="true"><i class="${i.med >= 0 ? 'sobe' : 'desce'}" style="width:${Math.min(100, (Math.abs(i.med) / mx) * 100)}%"></i></span>
-          <b class="num ${i.med >= 0 ? 'bom' : 'ruim'}">${i.med >= 0 ? '+' : '−'}${dec(Math.abs(i.med))}%</b></li>`).join('')}</ul>
-          <p class="ix-dest"><span>Mais evoluiu: <b>${esc(prim(melhor.id))}</b> (${esc(nomeCurto(melhor.teste))}, +${dec(melhor.v)}%)</span>
-          ${pior.v < -0.5 ? `<span>Para olhar: <b>${esc(prim(pior.id))}</b> (${esc(nomeCurto(pior.teste))}, −${dec(Math.abs(pior.v))}%)</span>` : '<span>Ninguém piorou em relação à avaliação anterior.</span>'}</p>`
-          : '<p class="vazio" style="padding:4px 0">Sem testes deste grupo ainda.</p>'}
-        <p class="ix-prox">${ic('relogio', 15)}<span>Próxima avaliação sugerida: <b>${dd(prox)}</b>, em ${emDias(prox)} dias.</span></p>
-        <button class="btn btn-sm" data-ir="analise" data-params='${esc(JSON.stringify({ aba: 'comparar' }))}'>Comparar atletas e grupos</button>
-      </section>`;
-  }
-
-  function blocoRever(D) {
-    const achados = [];
-    D.registradas.forEach((it) => {
-      const reg = REG.obter(it.p, it.semana, it.s);
-      if (!reg) return;
-      const r = REG.resumoSessao(it.p, reg);
-      const motivos = [];
-      if (r.pseMedio != null && it.s.pse && r.pseMedio - it.s.pse >= 1) motivos.push(`esforço ${dec(r.pseMedio)} contra alvo ${it.s.pse}`);
-      if (r.psrMedio != null && r.psrMedio <= 5.5) motivos.push(`recuperação baixa (${dec(r.psrMedio)})`);
-      if (r.total && r.presentes / r.total < 0.7) motivos.push(`só ${r.presentes} de ${r.total} presentes`);
-      if (motivos.length) achados.push({ it, motivos, peso: motivos.length * 10 + (r.pseMedio != null && it.s.pse ? Math.max(0, r.pseMedio - it.s.pse) : 0) });
-    });
-    achados.sort((a, b) => b.peso - a.peso || b.it.t - a.it.t);
-    const porPlano = {};
-    const variados = achados.filter((x) => (porPlano[x.it.p.id] = (porPlano[x.it.p.id] || 0) + 1) <= 2);
-    return `
-      <section class="ix-card" aria-labelledby="ix-rv-t">
-        <div class="ix-head"><h2 id="ix-rv-t">${ic('olho', 18)} Treinos para rever</h2><span class="label">últimos 14 dias</span></div>
-        ${variados.length ? `<ul class="ix-ul">${variados.slice(0, 4).map(({ it, motivos }) => {
-          const tipo = dados.TIPOS_SESSAO[it.s.tipo];
-          return `<li class="ix-li"><span class="dot" style="background:var(${tipo.cor});margin:0;flex:none"></span>
-            <div class="ix-li-m"><b>${esc(tipo.nome)} · ${esc(it.p.nome)}</b><small>${esc(rotuloSes(it.semana, it.s))}</small><small class="ix-mot">${esc(motivos.join(' · '))}</small></div>
-            <button class="btn btn-sm" data-rever="${it.p.id}|${it.semana.idx}|${it.s.dia}|${it.s.turno}|${it.s.id}">Rever</button></li>`;
-        }).join('')}</ul>` : '<p class="vazio" style="padding:4px 0">Nenhuma sessão fora do esperado nas últimas duas semanas.</p>'}
-      </section>`;
-  }
-
-  function atrasos(D) {
-    const lista = [];
-    const antigas = D.pendentes.filter((it) => it.t < HOJE);
-    if (antigas.length) {
-      const o = antigas[0];
-      lista.push({ ic: 'reg', t: `${plural(antigas.length, 'sessão sem registro', 'sessões sem registro')}`, s: `a mais antiga é de ${rotuloSes(o.semana, o.s)} (${esc(o.p.nome)})`, bt: 'Registrar', reg: `${o.p.id}|${o.semana.idx}|${o.s.id}` });
-    }
-    const semResp = D.pendentes.filter((it) => { const r = REG.resumoRespostas(it.p, it.semana, it.s); return r.n < r.total; });
-    if (semResp.length) lista.push({ ic: 'pessoas', t: `Atletas sem responder PSE e PSR`, s: `${plural(semResp.length, 'sessão aguarda', 'sessões aguardam')} respostas; reenvie o link da turma`, bt: 'Ver link', ir: 'treino-registro' });
-    CAL.lista().filter((c) => !CAL.passada(c) && emDias(c.data) <= 45).forEach((c) => {
-      const falta = CAL.prontidao(c.id).filter((x) => x.estado === 'vazio' || x.estado === 'parcial');
-      if (falta.length) lista.push({ ic: 'comp', t: `${esc(c.nome)}`, s: `em ${emDias(c.data)} dias · ${esc(falta.map((x) => `${x.nome.toLowerCase()}: ${x.texto.toLowerCase()}`).join('; '))}`, bt: 'Abrir', comp: c.id });
-    });
-    D.lesoes.filter((x) => x.sit.retorno && emDias(x.sit.retorno) <= 9).forEach((x) => lista.push({ ic: 'cruz', t: `Reavaliar ${esc(x.a.nome)}`, s: `retorno previsto para ${dd(x.sit.retorno)} (${esc(x.sit.local.toLowerCase())})`, bt: 'Abrir', saude: x.a.id }));
-    const prox = M.AVALIACOES.atual + (M.AVALIACOES.atual - M.AVALIACOES.anterior);
-    if (emDias(prox) <= 14) lista.push({ ic: 'teste', t: 'Reavaliação física se aproxima', s: `sugerida para ${dd(prox)}`, bt: 'Ver testes', ir: 'analise' });
-    return lista;
-  }
-
-  function blocoAtraso(D) {
-    const lista = atrasos(D);
-    return `
-      <section class="ix-card" aria-labelledby="ix-at-t">
-        <div class="ix-head"><h2 id="ix-at-t">${ic('relogio', 18)} Em atraso</h2><span class="label num">${lista.length}</span></div>
-        ${lista.length ? `<ul class="ix-ul">${lista.slice(0, 5).map((x, i) => `<li class="ix-li"><span class="ix-ic">${ic(x.ic, 17)}</span>
-          <div class="ix-li-m"><b>${x.t}</b><small>${x.s}</small></div>
-          <button class="btn btn-sm" data-atraso="${i}">${esc(x.bt)}</button></li>`).join('')}</ul>` : '<p class="vazio" style="padding:4px 0">Nada em atraso. Bom trabalho.</p>'}
-      </section>`;
-  }
-
-  /* ---------- Tela ---------- */
-
-  function atalho(k, nome, rota, params) {
-    return `<a class="ix-acao" href="${rota.startsWith('#') ? '#inicio' : '#' + rota}" data-ir="${rota}" ${params ? `data-params='${esc(JSON.stringify(params))}'` : ''}>${ic(k, 18)}<span>${esc(nome)}</span></a>`;
+  function linhaHoje(R, x) {
+    const tipo = dados.TIPOS_SESSAO[x.s.tipo];
+    const pend = x.st === 'aguardando' || x.st === 'futuro';
+    return `<li class="ix2-h" style="--c:var(${tipo.cor})">
+      <span class="ix2-h-b"></span>
+      <div class="ix2-h-m"><b>${esc(R.t.nome)}</b><small>${esc(tipo.nome)} · ${TURNO[x.s.turno]} · ${x.s.dur} min</small></div>
+      <span class="ix2-h-e ${x.st}">${x.st === 'registrado' ? 'Registrada' : x.st === 'aguardando' ? 'Aguardando registro' : 'Planejada'}</span>
+      <button class="btn btn-sm ${x.st === 'aguardando' ? 'btn-primary' : ''}" data-equipe="${R.t.id}" data-sessao="${x.s.id}">${pend ? 'Abrir' : 'Ver'}</button></li>`;
   }
 
   function iniciar(root) {
-    const D = coletar();
-    if (!est.planoId || !dados.plano(est.planoId)) est.planoId = window.Farol.compartilhado.planoId;
-    const prox = D.comps[0];
-    const antigas = D.pendentes.filter((it) => it.t < HOJE);
-    const fora = D.turmas.reduce((a, x) => a + x.c.lesao + x.c.retorno, 0);
-    const total = ATLETAS_LISTA.length;
-    const nOk = D.turmas.reduce((a, x) => a + x.c.ok, 0);
-    const jogoE = D.andamento ? SD.estado(D.andamento) : null;
+    const turmas = Object.values(TURMAS);
+    const Rs = turmas.map((t) => EQ.resumo(t));
+    const hoje = Rs.flatMap((R) => R.hoje.map((x) => ({ R, x }))).sort((a, b) => ORD_TURNO[a.x.s.turno] - ORD_TURNO[b.x.s.turno]);
+    const pend = Rs.reduce((a, R) => a + R.pendentes, 0);
+    const fora = Rs.reduce((a, R) => a + R.c.lesao + R.c.retorno, 0);
+    const comps = CAL.lista().filter((c) => !CAL.passada(c));
+    const prox = comps[0] || null;
+    const jogos = SD.jogos();
+    const andamento = jogos.filter((j) => !SD.estado(j).encerrado)[0] || null;
+    const jogoE = andamento ? SD.estado(andamento) : null;
+    const nome = window.Farol.conta && window.Farol.conta.usuario() ? window.Farol.conta.usuario().nome.split(' ')[0] : '';
+
+    const proximaSessao = (() => {
+      if (hoje.length) return null;
+      let melhor = null;
+      Rs.forEach((R) => R.plano && R.plano.semanas.forEach((w) => w.sessoes.forEach((s) => { const t = w.inicio + s.dia * DIA; if (t > HOJE && (!melhor || t < melhor.t)) melhor = { t, R, s }; })));
+      return melhor;
+    })();
 
     root.innerHTML = `
-      <section class="ix-hero" aria-label="Resumo do dia">
+      <section class="ix-hero ix2-hero" aria-label="Resumo do dia">
         ${PAISAGEM}
         <div class="ix-hero-c">
           <span class="ix-data-h">${esc(dataLonga(HOJE))}</span>
-          <h1>Painel do dia</h1>
-          <p class="ix-frase">${plural(D.hoje.length, 'sessão', 'sessões')} hoje · ${plural(fora, 'atleta fora ou em retorno', 'atletas fora ou em retorno')} · ${prox ? `${esc(prox.nome)} em ${emDias(prox.data)} dias` : 'nenhuma competição agendada'}</p>
-          ${D.hoje.length ? `<div class="ix-hoje-l">${D.hoje.slice(0, 2).map((it) => `<button class="ix-sess" data-reg="${it.p.id}|${it.semana.idx}|${it.s.id}" title="Registrar esta sessão"><i style="background:var(${dados.TIPOS_SESSAO[it.s.tipo].cor})"></i>${esc(TURNO[it.s.turno])} · ${esc(dados.TIPOS_SESSAO[it.s.tipo].nome)} <small>${esc(it.p.nome.replace(' Masculino', '').replace(' Misto, areia', ''))}</small></button>`).join('')}${D.hoje.length > 2 ? `<span class="ix-mais">+${D.hoje.length - 2}</span>` : ''}</div>` : ''}
-          ${D.andamento ? `<button class="ix-retomar" id="ini-retomar">${ic('jogo', 16)}<span>Jogo em andamento: ${esc(SD.rotuloDupla(D.andamento.dupla))} × ${esc(D.andamento.adv)}, <b class="num">${jogoE.a} a ${jogoE.b}</b></span><em>Continuar</em></button>` : ''}
+          <h1>${saudacao()}${nome ? `, ${esc(nome)}` : ''}</h1>
+          <p class="ix-frase">${hoje.length ? `${plural(hoje.length, 'sessão', 'sessões')} hoje` : 'Sem treino hoje'}${proximaSessao ? ` · próximo treino em ${esc(dd(proximaSessao.t))}` : ''}</p>
+          ${andamento ? `<button class="ix-retomar" id="ini-retomar">${ic('jogo', 16)}<span>Jogo em andamento: ${esc(SD.rotuloDupla(andamento.dupla))} × ${esc(andamento.adv)}, <b class="num">${jogoE.a} a ${jogoE.b}</b></span><em>Retomar</em></button>` : ''}
         </div>
-        <nav class="ix-acoes" aria-label="Criar ou começar">
-          ${atalho('reg', 'Registrar treino', 'treino-registro', { planoId: est.planoId })}
-          ${atalho('jogo', 'Coletar jogo', 'analise-scout', { novo: {} })}
-          ${atalho('quadro', 'Quadro técnico', '#quadro')}
-          ${atalho('cruz', 'Registrar lesão', 'saude', { novo: true })}
-          ${atalho('plano', 'Novo plano', 'treinos-periodizacao', { nivel: 'criar' })}
-          ${atalho('comp', 'Nova competição', 'planejamento-competicoes', { nova: true })}
-        </nav>
       </section>
 
-      <div class="ix-kpis">
-        <a class="ix-kpi" href="#analise" data-ir="analise" data-params='${esc(JSON.stringify({ aba: 'atletas' }))}'><span class="ix-kpi-i ok">${ic('pessoas', 20)}</span><span><b class="num">${nOk}<small> de ${total}</small></b><em>atletas disponíveis</em></span></a>
-        <a class="ix-kpi" href="#saude" data-ir="saude"><span class="ix-kpi-i lesao">${ic('cruz', 20)}</span><span><b class="num">${fora}</b><em>lesionados ou em retorno</em></span></a>
-        <a class="ix-kpi" href="#treino-registro" data-ir="treino-registro"><span class="ix-kpi-i ${antigas.length ? 'atencao' : 'ok'}">${ic('relogio', 20)}</span><span><b class="num">${antigas.length}</b><em>sessões sem registro</em></span></a>
-        <a class="ix-kpi" href="#planejamento-competicoes" data-ir="planejamento-competicoes" ${prox ? `data-params='${esc(JSON.stringify({ competicao: prox.id }))}'` : ''}><span class="ix-kpi-i beam">${ic('comp', 20)}</span><span><b class="num">${prox ? emDias(prox.data) : '–'}<small> dias</small></b><em>para a próxima competição</em></span></a>
-      </div>
+      <section aria-labelledby="ix2-eq-t">
+        <div class="ix2-h2"><h2 id="ix2-eq-t">Minhas equipes</h2>${turmas.length ? `<span class="label num">${plural(turmas.length, 'equipe', 'equipes')}</span>` : ''}</div>
+        <div class="ix2-equipes">
+          ${Rs.map(cartaoEquipe).join('')}
+          <button class="ix2-nova" id="ix2-nova-eq">${ic('cruz', 22)}<b>Nova equipe</b><small>cadastre equipe e atletas</small></button>
+        </div>
+      </section>
 
-      <nav class="ix-outras" aria-label="Outras áreas">
-        <span class="label">Outras áreas</span>
-        <a href="#saude" data-ir="saude">Saúde do elenco</a>
-        <a href="#treinos-microciclo" data-ir="treinos-microciclo">Resposta da semana</a>
-        <a href="#treinos-biblioteca" data-ir="treinos-biblioteca">Exercícios e prescrição</a>
-        <a href="#analise-scout" data-ir="analise-scout" data-params='${esc(JSON.stringify({ aba: 'fund' }))}'>Treino de fundamento</a>
-        <a href="#atleta-previa" data-ir="atleta-previa">Prévia do atleta</a>
+      <section aria-labelledby="ix2-hoje-t">
+        <div class="ix2-h2"><h2 id="ix2-hoje-t">Hoje</h2></div>
+        ${hoje.length ? `<ul class="ix2-hoje">${hoje.map(({ R, x }) => linhaHoje(R, x)).join('')}</ul>`
+          : `<p class="ix2-vazio">${proximaSessao ? `Nenhum treino hoje. O próximo é ${esc(DIAS_LONGO[proximaSessao.s.dia])}, ${esc(dd(proximaSessao.t))}, da equipe ${esc(proximaSessao.R.t.nome)}.` : 'Nenhum treino hoje.'}</p>`}
+      </section>
+
+      <nav class="ix2-pend" aria-label="Pendências">
+        <button class="ix2-p ${pend ? 'atencao' : 'ok'}" data-pend="registro"><span class="ix2-p-i">${ic('relogio', 20)}</span><span><b class="num">${pend}</b><em>${pend === 1 ? 'treino sem registro' : 'treinos sem registro'}</em></span></button>
+        <button class="ix2-p ${fora ? 'lesao' : 'ok'}" data-pend="saude"><span class="ix2-p-i">${ic('cruz', 20)}</span><span><b class="num">${fora}</b><em>${fora === 1 ? 'atleta fora ou em retorno' : 'atletas fora ou em retorno'}</em></span></button>
+        <button class="ix2-p ${prox ? 'beam' : ''}" data-pend="comp"><span class="ix2-p-i">${ic('comp', 20)}</span><span><b class="num">${prox ? emDias(prox.data) : '–'}</b><em>${prox ? `dias para ${esc(prox.nome)}` : 'sem competição prevista'}</em></span></button>
       </nav>
 
-      <div class="ix-g2">${blocoPlano(D)}${blocoComps(D)}</div>
-      ${blocoElenco(D)}
-      <div class="ix-g3">${blocoTestes(D)}${blocoRever(D)}${blocoAtraso(D)}</div>`;
+      <nav class="ix2-rapido" aria-label="Atalhos">
+        <button class="ix2-r" data-ir="#quadro">${ic('quadro', 20)}<span>Quadro</span></button>
+        <button class="ix2-r" data-ir="analise-scout" data-params='${esc(JSON.stringify({ novo: {} }))}'>${ic('jogo', 20)}<span>Coletar jogo</span></button>
+        <button class="ix2-r" data-ir="saude" data-params='${esc(JSON.stringify({ novo: true }))}'>${ic('cruz', 20)}<span>Registrar lesão</span></button>
+        <button class="ix2-r" data-ir="treinos-biblioteca">${ic('fund', 20)}<span>Exercícios</span></button>
+      </nav>`;
 
-    const ir = (rota, params) => {
-      if (rota === '#quadro') { window.Farol.gaveta.abrir(); return; }
-      window.Farol.ir(rota, params);
-    };
-    root.querySelectorAll('[data-ir]').forEach((el) => el.addEventListener('click', (e) => { e.preventDefault(); ir(el.dataset.ir, el.dataset.params ? JSON.parse(el.dataset.params) : null); }));
-    root.querySelectorAll('[data-rolar]').forEach((el) => el.addEventListener('click', (e) => { e.preventDefault(); const alvo = root.querySelector(`#${el.dataset.rolar}`); if (alvo) alvo.scrollIntoView({ block: 'start' }); }));
-    root.querySelectorAll('[data-reg]').forEach((b) => b.addEventListener('click', () => { const [pid, si, sid] = b.dataset.reg.split('|'); window.Farol.ir('treino-registro', { planoId: pid, abrir: { semana: Number(si), sessaoId: sid } }); }));
-    root.querySelectorAll('[data-micro]').forEach((b) => b.addEventListener('click', () => { const [pid, si] = b.dataset.micro.split('|'); window.Farol.ir('treinos-periodizacao', { planoId: pid, nivel: 'micro', semana: Number(si), editor: null }); }));
-    root.querySelectorAll('[data-rever]').forEach((b) => b.addEventListener('click', () => { const [pid, si, dia, turno, sid] = b.dataset.rever.split('|'); window.Farol.ir('treinos-periodizacao', { planoId: pid, nivel: 'micro', semana: Number(si), editor: { dia: Number(dia), turno, id: sid }, painel: 'registro' }); }));
-    root.querySelectorAll('[data-comp]').forEach((b) => b.addEventListener('click', () => window.Farol.ir('planejamento-competicoes', { competicao: b.dataset.comp })));
-    root.querySelectorAll('[data-plano]').forEach((b) => b.addEventListener('click', () => { est.planoId = b.dataset.plano; window.Farol.compartilhado.planoId = est.planoId; iniciar(root); const f = root.querySelector(`[data-plano="${est.planoId}"]`); if (f) f.focus({ preventScroll: true }); }));
-    const lista = atrasos(D).slice(0, 5);
-    root.querySelectorAll('[data-atraso]').forEach((b) => b.addEventListener('click', () => {
-      const x = lista[Number(b.dataset.atraso)];
-      if (x.reg) { const [pid, si, sid] = x.reg.split('|'); window.Farol.ir('treino-registro', { planoId: pid, abrir: { semana: Number(si), sessaoId: sid } }); }
-      else if (x.comp) window.Farol.ir('planejamento-competicoes', { competicao: x.comp });
-      else if (x.saude) window.Farol.ir('saude', { foco: x.saude });
-      else if (x.ir === 'analise') window.Farol.ir('analise', { aba: 'comparar' });
-      else window.Farol.ir(x.ir, null);
+    const abrirEquipe = (id, extra) => window.Farol.ir('equipe', { turmaId: id, ...(extra || {}) });
+    root.querySelectorAll('[data-equipe]').forEach((b) => b.addEventListener('click', () => abrirEquipe(b.dataset.equipe, b.dataset.sessao ? { sel: b.dataset.sessao } : null)));
+    root.querySelectorAll('[data-pend]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.pend;
+      if (k === 'registro') {
+        const R = Rs.filter((q) => q.pendentes).sort((a, b2) => b2.pendentes - a.pendentes)[0];
+        if (R) window.Farol.ir('treino-registro', { planoId: R.plano.id }); else window.Farol.ir('treino-registro');
+      } else if (k === 'saude') window.Farol.ir('saude');
+      else window.Farol.ir('planejamento-competicoes', prox ? { competicao: prox.id } : null);
     }));
+    root.querySelectorAll('[data-ir]').forEach((el) => el.addEventListener('click', () => {
+      const rota = el.dataset.ir;
+      if (rota === '#quadro') { window.Farol.gaveta.abrir(); return; }
+      window.Farol.ir(rota, el.dataset.params ? JSON.parse(el.dataset.params) : null);
+    }));
+    const nv = root.querySelector('#ix2-nova-eq'); if (nv) nv.addEventListener('click', () => window.Farol.ir('equipes-nova'));
     const r = root.querySelector('#ini-retomar');
-    if (r) r.addEventListener('click', () => window.Farol.ir('scout-coleta', { jogo: D.andamento.id }));
+    if (r) r.addEventListener('click', () => window.Farol.ir('scout-coleta', { jogo: andamento.id }));
   }
 
   window.Farol.views = window.Farol.views || {};

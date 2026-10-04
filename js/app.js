@@ -29,7 +29,7 @@
 
   // `pronta` indica se a tela já foi construída; as demais mostram o que entra nela.
   const GRUPOS = [
-    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }, { id: 'saude', nome: 'Saúde do elenco', icone: 'cruz', pronta: true, oculta: true }] },
+    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }, { id: 'equipe', nome: 'Equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'saude', nome: 'Saúde do elenco', icone: 'cruz', pronta: true, oculta: true }] },
     {
       titulo: 'Já existe',
       itens: [
@@ -87,26 +87,33 @@
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  // Itens que ficam sempre na barra. "Quadro" abre a gaveta do quadro rápido; o resto navega.
+  // A barra tem só quatro portas. Quadro, registro, saúde e scout moram dentro delas (equipe, sessão e jogos).
   const BARRA = [
     { id: 'inicio', rotulo: 'Início' },
-    { id: 'treinos-periodizacao', rotulo: 'Periodização', curto: 'Plano' },
-    { id: 'planejamento-competicoes', rotulo: 'Competições', curto: 'Torneios' },
-    { id: 'treino-registro', rotulo: 'Registro' },
-    { id: 'quadro', rotulo: 'Quadro', icone: 'quadro' },
+    { id: 'treinos-periodizacao', rotulo: 'Plano' },
+    { id: 'planejamento-competicoes', rotulo: 'Jogos', icone: 'placar' },
     { id: 'analise', rotulo: 'Análise' },
-    { id: 'analise-scout', rotulo: 'Scout' },
   ];
-  const ID_NA_BARRA = [...BARRA.map((b) => b.id), 'treino-quadro', 'scout-coleta', 'saude', 'treinos-microciclo', 'treinos-biblioteca'];
-  const PAI = { 'scout-coleta': 'analise-scout', saude: 'inicio', 'treinos-microciclo': 'treino-registro', 'treinos-biblioteca': 'treinos-periodizacao' }; // telas ocultas acendem o item da barra a que pertencem
+  // Telas que não aparecem na barra acendem o item a que pertencem.
+  const PAI = {
+    equipe: 'inicio', saude: 'inicio', 'treino-registro': 'inicio', 'treinos-microciclo': 'inicio', 'treino-quadro': 'inicio',
+    'treinos-biblioteca': 'treinos-periodizacao', 'atleta-previa': 'treinos-periodizacao',
+    'analise-scout': 'planejamento-competicoes', 'scout-coleta': 'planejamento-competicoes',
+  };
+  // Para onde volta o botão "‹" de cada tela que não é uma porta.
+  const VOLTA = { 'treino-registro': ['equipe', 'Equipe'], 'treinos-microciclo': ['equipe', 'Equipe'], 'scout-coleta': ['analise-scout', 'Scout'] };
+  // Abas de cada porta (a barra de baixo troca de porta; esta linha troca de assunto dentro dela).
+  const SUBNAV = [
+    { ids: ['treinos-periodizacao', 'treinos-biblioteca'], itens: [['treinos-periodizacao', 'Periodização'], ['treinos-biblioteca', 'Exercícios e prescrição']] },
+    { ids: ['planejamento-competicoes', 'analise-scout', 'scout-coleta'], itens: [['planejamento-competicoes', 'Competições'], ['analise-scout', 'Scout']] },
+  ];
   let rotaAtual = null;
 
   const rotuloBarra = (b) => (b.curto ? `<span class="r-longo">${b.rotulo}</span><span class="r-curto">${b.curto}</span>` : `<span>${b.rotulo}</span>`);
 
   function montarBarra() {
     const itens = BARRA.map((b) => {
-      if (b.id === 'quadro') return `<button class="bar-item" id="bt-quadro" type="button" aria-pressed="false" aria-controls="gaveta-quadro" aria-label="Quadro técnico rápido">${icon(b.icone, 20)}${rotuloBarra(b)}</button>`;
-      return `<a class="bar-item" href="#${b.id}" data-rota="${b.id}" aria-label="${esc(ROTAS[b.id].nome)}">${icon(ROTAS[b.id].icone, 20)}${rotuloBarra(b)}</a>`;
+      return `<a class="bar-item" href="#${b.id}" data-rota="${b.id}" aria-label="${esc(ROTAS[b.id].nome)}">${icon(b.icone || ROTAS[b.id].icone, 20)}${rotuloBarra(b)}</a>`;
     });
     document.getElementById('barra').innerHTML = `<div class="barra-itens">${itens.join('')}</div>`;
   }
@@ -115,8 +122,6 @@
     document.querySelectorAll('.bar-item[data-rota]').forEach((a) => {
       if (a.dataset.rota === (PAI[rotaAtual] || rotaAtual)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    const q = document.getElementById('bt-quadro');
-    if (q) q.setAttribute('aria-pressed', String(rotaAtual === 'treino-quadro' || gaveta.aberta));
   }
 
   function pendente(item) {
@@ -154,7 +159,24 @@
     document.title = `${item.nome} | Farol Tático`;
     rotaAtual = rota;
     atualizarBarra();
-    document.getElementById('voltar-w').hidden = rota === 'inicio';
+    atualizarNavegacao(rota);
+  }
+
+  // Linha de abas da porta e botão de voltar, que dependem da tela atual.
+  function atualizarNavegacao(rota) {
+    const sub = document.getElementById('subnav');
+    const grupo = SUBNAV.find((g) => g.ids.includes(rota));
+    if (grupo) {
+      const ativo = rota === 'scout-coleta' ? 'analise-scout' : rota;
+      sub.innerHTML = grupo.itens.map(([id, nome]) => `<a class="subnav-item" href="#${id}" data-rota="${id}" ${id === ativo ? 'aria-current="page"' : ''}>${esc(nome)}</a>`).join('');
+      sub.hidden = false;
+    } else { sub.innerHTML = ''; sub.hidden = true; }
+    const v = document.getElementById('voltar-w');
+    const [alvo, nome] = VOLTA[rota] || ['inicio', 'Início'];
+    const link = v.querySelector('a');
+    link.setAttribute('href', `#${alvo}`);
+    link.textContent = `‹ ${nome}`;
+    v.hidden = rota === 'inicio';
   }
 
   // Navega para outra tela levando parâmetros (por exemplo, abrir uma semana ou uma competição).
@@ -175,6 +197,7 @@
     abrir() {
       const el = document.getElementById('gaveta-quadro');
       if (!el || !window.Farol.quadro) return;
+      this.origem = document.activeElement;
       this.aberta = true;
       el.hidden = false;
       this.modo(lerModo());
@@ -198,24 +221,17 @@
       atualizarBarra();
       document.getElementById('gaveta-corpo').innerHTML = '';
       window.Farol.quadro.desmontar();
-      const bt = document.getElementById('bt-quadro');
-      if (bt && devolverFoco) bt.focus();
+      if (devolverFoco && this.origem && document.contains(this.origem)) this.origem.focus();
+      this.origem = null;
     },
   };
   window.Farol.gaveta = gaveta;
   window.Farol.rota = (id) => ROTAS[id] || null;
 
   function ligarGaveta() {
-    const bt = document.getElementById('bt-quadro');
-    if (!bt) return;
-    // Na tela cheia do quadro o item já está ativo; nas demais, abre e fecha a gaveta.
-    bt.addEventListener('click', () => {
-      if (rotaAtual === 'treino-quadro') return;
-      if (gaveta.aberta) { gaveta.fechar(); bt.focus(); } else gaveta.abrir();
-    });
     document.getElementById('gaveta-fechar').addEventListener('click', () => gaveta.fechar());
     document.getElementById('gaveta-modo').addEventListener('click', () => gaveta.modo(!document.getElementById('gaveta-quadro').classList.contains('compacta')));
-    document.getElementById('gaveta-tela').addEventListener('click', () => { gaveta.fechar(); window.Farol.ir('treino-quadro', {}); });
+    document.getElementById('gaveta-tela').addEventListener('click', () => { gaveta.fechar(false); window.Farol.ir('treino-quadro', {}); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gaveta.aberta) gaveta.fechar(); });
   }
 
@@ -224,10 +240,12 @@
     ligarGaveta();
 
     // Tocar no item da tela em que já está volta ao início dela (por exemplo, sai do relatório de um jogo).
-    document.getElementById('barra').addEventListener('click', (e) => {
-      const a = e.target.closest('a.bar-item[data-rota]');
+    const mesmaTela = (e) => {
+      const a = e.target.closest('a[data-rota]');
       if (a && a.dataset.rota === location.hash.slice(1)) { e.preventDefault(); window.Farol.ir(a.dataset.rota); }
-    });
+    };
+    document.getElementById('barra').addEventListener('click', mesmaTela);
+    document.getElementById('subnav').addEventListener('click', mesmaTela);
 
     window.addEventListener('hashchange', rotear);
     rotear();

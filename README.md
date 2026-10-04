@@ -13,7 +13,7 @@ ou rode `python3 -m http.server` na raiz.
 - **Quadro técnico** (`#treino-quadro`) e a gaveta **Quadro rápido**, que abre sobre qualquer tela pelo item Quadro da barra.
 - **Página do atleta** (`atleta.html?t=TOKEN`): link único por turma; o atleta escolhe o nome e responde PSE, PSR e dor.
   Dentro do painel há uma prévia (`#atleta-previa`).
-- Navegação: barra fixa embaixo (Plano, Torneios, Registro, Quadro, Análise, Mais). O que ainda não existe fica em "Mais".
+- Navegação: barra fixa com **4 portas** (Início, Plano, Jogos, Análise); veja "Navegação enxuta" abaixo.
 
 ## Código
 
@@ -116,3 +116,11 @@ Inspirada em planilha de controle de carga interna (Foster e Gabbett); só a ló
 - **Carga total (quadra + físico)**: em *Exercícios e prescrição*, o cartão **Como foi o treino** pede duração e PSE por atleta; ao salvar, a prescrição vira feita e a carga entra no ACWR, na monotonia e no strain. Prescrição ligada a uma sessão do microciclo não é somada de novo (a carga já vem do registro da sessão). O comparativo "planejado × realizado" continua só de quadra.
 - **Peso nas avaliações** (Análise › Comparativos › atleta): cartão **Avaliação corporal** com peso atual, variação desde a avaliação anterior e desde o primeiro registro, histórico e lançamento de novo peso (`ft.avaliacao.v1`). Peso **não tem ranking nem lado melhor**: só a evolução do próprio atleta.
 - Limites: o atleta ainda não informa PSE do treino físico pela própria página; o velocímetro não aparece no Início nem na página do atleta; tudo continua com dados de exemplo e salvo só no navegador.
+
+## Navegação enxuta (etapa 21)
+
+- **Barra com 4 portas**: Início, Plano, Jogos e Análise. Cada porta tem uma linha de abas (Plano: Periodização e Exercícios; Jogos: Competições e Scout). Registro, Quadro, Saúde e Resposta da semana não têm mais item na barra: ficam dentro da equipe e da sessão.
+- **Início por equipes** (`inicio`): saudação, cartões das equipes (fase, semana, bolinhas das sessões registradas, quem está fora, treinos sem registro e próxima competição), as sessões de **hoje**, três pendências (sem registro, lesionados e próxima competição) e quatro atalhos (Quadro, Coletar jogo, Registrar lesão, Exercícios).
+- **Equipe** (`equipe`, parâmetro `turmaId`): faixa da fase, **semana com os dias de treino e as sessões de cada dia** (navegável de semana em semana), painel da sessão escolhida com **Registrar treino**, **Abrir quadro**, **Prescrever físico** e **Editar sessão**, atletas por situação, foco da fase, próxima competição e atalhos para o plano, a análise, a resposta da semana e o link dos atletas.
+- O botão "‹" de cada tela volta para a tela de origem (Registro e Resposta da semana voltam à Equipe; a coleta do Scout volta ao Scout).
+- Mudança nos dados de exemplo: só uma semana de **choque** por fase específica, para o semáforo não marcar quase todo o elenco.

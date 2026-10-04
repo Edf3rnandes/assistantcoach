@@ -260,7 +260,7 @@
           else if (compsSemana.length) auto = 'competitivo';
           else if (compsProxima.length) auto = 'preCompetitivo';
           else if (qtd >= 5 && k === 3 && (tipo === 'base' || tipo === 'especifico')) auto = 'recuperacao';
-          else if (tipo === 'especifico' && (k === 1 || k === 2)) auto = 'choque';
+          else if (tipo === 'especifico' && k === 2) auto = 'choque';
 
           const microTipo = raw.microTipos[ini] || auto;
           const editada = !!raw.sessoes[ini];

@@ -323,6 +323,7 @@
   window.Farol.views.analise = (root, params) => {
     raiz = root;
     if (params && params.aba) est.aba = params.aba;
+    if (params && params.atleta) window.Farol.analiseCarga.definir(params.atleta);
     render(root);
   };
 })();

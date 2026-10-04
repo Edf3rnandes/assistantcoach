@@ -73,7 +73,7 @@
     return `<button class="ix2-eq" data-equipe="${t.id}" style="--c:var(${meso ? meso.cor : '--accent'})" aria-label="Abrir a equipe ${esc(t.nome)}">
       <span class="ix2-eq-top"><span class="ix2-eq-faixa">${esc(t.faixa)}</span><span class="ix2-eq-seta" aria-hidden="true">${ic('seta', 18)}</span></span>
       <b class="ix2-eq-nome">${esc(t.nome)}</b>
-      <span class="ix2-eq-fase">${plano && semana ? `${meso ? `<i class="ix2-eq-dot"></i>${esc(meso.nome)} · ` : ''}semana ${semana.n}` : plano ? 'Fora do período do plano' : 'Sem plano de treino'}</span>
+      <span class="ix2-eq-fase">${plano && semana ? (R.comeca ? `Plano começa em ${esc(dd(R.comeca))}` : `${meso ? `<i class="ix2-eq-dot"></i>${esc(meso.nome)} · ` : ''}semana ${semana.n}`) : plano ? 'Fora do período do plano' : 'Sem plano de treino'}</span>
       ${sessoes.length ? `<span class="ix2-eq-semana" role="img" aria-label="Sessões da semana: ${R.nReg} de ${sessoes.length} registradas">${sessoes.map((x) => `<i class="${x.st} ${x.t === HOJE ? 'hoje' : ''}" style="--s:var(${dados.TIPOS_SESSAO[x.s.tipo].cor})" title="${esc(dados.TIPOS_SESSAO[x.s.tipo].nome)}, ${esc(dd(x.t))}"></i>`).join('')}<small class="num">${R.nReg}/${sessoes.length}</small></span>` : '<span class="ix2-eq-semana vazio"><small>Crie o plano para ver a semana</small></span>'}
       <span class="ix2-eq-pe">
         <span class="ix2-pill ${ok === R.membros.length ? 'ok' : ''}"><b class="num">${ok}</b> de ${R.membros.length} disponíveis</span>
@@ -125,14 +125,21 @@
         </div>
       </section>
 
+      ${!turmas.length ? `<section class="ix2-onb" aria-labelledby="ix2-onb-t">
+        <h2 id="ix2-onb-t">Comece pela sua primeira equipe</h2>
+        <ol><li><b>Cadastre a equipe</b><span>Nome, faixa e os atletas, um por um ou colando a lista.</span></li>
+          <li><b>Crie o plano da temporada</b><span>O app distribui as fases até a competição alvo.</span></li>
+          <li><b>Registre os treinos</b><span>PSE e PSR de cada atleta alimentam a carga e os alertas.</span></li></ol>
+        <div class="actions"><button class="btn btn-primary" id="ix2-onb-bt">Cadastrar equipe e atletas</button></div></section>` : `
       <section aria-labelledby="ix2-eq-t">
         <div class="ix2-h2"><h2 id="ix2-eq-t">Minhas equipes</h2>${turmas.length ? `<span class="label num">${plural(turmas.length, 'equipe', 'equipes')}</span>` : ''}</div>
         <div class="ix2-equipes">
           ${Rs.map(cartaoEquipe).join('')}
           <button class="ix2-nova" id="ix2-nova-eq">${ic('cruz', 22)}<b>Nova equipe</b><small>cadastre equipe e atletas</small></button>
         </div>
-      </section>
+      </section>`}
 
+      ${turmas.length ? `
       <section aria-labelledby="ix2-hoje-t">
         <div class="ix2-h2"><h2 id="ix2-hoje-t">Hoje</h2></div>
         ${hoje.length ? `<ul class="ix2-hoje">${hoje.map(({ R, x }) => linhaHoje(R, x)).join('')}</ul>`
@@ -150,7 +157,8 @@
         <button class="ix2-r" data-ir="analise-scout" data-params='${esc(JSON.stringify({ novo: {} }))}'>${ic('jogo', 20)}<span>Coletar jogo</span></button>
         <button class="ix2-r" data-ir="saude" data-params='${esc(JSON.stringify({ novo: true }))}'>${ic('cruz', 20)}<span>Registrar lesão</span></button>
         <button class="ix2-r" data-ir="treinos-biblioteca">${ic('fund', 20)}<span>Exercícios</span></button>
-      </nav>`;
+      </nav>
+      ` : ''}`;
 
     const abrirEquipe = (id, extra) => window.Farol.ir('equipe', { turmaId: id, ...(extra || {}) });
     root.querySelectorAll('[data-equipe]').forEach((b) => b.addEventListener('click', () => abrirEquipe(b.dataset.equipe, b.dataset.sessao ? { sel: b.dataset.sessao } : null)));
@@ -168,6 +176,7 @@
       window.Farol.ir(rota, el.dataset.params ? JSON.parse(el.dataset.params) : null);
     }));
     const nv = root.querySelector('#ix2-nova-eq'); if (nv) nv.addEventListener('click', () => window.Farol.ir('equipes-nova'));
+    const ob = root.querySelector('#ix2-onb-bt'); if (ob) ob.addEventListener('click', () => window.Farol.ir('equipes-nova'));
     const r = root.querySelector('#ini-retomar');
     if (r) r.addEventListener('click', () => window.Farol.ir('scout-coleta', { jogo: andamento.id }));
   }

@@ -124,3 +124,13 @@ Inspirada em planilha de controle de carga interna (Foster e Gabbett); só a ló
 - **Equipe** (`equipe`, parâmetro `turmaId`): faixa da fase, **semana com os dias de treino e as sessões de cada dia** (navegável de semana em semana), painel da sessão escolhida com **Registrar treino**, **Abrir quadro**, **Prescrever físico** e **Editar sessão**, atletas por situação, foco da fase, próxima competição e atalhos para o plano, a análise, a resposta da semana e o link dos atletas.
 - O botão "‹" de cada tela volta para a tela de origem (Registro e Resposta da semana voltam à Equipe; a coleta do Scout volta ao Scout).
 - Mudança nos dados de exemplo: só uma semana de **choque** por fase específica, para o semáforo não marcar quase todo o elenco.
+
+## Conta, equipes e atletas (etapa 22)
+
+- **Entrada** (`js/entrar.js`): sem sessão, o app mostra só a tela de **Entrar / Criar conta**, com a opção **Ver com dados de exemplo**. O menu da conta fica no canto do topo (nome, modo e saída).
+- **Conta local** (`js/conta.js`): cadastro com nome, e-mail e senha (mínimo de 8 caracteres), senha guardada com **hash PBKDF2** e mensagem de erro igual para e-mail e senha errados. **Não é segurança de verdade**: tudo fica neste navegador, separado por conta (`ft.u.<id>.*`). A interface (`usuario`, `criar`, `entrar`, `sair`, `chave`) é o ponto de troca pelo **Supabase Auth** quando o backend entrar.
+- **Dados por conta**: uma conta cadastrada começa **sem nada de exemplo** (sem equipes, atletas, planos, competições, lesões, jogos ou prescrições) e guarda no aparelho: elenco, planos (inclusive sessões editadas), registros e respostas, competições e planejamento, saúde, scout, prescrições, peso e quadro. A demonstração segue como antes (nada do núcleo é guardado).
+- **Equipes e atletas** (`#equipes-nova`, `#equipes-editar`): nome, faixa e gênero da equipe; atletas um a um (Enter adiciona) ou **colando uma lista**; editar, remover e excluir (só equipe sem plano). Rascunho: sair sem salvar não muda nada.
+- **Primeiro uso**: Início vazio com 3 passos → cadastrar equipe → criar o plano (o assistente agora deixa **cadastrar a competição alvo na hora** e já distribui as fases) → semana e sessões na tela da equipe.
+- **Estados vazios**: Plano, Registro, Resposta da semana, Análise e Comparativos mostram o caminho (cadastrar equipe ou criar plano) em vez de erro.
+- Limites: o **link dos atletas** (`atleta.html?t=…`) de uma conta cadastrada só abre neste mesmo navegador, porque os dados ainda não estão num servidor; os **testes físicos** de uma conta nova ainda não têm tela de lançamento (o peso tem); não há recuperação de senha nem troca de e-mail.

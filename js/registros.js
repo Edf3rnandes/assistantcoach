@@ -8,6 +8,15 @@
 
   const store = {}; // registros salvos pelo professor
   const cache = {}; // registros de exemplo já gerados
+
+  // Conta cadastrada: o que o técnico registra e as respostas dos atletas ficam guardados neste aparelho.
+  const CONTA = window.Farol.conta;
+  const CH_REG = CONTA.chave('registros');
+  function carregar() {
+    if (!CONTA.guardaDados()) return;
+    try { const g = JSON.parse(localStorage.getItem(CH_REG) || 'null'); if (g) { Object.assign(store, g.store || {}); Object.assign(auto, g.auto || {}); } } catch (e) { /* começa vazio */ }
+  }
+  const gravar = () => { if (CONTA.guardaDados()) { try { localStorage.setItem(CH_REG, JSON.stringify({ store, auto })); } catch (e) { /* ignora */ } } };
   const chave = (plano, s) => `${plano.id}|${s.id}`;
   const dataSessao = (semana, s) => semana.inicio + s.dia * DIA;
 
@@ -139,10 +148,11 @@
 
   function salvar(plano, semana, s, reg) {
     store[chave(plano, s)] = { ...reg, sessaoId: s.id, origem: 'professor' };
+    gravar();
     return store[chave(plano, s)];
   }
 
-  function remover(plano, s) { delete store[chave(plano, s)]; }
+  function remover(plano, s) { delete store[chave(plano, s)]; gravar(); }
 
 
   /* ---------- Respostas dos atletas (link único da turma) ---------- */
@@ -151,6 +161,7 @@
   // Em produção, a resposta vai ao banco identificada pelo token da turma e pelo atleta escolhido.
   const auto = {};
   const autoCache = {};
+  carregar();
   const DOR = { 0: 'Sem dor', 1: 'Dor leve', 2: 'Dor moderada', 3: 'Dor forte' };
 
   function respostasExemplo(plano, semana, s) {
@@ -186,6 +197,7 @@
     const k = chave(plano, s);
     auto[k] = auto[k] || {};
     auto[k][atletaId] = { ...resp, em: HOJE };
+    gravar();
   }
 
   const resumoRespostas = (plano, semana, s) => ({ n: Object.keys(respostas(plano, semana, s)).length, total: plano.atletas.length });

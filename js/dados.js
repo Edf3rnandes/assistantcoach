@@ -76,7 +76,7 @@
     ideias: ['Toda dupla com um plano de saque claro', 'Treinar com placar em pelo menos duas sessões por semana', 'Vídeo curto de cada jogo para revisão na semana seguinte'],
   };
 
-  const RAW = [
+  const RAW_DEMO = [
     {
       id: 'sub18', turma: 'sub18', mock: true, nome: 'Sub-18 Masculino', tipo: 'turma',
       temporada: 'Temporada 2026/27', inicio: '2026-08-03', pico: 3200, base: BASE_SUB18,
@@ -113,6 +113,16 @@
       ],
     },
   ].map((p) => ({ sessoes: {}, microTipos: {}, ...p }));
+
+  // Conta cadastrada: parte sem planos de exemplo e guarda os planos do técnico (inclusive as sessões editadas) neste aparelho.
+  const CONTA = window.Farol.conta;
+  const CH_PLANOS = CONTA.chave('planos');
+  let RAW = RAW_DEMO;
+  if (CONTA.guardaDados()) {
+    RAW = [];
+    try { RAW = JSON.parse(localStorage.getItem(CH_PLANOS) || '[]'); } catch (e) { RAW = []; }
+  }
+  const gravarPlanos = () => { if (CONTA.guardaDados()) { try { localStorage.setItem(CH_PLANOS, JSON.stringify(RAW)); } catch (e) { /* ignora */ } } };
 
   /* ---------- Modelos de semana ---------- */
 
@@ -327,7 +337,7 @@
 
   const planos = RAW.map((r) => montar(r));
   const idx = (id) => RAW.findIndex((r) => r.id === id);
-  const reconstruir = (id) => { const i = idx(id); planos[i] = montar(RAW[i]); return planos[i]; };
+  const reconstruir = (id) => { const i = idx(id); planos[i] = montar(RAW[i]); gravarPlanos(); return planos[i]; };
 
   /* ---------- Cálculos para criar um plano ---------- */
 
@@ -358,7 +368,9 @@
 
   /* ---------- Edição ---------- */
 
+  // Os ids das sessões criadas à mão (n1, n2…) continuam de onde pararam, para não repetir depois de recarregar.
   let contador = 0;
+  RAW.forEach((r) => Object.values(r.sessoes || {}).forEach((l) => l.forEach((x) => { const m = /^n(\d+)$/.exec(x.id || ''); if (m) contador = Math.max(contador, Number(m[1])); })));
 
   function sessoesParaEditar(id, semana) {
     const raw = RAW[idx(id)];
@@ -395,6 +407,7 @@
         base: cfg.base, ciclos, sessoes: {}, microTipos: {},
       });
       planos.push(montar(RAW[RAW.length - 1]));
+      gravarPlanos();
       return id;
     },
 

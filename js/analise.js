@@ -54,7 +54,7 @@
 
   function vazioSemRegistro() {
     return `<section class="card an-vazio"><h2>Ainda não há dados para analisar</h2>
-      <p>As análises aparecem quando houver semanas completas com registro de treino. Registre as sessões no menu Registro e volte aqui.</p></section>`;
+      <p>As análises aparecem quando houver semanas completas com registro de treino. Crie o plano da equipe, registre as sessões na tela da equipe e volte aqui.</p></section>`;
   }
 
   function geral(el, plano) {
@@ -279,7 +279,7 @@
 
   function render(root, foco) {
     const planoId = window.Farol.compartilhado.planoId;
-    const plano = dados.plano(planoId);
+    const plano = dados.plano(planoId) || dados.planos[0] || null;
     const comPlano = est.aba === 'geral' || est.aba === 'atletas' || est.aba === 'carga';
 
     root.innerHTML = `
@@ -289,7 +289,7 @@
           <h1>Análise</h1>
           <p class="lead">Carga, esforço, recuperação e resultados, calculados a partir dos registros de treino.</p>
         </div>
-        ${comPlano ? `<div class="field"><label class="label" for="an-plano">Turma ou atleta</label>
+        ${comPlano && plano ? `<div class="field"><label class="label" for="an-plano">Turma ou atleta</label>
           <select class="select" id="an-plano">${dados.planos.map((p) => `<option value="${p.id}" ${p.id === plano.id ? 'selected' : ''}>${esc(p.nome)} (${esc(p.detalhe)})</option>`).join('')}</select></div>` : ''}
       </header>
       <div class="tabs" role="tablist" aria-label="Áreas da análise">
@@ -298,7 +298,8 @@
       <div id="an-corpo" class="corpo" role="tabpanel" aria-labelledby="an-tab-${est.aba}"></div>`;
 
     const corpo = root.querySelector('#an-corpo');
-    if (est.aba === 'geral') geral(corpo, plano);
+    if (comPlano && !plano) corpo.innerHTML = vazioSemRegistro();
+    else if (est.aba === 'geral') geral(corpo, plano);
     else if (est.aba === 'atletas') atletas(corpo, plano);
     else if (est.aba === 'carga') window.Farol.analiseCarga.montar(corpo, plano);
     else if (est.aba === 'comparar') window.Farol.comparativos.montar(corpo);

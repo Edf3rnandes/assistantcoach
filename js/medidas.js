@@ -36,7 +36,11 @@
     med: { M: { 'Sub-18': 6.4, Adulto: 7.4 }, F: { 'Sub-16': 4.2, 'Sub-19': 5.0, Adulto: 5.3 }, sd: 0.5, ganho: 0.2, gsd: 0.15 },
   };
 
+  // Nas contas cadastradas não há avaliações de exemplo: só entra o que o técnico lançar.
+  const DEMO = !window.Farol.conta.guardaDados();
+
   function valorTeste(id, teste, quando) {
+    if (!DEMO) return null;
     const a = ATLETAS[id];
     const b = BASE[teste];
     const centro = b[a.genero][a.faixa];
@@ -50,7 +54,7 @@
   /* ---------- Peso ---------- */
 
   const BASE_PESO = { M: { 'Sub-18': 70, Adulto: 80 }, F: { 'Sub-16': 56, 'Sub-19': 61, Adulto: 63 }, sd: 6 };
-  const CHAVE_PESO = 'ft.avaliacao.v1';
+  const CHAVE_PESO = window.Farol.conta.chave('ft.avaliacao.v1');
   let pesosSalvos = {}; // { atletaId: [{ t, kg }] } lançados pelo técnico
   try { const g = JSON.parse(localStorage.getItem(CHAVE_PESO) || 'null'); if (g && g.peso) pesosSalvos = g.peso; } catch (e) { /* segue em memória */ }
   const gravarPeso = () => { try { localStorage.setItem(CHAVE_PESO, JSON.stringify({ peso: pesosSalvos })); } catch (e) { /* ignora */ } };
@@ -60,7 +64,7 @@
     const a = ATLETAS[id];
     const atual = Math.round((BASE_PESO[a.genero][a.faixa] + (hash(id + 'peso') - 0.5) * 2 * BASE_PESO.sd) * 10) / 10;
     const anterior = Math.round((atual - (hash(id + 'pesog') - 0.5) * 2.4) * 10) / 10;
-    const base = [{ t: AVALIACOES.anterior, kg: anterior, origem: 'avaliação' }, { t: AVALIACOES.atual, kg: atual, origem: 'avaliação' }];
+    const base = DEMO ? [{ t: AVALIACOES.anterior, kg: anterior, origem: 'avaliação' }, { t: AVALIACOES.atual, kg: atual, origem: 'avaliação' }] : [];
     const meus = (pesosSalvos[id] || []).map((x) => ({ ...x, origem: 'lançado' }));
     return [...base, ...meus].sort((x, y) => x.t - y.t);
   }
@@ -72,12 +76,13 @@
   function removerPeso(id, t) { pesosSalvos[id] = (pesosSalvos[id] || []).filter((x) => x.t !== t); gravarPeso(); }
   function valorPeso(id, quando) {
     const s = pesoSerie(id);
+    if (!s.length) return null;
     return quando === 'anterior' ? (s.length > 1 ? s[s.length - 2].kg : null) : s[s.length - 1].kg;
   }
 
   // Treino: últimas 4 semanas completas do plano em que o atleta está.
   function treinoDe(id) {
-    const plano = dados.planos.find((p) => p.mock && p.atletas.includes(id));
+    const plano = dados.planos.find((p) => p.mock && p.atletas.includes(id)) || dados.planos.find((p) => p.atletas.includes(id));
     if (!plano || plano.semanaAtual < 1) return null;
     const cargas = [], pse = [], psr = [];
     let pres = 0, tot = 0;

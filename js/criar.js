@@ -51,7 +51,7 @@
   function passo1() {
     const livres = dados.turmasSemPlano();
     if (!livres.length) {
-      return '<p class="vazio">Todas as turmas já têm plano. Cadastre uma nova turma no sistema para criar outro plano.</p>';
+      return '<p class="vazio">Todas as equipes já têm plano. <a href="#equipes-nova">Cadastre uma nova equipe</a> para criar outro plano.</p>';
     }
     const turma = TURMAS[w.turma];
     return `
@@ -122,6 +122,15 @@
               <button class="btn" type="button" data-dist="${i}">Distribuir fases até o alvo</button>
             </div>
             ${avisoAlvo(c, ini)}
+            <details class="alvo-rapido" ${CAL.lista().some((q) => q.data >= ini.inicio) ? '' : 'open'}>
+              <summary>Cadastrar a competição alvo agora</summary>
+              <div class="alvo-rapido-f">
+                <div class="field"><label class="label" for="w-rc-nome-${i}">Nome</label><input class="input" id="w-rc-nome-${i}" type="text" maxlength="80" placeholder="ex.: Campeonato Paraibano"></div>
+                <div class="field"><label class="label" for="w-rc-data-${i}">Data</label><input class="input" id="w-rc-data-${i}" type="date" min="${iso(ini.inicio + 28 * DIA)}"></div>
+                <div class="field"><label class="label" for="w-rc-local-${i}">Local</label><input class="input" id="w-rc-local-${i}" type="text" maxlength="60" placeholder="cidade/UF"></div>
+                <button class="btn" type="button" data-rc="${i}">Cadastrar e usar como alvo</button>
+              </div>
+            </details>
             <div class="table-scroll">
               <table class="mesos fases-ed">
                 <thead><tr><th>Fase</th><th class="r">Semanas</th><th>Período</th></tr></thead>
@@ -215,6 +224,11 @@
   /* ---------- Tela ---------- */
 
   P.criar = function (el, ctx) {
+    // A turma pode vir pedida (tela da equipe); senão, garante uma turma que ainda esteja sem plano.
+    const livresIni = dados.turmasSemPlano();
+    const pedida = ctx.estado.turmaId && livresIni.find((t) => t.id === ctx.estado.turmaId);
+    if (pedida) { w.turma = pedida.id; w.pico = PICO_SUGERIDO[pedida.faixa] || 3000; ctx.estado.turmaId = null; }
+    else if (!livresIni.some((t) => t.id === w.turma)) { const base = novoRascunho(); w.turma = base.turma; w.pico = base.pico; }
     function desenhar(foco) {
       const livres = dados.turmasSemPlano();
       const semTurma = !livres.length;
@@ -272,6 +286,19 @@
           const c = w.ciclos[i];
           sec.querySelector(`#w-cn-${i}`).addEventListener('input', (e) => { c.nome = e.target.value; });
           sec.querySelector(`#w-alvo-${i}`).addEventListener('change', (e) => { c.alvo = e.target.value; desenhar(`#w-alvo-${i}`); });
+          sec.querySelector('[data-rc]').addEventListener('click', () => {
+            const nome = sec.querySelector(`#w-rc-nome-${i}`).value.trim(), data = sec.querySelector(`#w-rc-data-${i}`).value, local = sec.querySelector(`#w-rc-local-${i}`).value.trim();
+            const ini = crono()[i].inicio;
+            if (nome.length < 3) return erro('Dê um nome à competição.');
+            if (!data) return erro('Informe a data da competição.');
+            if (ms(data) < ini + 28 * DIA) return erro('A competição precisa ficar a pelo menos 4 semanas do início do ciclo.');
+            const id = CAL.criar({ nome, data: ms(data), fim: ms(data), local: local || 'A definir', nivel: 'Estadual', categorias: TURMAS[w.turma].categorias.slice() });
+            c.alvo = id;
+            const f = dados.distribuirAteAlvo(ini, ms(data), c.sem.transicao > 0 ? c.sem.transicao : 0);
+            if (f) { dados.ORDEM_FASES.forEach((t) => { c.sem[t] = 0; }); f.forEach(([t, q]) => { c.sem[t] = q; }); }
+            erro('');
+            desenhar(`#w-alvo-${i}`);
+          });
           sec.querySelector('[data-dist]').addEventListener('click', () => {
             if (!c.alvo) return erro(`${c.nome}: escolha a competição alvo antes de distribuir as fases.`);
             const ini = crono()[i].inicio;

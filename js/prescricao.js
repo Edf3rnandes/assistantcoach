@@ -108,16 +108,17 @@
 
   /* ---------- Armazenamento ---------- */
 
-  const CHAVE = 'ft.prescricao.v1';
+  const CHAVE = window.Farol.conta.chave('ft.prescricao.v1');
+  const DEMO = !window.Farol.conta.guardaDados(); // conta cadastrada começa sem prescrições de exemplo (os modelos de treino ficam)
   let exercicios = EXERCICIOS.map((x) => ({ ...x }));
   let planos = PLANOS.map((x) => ({ ...x, itens: x.itens.map((i) => ({ ...i })) }));
-  let prescricoes = PRESCRICOES.map((x) => ({ ...x, aj: {}, exec: x.exec ? execExemplo(x) : null }));
+  let prescricoes = !DEMO ? [] : PRESCRICOES.map((x) => ({ ...x, aj: {}, exec: x.exec ? execExemplo(x) : null }));
   let seq = { e: 100, m: 100, p: 100 };
   try {
     const g = JSON.parse(localStorage.getItem(CHAVE) || 'null');
     if (g && g.exercicios && g.planos && g.prescricoes) { exercicios = g.exercicios; planos = g.planos; prescricoes = g.prescricoes; seq = g.seq || seq; }
-    PRESCRICOES.filter((x) => x.exec && !prescricoes.some((p) => p.id === x.id)).forEach((x) => prescricoes.push({ ...x, aj: {}, exec: execExemplo(x) }));
-    prescricoes.forEach((p) => { const seed = PRESCRICOES.find((x) => x.id === p.id && x.exec); if (seed && p.status === 'feita' && p.exec === undefined) { p.exec = seed.exec; p.exec = execExemplo(p); if (p.id === 'p2') p.data = seed.data; } });
+    if (DEMO) PRESCRICOES.filter((x) => x.exec && !prescricoes.some((p) => p.id === x.id)).forEach((x) => prescricoes.push({ ...x, aj: {}, exec: execExemplo(x) }));
+    if (DEMO) prescricoes.forEach((p) => { const seed = PRESCRICOES.find((x) => x.id === p.id && x.exec); if (seed && p.status === 'feita' && p.exec === undefined) { p.exec = seed.exec; p.exec = execExemplo(p); if (p.id === 'p2') p.data = seed.data; } });
   } catch (e) { /* segue em memória */ }
   const gravar = () => { try { localStorage.setItem(CHAVE, JSON.stringify({ exercicios, planos, prescricoes, seq })); } catch (e) { /* ignora */ } };
   const novoId = (p) => `${p}${++seq[p]}`;

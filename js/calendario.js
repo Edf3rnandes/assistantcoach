@@ -268,6 +268,24 @@
     salvarNotas(id, texto) { plan(id).notas = texto; },
   };
 
+  // Conta cadastrada: começa sem competições de exemplo e guarda as do técnico neste aparelho.
+  // Cada função que altera algo passa a gravar logo depois.
+  const CONTA = window.Farol.conta;
+  if (CONTA.guardaDados()) {
+    const CH = CONTA.chave('competicoes');
+    [COMPETICOES, PLANEJ].forEach((o) => Object.keys(o).forEach((k) => { delete o[k]; }));
+    try {
+      const g = JSON.parse(localStorage.getItem(CH) || 'null');
+      if (g) { Object.assign(COMPETICOES, g.competicoes || {}); Object.assign(PLANEJ, g.planej || {}); seq = g.seq || 0; }
+    } catch (e) { /* começa vazio */ }
+    const gravar = () => { try { localStorage.setItem(CH, JSON.stringify({ competicoes: COMPETICOES, planej: PLANEJ, seq })); } catch (e) { /* ignora */ } };
+    ['criar', 'atualizar', 'adicionarDupla', 'alterarDupla', 'removerDupla', 'salvarViagem', 'adicionarItem', 'alterarItem', 'removerItem',
+      'adicionarProf', 'removerProf', 'salvarResultado', 'removerResultado', 'salvarNotas'].forEach((nome) => {
+      const f = api[nome];
+      api[nome] = (...args) => { const r = f(...args); gravar(); return r; };
+    });
+  }
+
   window.Farol = window.Farol || {};
   window.Farol.calendario = api;
 })();

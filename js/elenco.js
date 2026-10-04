@@ -111,6 +111,89 @@
     return t.token;
   };
 
+  /* ---------- Conta própria: elenco do técnico ---------- */
+
+  // Numa conta cadastrada, os atletas e as turmas de exemplo saem de cena e entram os que o técnico cadastrou.
+  // Os objetos são esvaziados no lugar (e não trocados), porque as outras telas guardam referência a eles.
+  const CONTA = window.Farol.conta;
+  const CH_ELENCO = CONTA.chave('elenco');
+  let seq = { t: 0, u: 0 };
+  if (CONTA.guardaDados()) {
+    ATLETAS_LISTA.length = 0;
+    [ATLETAS, TURMAS, SITUACAO, PROFS].forEach((o) => Object.keys(o).forEach((k) => { delete o[k]; }));
+    PROFS.p1 = { id: 'p1', nome: CONTA.usuario().nome, funcao: 'Técnico principal' };
+    try {
+      const g = JSON.parse(localStorage.getItem(CH_ELENCO) || 'null');
+      if (g) {
+        (g.atletas || []).forEach((a) => { ATLETAS_LISTA.push(a); ATLETAS[a.id] = a; });
+        (g.turmas || []).forEach((t) => { TURMAS[t.id] = t; });
+        seq = g.seq || seq;
+      }
+    } catch (e) { /* começa vazio */ }
+  }
+  const gravarElenco = () => {
+    if (!CONTA.guardaDados()) return;
+    try { localStorage.setItem(CH_ELENCO, JSON.stringify({ turmas: Object.values(TURMAS), atletas: ATLETAS_LISTA, seq })); } catch (e) { /* ignora */ }
+  };
+
+  const FAIXAS = ['Sub-14', 'Sub-16', 'Sub-18', 'Sub-19', 'Adulto', 'Master'];
+  const GENEROS = { M: 'Masculino', F: 'Feminino', X: 'Misto' };
+  const sigla = (g) => (g === 'M' ? ['Masc'] : g === 'F' ? ['Fem'] : ['Masc', 'Fem']);
+  const limpa = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+
+  const cadastro = {
+    FAIXAS, GENEROS,
+    // Cria uma equipe. O gênero da equipe (M, F ou X para mista) define as categorias de competição.
+    criarTurma({ nome, faixa, genero }) {
+      nome = limpa(nome);
+      if (nome.length < 2) return { erro: 'Dê um nome à equipe.', campo: 'nome' };
+      if (Object.values(TURMAS).some((t) => t.nome.toLowerCase() === nome.toLowerCase())) return { erro: 'Já existe uma equipe com este nome.', campo: 'nome' };
+      const id = `t${++seq.t}`;
+      TURMAS[id] = { id, nome, token: `${id}-${Math.random().toString(36).slice(2, 6)}`, faixa, genero, categorias: sigla(genero).map((g) => `${faixa} ${g}`), atletas: [], professores: ['p1'] };
+      gravarElenco();
+      return { turma: TURMAS[id] };
+    },
+    editarTurma(id, { nome, faixa, genero }) {
+      const t = TURMAS[id];
+      nome = limpa(nome);
+      if (nome.length < 2) return { erro: 'Dê um nome à equipe.', campo: 'nome' };
+      if (Object.values(TURMAS).some((o) => o.id !== id && o.nome.toLowerCase() === nome.toLowerCase())) return { erro: 'Já existe uma equipe com este nome.', campo: 'nome' };
+      Object.assign(t, { nome, faixa, genero, categorias: sigla(genero).map((g) => `${faixa} ${g}`) });
+      t.atletas.forEach((a) => { ATLETAS[a].faixa = faixa; });
+      gravarElenco();
+      return { turma: t };
+    },
+    excluirTurma(id) {
+      const t = TURMAS[id];
+      if (!t) return;
+      t.atletas.slice().forEach((a) => cadastro.removerAtleta(a));
+      delete TURMAS[id];
+      gravarElenco();
+    },
+    adicionarAtleta(turmaId, { nome, genero }) {
+      nome = limpa(nome);
+      const t = TURMAS[turmaId];
+      if (nome.length < 2) return { erro: 'Informe o nome do atleta.' };
+      if (t.atletas.some((a) => ATLETAS[a].nome.toLowerCase() === nome.toLowerCase())) return { erro: `${nome} já está nesta equipe.` };
+      const g = genero || (t.genero === 'X' ? 'M' : t.genero);
+      const a = { id: `u${++seq.u}`, nome, faixa: t.faixa, genero: g, turma: turmaId };
+      ATLETAS_LISTA.push(a); ATLETAS[a.id] = a; t.atletas.push(a.id);
+      gravarElenco();
+      return { atleta: a };
+    },
+    removerAtleta(id) {
+      const a = ATLETAS[id];
+      if (!a) return;
+      const t = TURMAS[a.turma];
+      if (t) t.atletas = t.atletas.filter((x) => x !== id);
+      const i = ATLETAS_LISTA.indexOf(a);
+      if (i >= 0) ATLETAS_LISTA.splice(i, 1);
+      delete ATLETAS[id];
+      gravarElenco();
+    },
+    renomearAtleta(id, nome) { nome = limpa(nome); if (nome.length < 2) return { erro: 'Informe o nome.' }; ATLETAS[id].nome = nome; gravarElenco(); return {}; },
+  };
+
   window.Farol = window.Farol || {};
-  window.Farol.elenco = { SITUACAO, situacaoDe, turmaPorToken, novoToken, PROFS, ATLETAS, ATLETAS_LISTA, TURMAS, FUNDAMENTOS, FUNDAMENTOS_LISTA, GRUPOS_FUNDAMENTO, PRIORIDADES, PAUTA_PADRAO };
+  window.Farol.elenco = { cadastro, SITUACAO, situacaoDe, turmaPorToken, novoToken, PROFS, ATLETAS, ATLETAS_LISTA, TURMAS, FUNDAMENTOS, FUNDAMENTOS_LISTA, GRUPOS_FUNDAMENTO, PRIORIDADES, PAUTA_PADRAO };
 })();

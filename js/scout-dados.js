@@ -434,9 +434,10 @@
 
   /* ---------- Armazenamento ---------- */
 
-  const CHAVE = 'ft.scout.v2';
-  let jogos = semear();
-  let treinos = semearFundamentos();
+  const CHAVE = window.Farol.conta.chave('ft.scout.v2');
+  const DEMO = !window.Farol.conta.guardaDados();
+  let jogos = DEMO ? semear() : [];
+  let treinos = DEMO ? semearFundamentos() : [];
   try {
     const guardado = JSON.parse(localStorage.getItem(CHAVE) || 'null');
     if (guardado && Array.isArray(guardado.jogos) && Array.isArray(guardado.treinos)) {

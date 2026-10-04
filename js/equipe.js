@@ -43,10 +43,13 @@
     const c = { lesao: 0, retorno: 0, atencao: 0, ok: 0 };
     membros.forEach((m) => { c[m.estado]++; });
     const out = { t, plano, membros, c, semana: null, meso: null, ciclo: null, sessoes: [], nReg: 0, pendentes: 0, hoje: [] };
-    if (plano && plano.semanaAtual >= 0) {
-      out.semana = plano.semanas[plano.semanaAtual];
-      out.meso = plano.mesos.find((m) => m.id === plano.mesoAtual) || null;
-      out.ciclo = plano.ciclos[plano.cicloAtual] || null;
+    // Plano que ainda não começou: mostra a primeira semana.
+    out.comeca = plano && plano.semanaAtual < 0 && HOJE < plano.inicioMs ? plano.inicioMs : null;
+    const iAtual = plano ? (plano.semanaAtual >= 0 ? plano.semanaAtual : out.comeca ? 0 : -1) : -1;
+    if (plano && iAtual >= 0) {
+      out.semana = plano.semanas[iAtual];
+      out.meso = plano.mesos.find((m) => m.id === (plano.semanaAtual >= 0 ? plano.mesoAtual : out.semana.meso)) || null;
+      out.ciclo = plano.ciclos[plano.semanaAtual >= 0 ? plano.cicloAtual : out.semana.ciclo] || null;
       out.sessoes = ordenar(out.semana.sessoes).map((s) => ({ s, st: REG.estado(plano, out.semana, s), t: dataSes(out.semana, s) }));
       out.nReg = out.sessoes.filter((x) => x.st === 'registrado').length;
       out.hoje = out.sessoes.filter((x) => x.t === HOJE);
@@ -121,9 +124,10 @@
       <header class="page-head"><div><h1>${esc(t.nome)}</h1><p class="lead">${plural(t.atletas.length, 'atleta', 'atletas')} · ${esc(t.faixa)}</p></div></header>
       <section class="card eq-vazio"><h2>Esta equipe ainda não tem plano de treino</h2>
         <p>Com o plano, o painel mostra a semana, os dias de treino e as sessões a registrar.</p>
-        <button class="btn btn-primary" id="eq-criar">Criar o plano da equipe</button></section>
+        <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="eq-criar">Criar o plano da equipe</button><button class="btn" id="eq-editar">Editar equipe</button></div></section>
       ${blocoAtletas(t, situacoes(t, null))}`;
-    root.querySelector('#eq-criar').addEventListener('click', () => window.Farol.ir('treinos-periodizacao', { nivel: 'criar', editor: null }));
+    root.querySelector('#eq-criar').addEventListener('click', () => window.Farol.ir('treinos-periodizacao', { nivel: 'criar', editor: null, turmaId: t.id }));
+    root.querySelector('#eq-editar').addEventListener('click', () => window.Farol.ir('equipes-editar', { turmaId: t.id }));
     ligarAtletas(root);
   }
 
@@ -186,7 +190,7 @@
     root.innerHTML = `
       <section class="eq-topo" style="--c:var(${meso ? meso.cor : '--accent'})" aria-label="${esc(t.nome)}">
         <div class="eq-topo-c">
-          <span class="eq-faixa">${esc(t.faixa)} · ${plural(t.atletas.length, 'atleta', 'atletas')}</span>
+          <span class="eq-faixa">${esc(t.faixa)} · ${plural(t.atletas.length, 'atleta', 'atletas')} · <button class="eq-editar" id="eq-editar">Editar equipe</button></span>
           <h1>${esc(t.nome)}</h1>
           <p class="eq-fase"><b>${meso ? esc(meso.nome) : 'Sem fase'}</b>${ciclo ? ` · ${esc(ciclo.nome)}` : ''} · semana ${semana.n}${tm ? ` · microciclo ${esc(tm.nome.toLowerCase())}` : ''}</p>
           ${alvo ? `<p class="eq-alvo">Alvo do ciclo: <b>${esc(alvo.nome)}</b>, ${dd(alvo.data)}${emDias(alvo.data) >= 0 ? ` (em ${plural(emDias(alvo.data), 'dia', 'dias')})` : ''}</p>` : ''}
@@ -256,6 +260,7 @@
       else if (rota === 'treinos-microciclo') window.Farol.ir(rota, { planoId: plano.id, semana: semana.idx });
       else window.Farol.ir(rota, { aba: 'geral' });
     }));
+    $('#eq-editar').addEventListener('click', () => window.Farol.ir('equipes-editar', { turmaId: t.id }));
     const pa = $('#eq-pauta'); if (pa) pa.addEventListener('click', () => window.Farol.ir('treinos-periodizacao', { planoId: plano.id, nivel: 'meso', mesoId: meso.id }));
     const co = $('#eq-comp'); if (co) co.addEventListener('click', () => window.Farol.ir('planejamento-competicoes', { competicao: comp.id }));
     $('#eq-comps').addEventListener('click', () => window.Farol.ir('planejamento-competicoes'));

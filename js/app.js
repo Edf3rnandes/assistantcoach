@@ -29,7 +29,7 @@
 
   // `pronta` indica se a tela já foi construída; as demais mostram o que entra nela.
   const GRUPOS = [
-    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }, { id: 'equipe', nome: 'Equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'saude', nome: 'Saúde do elenco', icone: 'cruz', pronta: true, oculta: true }] },
+    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }, { id: 'equipe', nome: 'Equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'equipes-nova', nome: 'Nova equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'equipes-editar', nome: 'Editar equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'saude', nome: 'Saúde do elenco', icone: 'cruz', pronta: true, oculta: true }] },
     {
       titulo: 'Já existe',
       itens: [
@@ -96,18 +96,29 @@
   ];
   // Telas que não aparecem na barra acendem o item a que pertencem.
   const PAI = {
-    equipe: 'inicio', saude: 'inicio', 'treino-registro': 'inicio', 'treinos-microciclo': 'inicio', 'treino-quadro': 'inicio',
+    equipe: 'inicio', 'equipes-nova': 'inicio', 'equipes-editar': 'inicio', saude: 'inicio', 'treino-registro': 'inicio', 'treinos-microciclo': 'inicio', 'treino-quadro': 'inicio',
     'treinos-biblioteca': 'treinos-periodizacao', 'atleta-previa': 'treinos-periodizacao',
     'analise-scout': 'planejamento-competicoes', 'scout-coleta': 'planejamento-competicoes',
   };
   // Para onde volta o botão "‹" de cada tela que não é uma porta.
-  const VOLTA = { 'treino-registro': ['equipe', 'Equipe'], 'treinos-microciclo': ['equipe', 'Equipe'], 'scout-coleta': ['analise-scout', 'Scout'] };
+  const VOLTA = { 'equipes-editar': ['equipe', 'Equipe'], 'treino-registro': ['equipe', 'Equipe'], 'treinos-microciclo': ['equipe', 'Equipe'], 'scout-coleta': ['analise-scout', 'Scout'] };
   // Abas de cada porta (a barra de baixo troca de porta; esta linha troca de assunto dentro dela).
   const SUBNAV = [
     { ids: ['treinos-periodizacao', 'treinos-biblioteca'], itens: [['treinos-periodizacao', 'Periodização'], ['treinos-biblioteca', 'Exercícios e prescrição']] },
     { ids: ['planejamento-competicoes', 'analise-scout', 'scout-coleta'], itens: [['planejamento-competicoes', 'Competições'], ['analise-scout', 'Scout']] },
   ];
   let rotaAtual = null;
+  const EXIGE_PLANO = ['treino-registro', 'treinos-microciclo', 'atleta-previa'];
+
+  function semPlanoVazio(main, item) {
+    const temEquipes = Object.keys(window.Farol.elenco.TURMAS).length > 0;
+    main.innerHTML = `
+      <header class="page-head"><div><h1>${esc(item.nome)}</h1></div></header>
+      <section class="card eq-vazio"><h2>${temEquipes ? 'Crie o plano de uma equipe primeiro' : 'Cadastre uma equipe primeiro'}</h2>
+        <p>${temEquipes ? 'Esta tela trabalha em cima das sessões do plano de treino.' : 'Esta tela trabalha em cima das equipes e do plano de treino. Comece cadastrando a equipe e os atletas.'}</p>
+        <button class="btn btn-primary" id="sp-ir">${temEquipes ? 'Criar plano' : 'Cadastrar equipe e atletas'}</button></section>`;
+    main.querySelector('#sp-ir').addEventListener('click', () => (temEquipes ? window.Farol.ir('treinos-periodizacao', { nivel: 'criar', editor: null }) : window.Farol.ir('equipes-nova')));
+  }
 
   const rotuloBarra = (b) => (b.curto ? `<span class="r-longo">${b.rotulo}</span><span class="r-curto">${b.curto}</span>` : `<span>${b.rotulo}</span>`);
 
@@ -153,7 +164,9 @@
     const view = window.Farol.views && window.Farol.views[rota];
     const params = window.Farol.params;
     window.Farol.params = null;
-    if (item.pronta && view) view(main, params);
+    // Telas que dependem de um plano de treino: sem plano (conta nova), mostram o caminho para criar um.
+    if (EXIGE_PLANO.includes(rota) && !window.Farol.dados.planos.length) semPlanoVazio(main, item);
+    else if (item.pronta && view) view(main, params);
     else main.innerHTML = pendente(item);
 
     document.title = `${item.nome} | Farol Tático`;
@@ -235,7 +248,36 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gaveta.aberta) gaveta.fechar(); });
   }
 
+  function iniciales(nome) { return nome.split(' ').filter((x) => x.length > 1).slice(0, 2).map((x) => x[0]).join('').toUpperCase(); }
+
+  // Menu da conta, no canto do topo: quem está logado, em que modo, e a saída.
+  function montarConta() {
+    const host = document.getElementById('conta');
+    const C = window.Farol.conta;
+    const u = C.usuario();
+    if (!u) { host.innerHTML = ''; return; }
+    const demo = C.modo() === 'demo';
+    host.innerHTML = `
+      <button class="conta-bt" id="conta-bt" aria-haspopup="true" aria-expanded="false" aria-controls="conta-menu" aria-label="Conta de ${esc(u.nome)}">
+        <span class="conta-av">${esc(iniciales(u.nome))}</span><span class="conta-nome">${esc(u.nome.split(' ')[0])}</span>
+      </button>
+      <div class="conta-menu" id="conta-menu" hidden>
+        <div class="conta-quem"><b>${esc(u.nome)}</b><small>${demo ? 'Dados de exemplo' : esc(u.email)}</small></div>
+        ${demo ? '<p class="conta-dica">Você está vendo o app com dados de exemplo. Crie sua conta para cadastrar as suas equipes e atletas.</p>' : '<p class="conta-dica">Seus dados ficam guardados neste aparelho.</p>'}
+        <button class="btn btn-sm ${demo ? 'btn-primary' : ''}" id="conta-sair">${demo ? 'Criar minha conta' : 'Sair da conta'}</button>
+      </div>`;
+    const bt = host.querySelector('#conta-bt'), menu = host.querySelector('#conta-menu');
+    const alternar = (abre) => { menu.hidden = !abre; bt.setAttribute('aria-expanded', String(abre)); };
+    bt.addEventListener('click', (e) => { e.stopPropagation(); alternar(menu.hidden); });
+    document.addEventListener('click', (e) => { if (!menu.hidden && !host.contains(e.target)) alternar(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { alternar(false); bt.focus(); } });
+    host.querySelector('#conta-sair').addEventListener('click', () => { C.sair(); location.hash = '#inicio'; location.reload(); });
+  }
+
   function iniciar() {
+    // Sem sessão, só a tela de entrada: nada do painel é montado.
+    if (!window.Farol.conta.modo()) { window.Farol.entrar.montar(); return; }
+    montarConta();
     montarBarra();
     ligarGaveta();
 

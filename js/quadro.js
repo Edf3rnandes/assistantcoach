@@ -69,7 +69,7 @@
     return j;
   };
 
-  const CHAVE = 'ft.jogadas.v2';
+  const CHAVE = window.Farol.conta.chave('ft.jogadas.v2');
   function carregar() {
     try {
       const txt = localStorage.getItem(CHAVE);

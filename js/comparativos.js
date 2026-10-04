@@ -104,7 +104,7 @@
 
     let meio = '', num = '';
     if (v == null) {
-      meio = '<p class="cmp-vazio">Sem treino registrado neste período.</p>';
+      meio = '<p class="cmp-vazio">Sem dados ainda.</p>';
       num = '<span class="cmp-valor">n/d</span>';
     } else if (est.ref === 'anterior') {
       const ant = M.valor(id, m.id, 'anterior');
@@ -133,9 +133,19 @@
     return `<div class="cmp-linha"><div class="cmp-nome"><b>${esc(m.nome)}</b>${m.un ? `<small>${esc(m.un)}</small>` : ''}</div><div class="cmp-grafico">${meio}</div><div class="cmp-num">${num}</div></div>`;
   }
 
+  const formPeso = () => `<form class="cmp-peso-form" id="cmp-peso-form">
+          <div class="field"><label class="label" for="cmp-peso-data">Data</label><input class="input" id="cmp-peso-data" type="date" value="${iso(HOJE)}" max="${iso(HOJE)}"></div>
+          <div class="field"><label class="label" for="cmp-peso-kg">Peso (kg)</label><input class="input num" id="cmp-peso-kg" type="number" min="30" max="200" step="0.1" inputmode="decimal" placeholder="ex.: 72,5" style="width:120px"></div>
+          <button class="btn" type="submit">Registrar peso</button>
+          <span class="hint" id="cmp-peso-msg" role="status" style="margin:0"></span>
+        </form>`;
+
   // Peso do atleta: valor atual, variação desde a avaliação anterior, histórico e lançamento de um novo peso.
   function blocoPeso(id) {
     const serie = M.pesoSerie(id);
+    if (!serie.length) {
+      return `<div class="cmp-corpo"><p class="vazio" style="padding:4px 0;margin:0">Nenhum peso registrado ainda. Lance o primeiro abaixo.</p>${formPeso()}</div>`;
+    }
     const at = serie[serie.length - 1], ant = serie.length > 1 ? serie[serie.length - 2] : null;
     const d = ant ? +(at.kg - ant.kg).toFixed(1) : null;
     const fmt = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -146,12 +156,7 @@
           ${d != null ? `<span class="chip">${d === 0 ? 'sem mudança' : `${d > 0 ? '+' : '−'}${fmt(Math.abs(d))} kg desde ${dd(ant.t)}`}</span>` : ''}
           ${serie.length > 2 ? `<span class="cmp-n num">${total === 0 ? 'igual ao' : `${total > 0 ? '+' : '−'}${fmt(Math.abs(total))} kg desde o`} primeiro registro (${fmt(ini.kg)} kg)</span>` : ''}</div>
         <ul class="cmp-hist" aria-label="Histórico de peso">${serie.slice(-5).reverse().map((x) => `<li><span class="num">${dd(x.t)}</span><b class="num">${fmt(x.kg)} kg</b><small>${x.origem}</small>${x.origem === 'lançado' ? `<button class="link-btn" data-peso-del="${x.t}" style="margin:0" aria-label="Remover o peso de ${dd(x.t)}">remover</button>` : ''}</li>`).join('')}</ul>
-        <form class="cmp-peso-form" id="cmp-peso-form">
-          <div class="field"><label class="label" for="cmp-peso-data">Data</label><input class="input" id="cmp-peso-data" type="date" value="${iso(HOJE)}" max="${iso(HOJE)}"></div>
-          <div class="field"><label class="label" for="cmp-peso-kg">Peso (kg)</label><input class="input num" id="cmp-peso-kg" type="number" min="30" max="200" step="0.1" inputmode="decimal" placeholder="ex.: 72,5" style="width:120px"></div>
-          <button class="btn" type="submit">Registrar peso</button>
-          <span class="hint" id="cmp-peso-msg" role="status" style="margin:0"></span>
-        </form>
+        ${formPeso()}
       </div>`;
   }
 
@@ -306,6 +311,12 @@
   /* ---------- Tela ---------- */
 
   function render(root, foco) {
+    if (!Object.keys(ATLETAS).length) {
+      root.innerHTML = '<section class="card an-vazio"><h2>Ainda não há atletas para comparar</h2><p>Cadastre uma equipe e os atletas no Início. Os comparativos aparecem quando houver testes e treinos registrados.</p></section>';
+      return;
+    }
+    if (!ATLETAS[est.atletaId]) est.atletaId = Object.keys(ATLETAS)[0];
+    if (!ATLETAS[est.outroId] || est.outroId === est.atletaId) est.outroId = Object.keys(ATLETAS).find((k) => k !== est.atletaId) || est.atletaId;
     root.innerHTML = `
       <div class="cmp-modos">
         <div class="seg-ctl" role="group" aria-label="Tipo de comparação">

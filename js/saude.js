@@ -45,8 +45,8 @@
     ];
   }
 
-  const CHAVE = 'ft.saude.v1';
-  let lista = semear();
+  const CHAVE = window.Farol.conta.chave('ft.saude.v1');
+  let lista = window.Farol.conta.guardaDados() ? [] : semear(); // conta cadastrada começa sem ocorrências de exemplo
   try {
     const g = JSON.parse(localStorage.getItem(CHAVE) || 'null');
     if (g && Array.isArray(g.lista)) { lista = g.lista; seq = Math.max(seq, ...lista.map((x) => +x.id.slice(1) || 0)); }

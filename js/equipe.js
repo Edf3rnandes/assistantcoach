@@ -98,7 +98,7 @@
       : x.st === 'futuro' ? `<button class="btn btn-primary" data-acao="editar">Editar sessão</button>`
         : `<button class="btn btn-primary" data-acao="registro">Registrar treino</button>`;
     return `<div class="eq-ses" style="--c:var(${tipo.cor})">
-      <div class="eq-ses-h"><span class="eq-ses-dot"></span><div><b>${esc(tipo.nome)}</b><small class="num">${DIAS_LONGO[x.s.dia]}, ${dd(x.t)} · ${TURNO[x.s.turno].toLowerCase()} · ${x.s.dur} min · PSE alvo ${x.s.pse}</small></div>
+      <div class="eq-ses-h"><span class="eq-ses-dot"></span><div><b>${esc(tipo.nome)}${x.s.diaTipo ? ` <span class="dia-tipo dt-${x.s.diaTipo}">${esc(window.Farol.motor.ROTULO_DIA[x.s.diaTipo])}</span>` : ''}</b><small class="num">${DIAS_LONGO[x.s.dia]}, ${dd(x.t)} · ${TURNO[x.s.turno].toLowerCase()} · ${x.s.dur} min · PSE alvo ${x.s.pse}</small></div>
         <span class="eq-estado ${x.st}">${ST_ICO[x.st]}${esc(ST_TXT[x.st])}</span></div>
       ${x.s.obj ? `<p class="eq-obj">${esc(x.s.obj)}</p>` : ''}
       ${situacao}
@@ -202,6 +202,7 @@
         </div>
       </section>
 
+      ${window.Farol.periodo && window.Farol.periodo.bannerRevisao ? window.Farol.periodo.bannerRevisao(plano) : ''}
       <section class="card eq-semana" aria-labelledby="eq-sem-t">
         <div class="card-head eq-sem-h">
           <h2 id="eq-sem-t">Semana ${semana.n}</h2>
@@ -260,6 +261,7 @@
       else if (rota === 'treinos-microciclo') window.Farol.ir(rota, { planoId: plano.id, semana: semana.idx });
       else window.Farol.ir(rota, { aba: 'geral' });
     }));
+    const rev = root.querySelector('[data-revisar]'); if (rev) rev.addEventListener('click', () => window.Farol.ir('treinos-periodizacao', { planoId: plano.id, nivel: 'revisao', editor: null }));
     $('#eq-editar').addEventListener('click', () => window.Farol.ir('equipes-editar', { turmaId: t.id }));
     const pa = $('#eq-pauta'); if (pa) pa.addEventListener('click', () => window.Farol.ir('treinos-periodizacao', { planoId: plano.id, nivel: 'meso', mesoId: meso.id }));
     const co = $('#eq-comp'); if (co) co.addEventListener('click', () => window.Farol.ir('planejamento-competicoes', { competicao: comp.id }));

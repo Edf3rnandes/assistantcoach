@@ -188,7 +188,7 @@
           ${sems.map((s) => `
             <button class="week-chip" data-semana="${s.idx}" aria-label="Abrir semana ${s.n}, ${esc(dados.TIPOS_MICRO[s.microTipo].nome)}">
               <span class="num"><b>S${s.n}</b> ${dd(s.inicio)}</span>
-              <span>${esc(dados.TIPOS_MICRO[s.microTipo].nome)}</span>
+              <span>${esc(dados.TIPOS_MICRO[s.microTipo].nome)}${s.fator != null ? ` · ${Math.round(s.fator * 100)}%` : ''}</span>
               <span class="num">${num(s.planejado)} UA</span>
             </button>`).join('')}
         </div>
@@ -215,18 +215,18 @@
                 <td><button class="row-btn" data-meso="${m.id}" aria-pressed="${m.id === sel.id}"><span class="dot" style="background:var(${m.cor})"></span>${esc(m.nome)}${m.id === plano.mesoAtual ? ' <span class="chip chip-beam" style="margin-left:6px">atual</span>' : ''}</button></td>
                 <td><button class="row-btn num" data-meso="${m.id}" tabindex="-1">${dd(m.inicio)} a ${dd(m.fim)}</button></td>
                 <td class="r">
-                  <span class="stepper">
+                  ${plano.motor ? `<span class="num">${m.semanas}</span>` : `<span class="stepper">
                     <button class="step" data-fase="${m.indice}" data-delta="-1" aria-label="Uma semana a menos em ${esc(m.nome)}" ${m.semanas <= 1 ? 'disabled' : ''}>−</button>
                     <span class="num" aria-live="polite">${m.semanas}</span>
                     <button class="step" data-fase="${m.indice}" data-delta="1" aria-label="Uma semana a mais em ${esc(m.nome)}" ${m.semanas >= 12 ? 'disabled' : ''}>+</button>
-                  </span>
+                  </span>`}
                 </td>
               </tr>`).join('')}
           </tbody>
           <tfoot><tr><td colspan="2">Total do ciclo · média ${num(cicloRaw.mediaPlanejada)} UA/sem</td><td class="r num">${total}</td></tr></tfoot>
         </table>
       </div>
-      <p class="hint">Mudar as semanas de uma fase move as datas das fases seguintes. Semanas já editadas mantêm suas sessões.</p>`;
+      ${plano.motor ? '<p class="hint">As semanas de cada bloco vêm da distância até o evento A. Para mudar, ajuste o calendário na escala Macrociclo.</p>' : '<p class="hint">Mudar as semanas de uma fase move as datas das fases seguintes. Semanas já editadas mantêm suas sessões.</p>'}`;
   }
 
   P.meso = function (el, ctx) {
@@ -244,7 +244,7 @@
         <div class="card-head">
           <div>
             <h2 id="h-carga">Carga semanal de ${esc(ciclo.nome)}</h2>
-            <span class="meso-period num">${dd(ciclo.inicio)} a ${dd(ciclo.fim)} · alvo: ${esc(ciclo.alvo.nome)}, ${dd(ciclo.alvo.data)}</span>
+            <span class="meso-period num">${dd(ciclo.inicio)} a ${dd(ciclo.fim)} · ${ciclo.alvo.semAlvo ? 'sem competição alvo' : `alvo: ${esc(ciclo.alvo.nome)}, ${dd(ciclo.alvo.data)}`}</span>
           </div>
           <div class="field">
             <label class="label" for="ciclo-sel">Ciclo</label>

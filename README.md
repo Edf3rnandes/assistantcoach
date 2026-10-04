@@ -134,3 +134,15 @@ Inspirada em planilha de controle de carga interna (Foster e Gabbett); só a ló
 - **Primeiro uso**: Início vazio com 3 passos → cadastrar equipe → criar o plano (o assistente agora deixa **cadastrar a competição alvo na hora** e já distribui as fases) → semana e sessões na tela da equipe.
 - **Estados vazios**: Plano, Registro, Resposta da semana, Análise e Comparativos mostram o caminho (cadastrar equipe ou criar plano) em vez de erro.
 - Limites: o **link dos atletas** (`atleta.html?t=…`) de uma conta cadastrada só abre neste mesmo navegador, porque os dados ainda não estão num servidor; os **testes físicos** de uma conta nova ainda não têm tela de lançamento (o peso tem); não há recuperação de senha nem troca de e-mail.
+
+## Periodização dinâmica (etapa 23)
+
+O item **Plano** da barra agora se chama **Periodização**. A lógica segue o documento "Periodização dinâmica: blocos curtos + ondulatória".
+
+- **Motor** (`js/motor.js`, puro e testável com `node tests/motor.js`, que reproduz o exemplo do documento): janela **W** até o evento A, tabela de blocos (acumulação, transmutação, realização), mesociclos de 3 a 4 semanas, fatores de carga por semana (+10% e +5%, descarga a 70%, polimento 85/55%), transição de uma semana depois do A, manutenção quando não há A, **B** (mini-polimento) e **C** (só marca), conflitos (dois A com menos de 6 semanas, B a menos de 7 dias de A, dois B próximos, janela curta) e a **ondulatória** da semana (pesado, volume, potência e recuperação, com dia principal de ~40%).
+- **Prioridade A, B ou C** de cada competição, por periodização (Macrociclo › Calendário e prioridades) e **situação** da competição (confirmada, provisória ou cancelada), editável em Jogos › Competições.
+- **Regeneração com prévia**: mudar uma prioridade, a data ou a situação de uma competição, os ajustes ou a carga de referência calculada pelo que foi feito (mais de 15% de diferença) faz o sistema recalcular **só o futuro** e mostrar a faixa "O calendário mudou". A tela de revisão lista semana a semana o antes e o depois, e o técnico **aceita** ou **mantém**; as semanas passadas e a corrente nunca mudam. Cada decisão vira uma **revisão** no histórico.
+- **Nova periodização** (assistente de 4 passos): equipe, fundamentos, calendário com prioridades (dá para cadastrar a competição na hora) e prévia da estrutura. Sem evento A, o plano começa em manutenção e o sistema sugere promover um B.
+- **Planejado × executado**: alertas de carga acima ou abaixo da meta, descarga que não descarregou, polimento sem queda e pico de carga, sempre como sinalizadores.
+- Os dados de exemplo usam o novo modelo. Planos antigos (fases fixas) guardados em contas continuam abrindo, mas não são mais criados.
+- Limites: a tabela de blocos e os limiares dos alertas ainda não têm tela de edição (só carga de referência, sessões por semana e % de descarga); ainda não há calibração por atleta nem saltos por semana.

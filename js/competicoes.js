@@ -57,7 +57,7 @@
           <button class="comp-card" data-abrir="${c.id}">
             <span class="comp-data num"><b>${dd(c.data)}</b><small>${ano(c.data)}</small></span>
             <span class="comp-corpo">
-              <span class="comp-titulo">${esc(c.nome)}${uso.some((u) => u.alvo) ? ' <span class="chip chip-beam">alvo</span>' : ''}</span>
+              <span class="comp-titulo">${esc(c.nome)}${uso.some((u) => u.alvo) ? ' <span class="chip chip-beam">alvo</span>' : ''}${c.status === 'provisional' ? ' <span class="chip">provisória</span>' : c.status === 'cancelled' ? ' <span class="chip">cancelada</span>' : ''}</span>
               <span class="comp-sub">${esc(c.local)} · ${esc(c.nivel)} · ${periodo(c)} · ${CAL.passada(c) ? 'realizada' : dias === 0 ? 'hoje' : `em ${dias} dias`}</span>
               <span class="comp-cats">${c.categorias.map((k) => `<span class="chip">${esc(k)}</span>`).join('')}</span>
               <span class="pills">${CAL.prontidao(c.id).map(pill).join('')}</span>
@@ -86,7 +86,7 @@
         else if (fim < data) msg = 'A data final não pode ser antes da inicial.';
         else if (!cats.length) msg = 'Marque ao menos uma categoria.';
         if (msg) { erro.textContent = msg; erro.hidden = false; return; }
-        const id = CAL.criar({ nome, data: ms(data), fim: ms(fim), local: root.querySelector('#nc-local').value.trim() || 'A definir', nivel: root.querySelector('#nc-nivel').value, categorias: cats });
+        const id = CAL.criar({ nome, data: ms(data), fim: ms(fim), local: root.querySelector('#nc-local').value.trim() || 'A definir', nivel: root.querySelector('#nc-nivel').value, status: root.querySelector('#nc-status').value, categorias: cats });
         estado.nova = false; estado.sel = id; estado.aviso = 'Competição criada. Monte o planejamento abaixo.';
         detalhe(root);
         window.scrollTo({ top: 0 });
@@ -103,6 +103,7 @@
           <div class="field"><label class="label" for="nc-data">Início</label><input class="input" id="nc-data" type="date"></div>
           <div class="field"><label class="label" for="nc-fim">Fim</label><input class="input" id="nc-fim" type="date"></div>
           <div class="field"><label class="label" for="nc-nivel">Nível</label><select class="select" id="nc-nivel" style="min-width:0">${CAL.NIVEIS.map((n) => `<option>${n}</option>`).join('')}</select></div>
+          <div class="field"><label class="label" for="nc-status">Situação</label><select class="select" id="nc-status" style="min-width:0"><option value="confirmed">Confirmada</option><option value="provisional">Provisória (data incerta)</option></select></div>
           <div class="field field-wide"><label class="label" for="nc-local">Local</label><input class="input" id="nc-local" type="text" maxlength="60" placeholder="Cidade/UF"></div>
         </div>
         <fieldset class="reg-fund"><legend class="label">Categorias</legend>
@@ -125,6 +126,7 @@
           <div class="field"><label class="label" for="dc-data">Início</label><input class="input" id="dc-data" type="date" value="${iso(c.data)}"></div>
           <div class="field"><label class="label" for="dc-fim">Fim</label><input class="input" id="dc-fim" type="date" value="${iso(CAL.fimDe(c))}"></div>
           <div class="field"><label class="label" for="dc-nivel">Nível</label><select class="select" id="dc-nivel" style="min-width:0">${CAL.NIVEIS.map((n) => `<option ${n === c.nivel ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+          <div class="field"><label class="label" for="dc-status">Situação</label><select class="select" id="dc-status" style="min-width:0">${[['confirmed', 'Confirmada'], ['provisional', 'Provisória (data incerta)'], ['cancelled', 'Cancelada']].map(([k, n]) => `<option value="${k}" ${(c.status || 'confirmed') === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
           <div class="field field-wide"><label class="label" for="dc-local">Local</label><input class="input" id="dc-local" type="text" maxlength="60" value="${esc(c.local)}"></div>
         </div>
         <fieldset class="reg-fund"><legend class="label">Categorias</legend>
@@ -430,7 +432,7 @@
         let msg = '';
         if (!nome) msg = 'Dê um nome à competição.'; else if (!data) msg = 'Informe a data de início.'; else if (fim < data) msg = 'A data final não pode ser antes da inicial.'; else if (!cats.length) msg = 'Marque ao menos uma categoria.';
         if (msg) { erro.textContent = msg; erro.hidden = false; return; }
-        CAL.atualizar(c.id, { nome, data: ms(data), fim: ms(fim), nivel: $('#dc-nivel').value, local: $('#dc-local').value.trim() || 'A definir', categorias: cats });
+        CAL.atualizar(c.id, { nome, data: ms(data), fim: ms(fim), nivel: $('#dc-nivel').value, status: $('#dc-status').value, local: $('#dc-local').value.trim() || 'A definir', categorias: cats });
         dados.recarregar();
         estado.editar = false;
         recarregar('Dados salvos.');

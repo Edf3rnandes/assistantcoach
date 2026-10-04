@@ -83,7 +83,7 @@
     }
     return `
       <button class="session" data-sessao="${s.id}" aria-label="${esc(t.nome)}, ${s.dur} minutos, PSE alvo ${s.pse}. ${esc(s.obj)}.${leitura} Abrir">
-        <span class="session-top"><span class="dot" style="background:var(${t.cor})"></span><span class="session-tipo">${esc(t.curto || t.nome)}</span></span>
+        <span class="session-top"><span class="dot" style="background:var(${t.cor})"></span><span class="session-tipo">${esc(t.curto || t.nome)}</span>${s.diaTipo ? `<span class="dia-tipo dt-${s.diaTipo}">${esc(window.Farol.motor.ROTULO_DIA[s.diaTipo])}</span>` : ''}</span>
         <span class="session-meta num"><span>${s.dur} min</span> <span>PSE ${s.pse}</span></span>
         <span class="session-obj">${esc(s.obj)}</span>
         ${status}
@@ -237,7 +237,7 @@
     const posNaFase = idx - meso.semanaIni + 1;
     const ehAtual = idx === plano.semanaAtual;
     const proxima = plano.semanas[idx + 1];
-    const modificada = sem.editada || sem.microTipo !== sem.microAuto;
+    const modificada = sem.editada || (!plano.motor && sem.microTipo !== sem.microAuto);
     const aviso = estado.aviso;
     estado.aviso = '';
 
@@ -267,15 +267,21 @@
           </div>
         </div>
 
+        ${plano.motor ? `
+        <div class="micro-tipo micro-motor">
+          <span class="chip chip-tipo" style="--c:var(${meso.cor})">${esc(TIPOS_MICRO[sem.microTipo].nome)}</span>
+          <span class="num"><b>${Math.round(sem.fator * 100)}%</b> da referência · meta <b>${num(sem.alvoUA)}</b> UA · planejado <b>${num(sem.planejado)}</b> UA</span>
+          <p class="micro-desc">${esc(TIPOS_MICRO[sem.microTipo].desc)}${sem.miniPolimento ? ` Nos 3 dias antes da competição B (${sem.miniPolimento.dias.map((t) => dd(t)).join(', ')}) as sessões ficam ~${Math.round(sem.miniPolimento.reducao * 100)}% mais leves.` : ''}${sem.editada ? ' Esta semana foi editada à mão e não é refeita quando o calendário muda.' : ''}</p>
+        </div>` : `
         <div class="micro-tipo">
           <div class="field">
             <label class="label" for="micro-tipo">Tipo de microciclo</label>
             <select class="select" id="micro-tipo" style="min-width:220px">
-              ${Object.entries(TIPOS_MICRO).map(([k, v]) => `<option value="${k}" ${k === sem.microTipo ? 'selected' : ''}>${v.nome}${k === sem.microAuto ? ' (sugerido)' : ''}</option>`).join('')}
+              ${Object.entries(TIPOS_MICRO).filter(([k]) => !['load', 'deload', 'mini_taper', 'taper', 'competition', 'transition'].includes(k)).map(([k, v]) => `<option value="${k}" ${k === sem.microTipo ? 'selected' : ''}>${v.nome}${k === sem.microAuto ? ' (sugerido)' : ''}</option>`).join('')}
             </select>
           </div>
           <p class="micro-desc">${esc(TIPOS_MICRO[sem.microTipo].desc)}${sem.editada ? ' Como a semana foi editada, mudar o tipo não refaz as sessões.' : ' Mudar o tipo refaz as sessões pelo modelo.'}</p>
-        </div>
+        </div>`}
 
         ${resumo(plano, sem, meso)}
 
@@ -332,7 +338,7 @@
     if (atual) atual.addEventListener('click', () => ir({ semana: plano.semanaAtual >= 0 ? plano.semanaAtual : 0 }));
     el.querySelectorAll('[data-comp]').forEach((b) => b.addEventListener('click', () => window.Farol.ir('planejamento-competicoes', { competicao: b.dataset.comp })));
 
-    q('#micro-tipo').addEventListener('change', (e) => {
+    if (q('#micro-tipo')) q('#micro-tipo').addEventListener('change', (e) => {
       dados.definirMicroTipo(plano.id, sem, e.target.value);
       ctx.ir('micro', { editor: null }, '#micro-tipo');
     });

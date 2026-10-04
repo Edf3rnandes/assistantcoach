@@ -40,7 +40,7 @@
       out.push(`<g class="seg" data-ciclo="${c.idx}" tabindex="0" role="button" aria-label="${esc(c.nome)}, ${dd(c.inicio)} a ${dd(c.fim)}. Abrir mesociclos">
         <rect class="seg-rect" x="${x}" y="${yCiclo}" width="${w}" height="${hCiclo}" rx="5" style="fill:var(--sel);stroke:${atual ? 'var(--ink)' : 'var(--line)'};stroke-width:${atual ? 2 : 1}"/>
         <text x="${x + 10}" y="${yCiclo + 19}" class="t-strong" style="font-size:13px">${esc(c.nome)}</text>
-        <text x="${x + w - 10}" y="${yCiclo + 19}" text-anchor="end" style="font-size:11px">${w > 250 ? `alvo ${esc(dd(c.alvo.data))}` : ''}</text>
+        <text x="${x + w - 10}" y="${yCiclo + 19}" text-anchor="end" style="font-size:11px">${w > 250 && !c.alvo.semAlvo ? `alvo ${esc(dd(c.alvo.data))}` : ''}</text>
       </g>`);
     });
 
@@ -89,7 +89,7 @@
       const x = xd(c.data) + colW / 14;
       out.push(`<line x1="${x}" x2="${x}" y1="${yComp + 12}" y2="${yBase}" stroke="${c.alvo ? 'var(--beam)' : 'var(--ink-2)'}" stroke-width="${c.alvo ? 1.8 : 1}" stroke-dasharray="${c.alvo ? '0' : '3 3'}" opacity="${c.alvo ? 1 : 0.7}" pointer-events="none"/>`);
       out.push(`<circle cx="${x}" cy="${yComp}" r="10" style="fill:${c.alvo ? 'var(--beam)' : 'var(--surface)'};stroke:${c.alvo ? 'var(--beam)' : 'var(--ink-2)'}" stroke-width="1.5"><title>${esc(c.nome)}, ${dd(c.data)}</title></circle>`);
-      out.push(`<text x="${x}" y="${yComp + 4}" text-anchor="middle" class="num" style="font-weight:700;font-size:11px;fill:${c.alvo ? 'var(--beam-ink)' : 'var(--ink)'}">${i + 1}</text>`);
+      out.push(`<text x="${x}" y="${yComp + 4}" text-anchor="middle" class="num" style="font-weight:700;font-size:11px;fill:${c.alvo ? 'var(--beam-ink)' : 'var(--ink)'}">${c.prioridade || i + 1}</text>`);
     });
 
     // Meses.
@@ -120,7 +120,7 @@
                 <td><button class="row-btn" data-ciclo="${c.idx}">${esc(c.nome)}</button></td>
                 <td><button class="row-btn num" data-ciclo="${c.idx}" tabindex="-1">${dd(c.inicio)} a ${dd(c.fim)}</button></td>
                 <td class="r"><button class="row-btn num" data-ciclo="${c.idx}" tabindex="-1" style="text-align:right">${c.semanas}</button></td>
-                <td><button class="row-btn" data-ciclo="${c.idx}" tabindex="-1">${esc(c.alvo.nome)} <span class="num" style="color:var(--ink-2)">· ${dd(c.alvo.data)}</span></button></td>
+                <td><button class="row-btn" data-ciclo="${c.idx}" tabindex="-1">${esc(c.alvo.nome)}${c.alvo.semAlvo ? '' : ` <span class="num" style="color:var(--ink-2)">· ${dd(c.alvo.data)}</span>`}</button></td>
                 <td class="r"><button class="row-btn num" data-ciclo="${c.idx}" tabindex="-1" style="text-align:right">${num(c.mediaPlanejada)}</button></td>
                 <td><button class="row-btn" data-ciclo="${c.idx}" tabindex="-1"><span class="chip ${ESTADO[c.estado].classe}">${ESTADO[c.estado].nome}</span></button></td>
               </tr>`).join('')}
@@ -186,11 +186,13 @@
           <div class="card-head"><h2 id="h-ciclos">Ciclos da temporada</h2></div>
           ${tabelaCiclos(plano)}
         </section>
-        <section class="card" aria-labelledby="h-comps">
+        ${plano.motor ? '' : `<section class="card" aria-labelledby="h-comps">
           <div class="card-head"><h2 id="h-comps">Calendário de competições</h2></div>
           ${listaCompeticoes(plano)}
-        </section>
-      </div>`;
+        </section>`}
+      </div>
+      ${plano.motor ? P.blocosMotor(plano) : ''}`;
+    if (plano.motor) P.ligarMotor(el, ctx);
 
     el.querySelectorAll('[data-ciclo]').forEach((b) => {
       const abrir = (e) => {

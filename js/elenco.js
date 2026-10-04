@@ -92,6 +92,12 @@
     },
   };
 
+  // Blocos da periodização dinâmica usam as pautas das fases correspondentes.
+  PAUTA_PADRAO.acumulacao = PAUTA_PADRAO.base;
+  PAUTA_PADRAO.transmutacao = PAUTA_PADRAO.especifico;
+  PAUTA_PADRAO.realizacao = PAUTA_PADRAO.polimento;
+  PAUTA_PADRAO.manutencao = PAUTA_PADRAO.base;
+
   // Situação de saúde (de exemplo). Em produção vem do cadastro do atleta (`atletas_situacao`) e do relato de dor.
   // tipo: lesao (fora dos treinos), retorno (treino adaptado) ou duvida (relato a avaliar).
   const dia = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };

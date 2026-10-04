@@ -31,6 +31,7 @@
   --m-polimento: #6b4ba6;
   --m-competicao: #b35f00;
   --m-transicao: #5e7482;
+  --m-manutencao: #6b7d3a;
   --on-meso: #ffffff;
 
   /* Tipos de sessão do microciclo */
@@ -83,6 +84,7 @@
     --m-polimento: #b39ce6;
     --m-competicao: #f2b134;
     --m-transicao: #9db0bc;
+    --m-manutencao: #a9c26a;
     --on-meso: #0b1f2d;
     --s-tecnica: #5bbbdc;
     --s-tatica: #a58be0;
@@ -123,6 +125,7 @@
   --m-polimento: #b39ce6;
   --m-competicao: #f2b134;
   --m-transicao: #9db0bc;
+  --m-manutencao: #a9c26a;
   --on-meso: #0b1f2d;
   --s-tecnica: #5bbbdc;
   --s-tatica: #a58be0;
@@ -1963,7 +1966,7 @@ i.cmp-b { background: var(--s-tatica); }
    Navegação enxuta: abas da porta, Início por equipes e tela da equipe
    ====================================================================== */
 
-.subnav { display: flex; gap: 6px; padding: 4px; margin: 4px 0 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; width: fit-content; max-width: 100%; overflow-x: auto; }
+.subnav { display: flex; gap: 6px; padding: 4px; margin: 10px var(--gutter) 0; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; width: fit-content; max-width: 100%; overflow-x: auto; }
 .subnav[hidden] { display: none; }
 .subnav-item { flex: none; padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; color: var(--ink-2); text-decoration: none; transition: background 0.15s, color 0.15s, transform 0.1s; }
 .subnav-item:hover { background: var(--sel); color: var(--ink); }
@@ -2254,3 +2257,48 @@ body.sem-sessao .app, body.sem-sessao .barra, body.sem-sessao .gaveta { display:
 .alvo-rapido-f { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; margin-top: 10px; }
 .alvo-rapido-f .field { flex: 1 1 160px; min-width: 0; }
 .alvo-rapido-f .input { width: 100%; }
+
+/* ---------- Periodização dinâmica ---------- */
+
+.pr { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 7px; font-size: 12px; font-weight: 800; border: 1.5px solid var(--ink-2); color: var(--ink); background: var(--surface); }
+.pr-A { background: var(--beam); border-color: var(--beam); color: var(--beam-ink); }
+.pr-B { border-color: var(--ink); background: var(--surface); color: var(--ink); }
+.pr-C { border-style: dashed; color: var(--ink-2); }
+.pr-legenda { list-style: none; margin: 10px 0 14px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 16px; }
+.pr-legenda li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.pr-legenda b.pr { flex: none; margin-top: 1px; }
+.pr-seg { display: inline-flex; gap: 4px; padding: 3px; background: var(--surface-2); border-radius: 12px; border: 1px solid var(--line); }
+.pr-bt { all: unset; box-sizing: border-box; cursor: pointer; width: 38px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; font-weight: 800; font-size: 14px; color: var(--ink-2); transition: background 0.14s, color 0.14s, transform 0.1s; }
+.pr-bt:hover { background: var(--sel); color: var(--ink); }
+.pr-bt:active { transform: scale(0.92); }
+.pr-bt:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pr-bt[aria-checked="true"].pr-A { background: var(--beam); color: var(--beam-ink); }
+.pr-bt[aria-checked="true"].pr-B { background: var(--ink); color: var(--surface); }
+.pr-bt[aria-checked="true"].pr-C { background: var(--ink-2); color: var(--surface); }
+.pr-bt[aria-checked="true"].pr-x { background: var(--line); color: var(--ink); }
+.pr-tab td { vertical-align: middle; }
+.pr-add { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; margin-top: 14px; }
+.pr-add .field:first-child { flex: 1 1 260px; min-width: 0; }
+.pr-add .select { width: 100%; }
+.pr-avisos { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pr-av { padding: 9px 12px 9px 14px; border-radius: 10px; font-size: 14px; background: var(--surface-2); border-left: 4px solid var(--ink-2); }
+.pr-av.warning { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, var(--surface)); }
+.pr-av.critical { border-left-color: var(--crit); background: color-mix(in srgb, var(--crit) 9%, var(--surface)); }
+.pr-av.info { border-left-color: var(--accent); }
+
+.rev-banner { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 14px; border-radius: 16px; background: color-mix(in srgb, var(--beam) 18%, var(--surface)); border: 1px solid color-mix(in srgb, var(--beam) 60%, var(--line)); animation: eq-entra 0.2s ease-out; }
+.rev-ic { display: inline-flex; width: 36px; height: 36px; border-radius: 50%; align-items: center; justify-content: center; background: var(--beam); color: var(--beam-ink); font-size: 20px; font-weight: 700; flex: none; }
+.rev-t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.rev-t small { color: var(--ink-2); }
+.rev-gat { margin: 8px 0 12px; padding-left: 20px; }
+tr.rev-entra td:first-child, tr.rev-sai td:first-child { font-weight: 700; }
+tr.rev-muda td:nth-child(3) { background: color-mix(in srgb, var(--beam) 10%, transparent); }
+@media (max-width: 560px) { .rev-banner { flex-wrap: wrap; } .rev-banner .btn { width: 100%; } }
+
+.micro-motor { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.micro-motor .micro-desc { flex: 1 1 100%; margin: 0; }
+.chip-tipo { border-left: 5px solid var(--c); font-weight: 700; }
+.dia-tipo { margin-left: auto; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+.dia-tipo.dt-heavy { color: var(--s-fisico); border-color: color-mix(in srgb, var(--s-fisico) 50%, var(--line)); }
+.dia-tipo.dt-power { color: var(--s-tatica); border-color: color-mix(in srgb, var(--s-tatica) 50%, var(--line)); }
+.dia-tipo.dt-volume { color: var(--s-tecnica); border-color: color-mix(in srgb, var(--s-tecnica) 50%, var(--line)); }

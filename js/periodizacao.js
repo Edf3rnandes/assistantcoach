@@ -88,7 +88,7 @@
 
     const aviso = estado.aviso;
     estado.aviso = '';
-    const criando = estado.nivel === 'criar';
+    const criando = estado.nivel === 'criar' || estado.nivel === 'revisao';
     const rotuloNivel = plano ? {
       macro: plano.temporada,
       meso: plano.ciclos[estado.ciclo].nome,
@@ -100,7 +100,7 @@
         <div>
           <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
           <h1>Periodização</h1>
-          <p class="lead">Planeje a temporada em três escalas. A competição alvo define o fim de cada ciclo, e a carga de cada semana é a soma das suas sessões.</p>
+          <p class="lead">Planeje a temporada em três escalas. O evento A define o fim de cada ciclo e o sistema refaz o futuro quando o calendário muda.</p>
         </div>
         <div class="head-acoes">
           ${plano ? `<div class="field">
@@ -109,11 +109,12 @@
               ${dados.planos.map((p) => `<option value="${p.id}" ${p.id === plano.id ? 'selected' : ''}>${esc(p.nome)} (${esc(p.detalhe)})</option>`).join('')}
             </select>
           </div>` : ''}
-          ${criando ? '' : '<button class="btn" id="novo-plano">Nova periodização</button>'}
+          ${estado.nivel === 'criar' ? '' : '<button class="btn" id="novo-plano">Nova periodização</button>'}
         </div>
       </header>
 
       ${aviso ? `<div class="aviso-ok" role="status">${esc(aviso)}</div>` : ''}
+      ${estado.nivel === 'revisao' ? '' : P.bannerRevisao(plano)}
       ${criando || !plano ? '' : `
       <section class="status" aria-label="Situação do plano">${status(plano)}</section>
 
@@ -137,6 +138,8 @@
 
     P[estado.nivel](root.querySelector('#corpo'), ctx);
 
+    const rv = root.querySelector('[data-revisar]');
+    if (rv) rv.addEventListener('click', () => ctx.ir('revisao', { editor: null }));
     const sel = root.querySelector('#plano-sel');
     if (sel) sel.addEventListener('change', (e) => {
       Object.assign(estado, { planoId: e.target.value, ciclo: null, mesoId: null, semana: null, editor: null, confirmaCopia: false, editaBase: false, editaPauta: null });

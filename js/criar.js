@@ -1,15 +1,21 @@
-/* Periodização > Novo plano
-   Cria uma temporada do zero em quatro passos: quem e quando, fundamentos base e ideias,
-   ciclos (com a competição alvo, as fases e a pauta de cada fase) e revisão. */
+/* Periodização > Nova periodização
+   Cria a temporada em quatro passos: quem e quando, fundamentos e ideias, calendário com a prioridade de cada competição
+   (A alvo, B importante, C treino) e uma prévia da estrutura. As fases não são mais escolhidas à mão: o motor
+   (motor.js) monta o ciclo em contagem regressiva a partir do evento A e refaz o futuro quando o calendário muda. */
 (function () {
   const { dados, util, elenco, calendario: CAL } = window.Farol;
-  const { DIA, dd, esc, plural, iso, segunda, HOJE, ms } = util;
-  const { TURMAS, PAUTA_PADRAO, FUNDAMENTOS } = elenco;
+  const { DIA, dd, esc, plural, iso, segunda, HOJE, ms, num } = util;
+  const { TURMAS } = elenco;
   const P = (window.Farol.periodo = window.Farol.periodo || {});
 
   const copiar = (o) => JSON.parse(JSON.stringify(o));
-  const PICO_SUGERIDO = { 'Sub-16': 2500, 'Sub-18': 3200, 'Sub-19': 2700, Adulto: 3600 };
-  const PASSOS = ['Quem e quando', 'Fundamentos e ideias', 'Ciclos e fases', 'Revisão'];
+  const BASELINE_SUGERIDA = { 'Sub-14': 1500, 'Sub-16': 1800, 'Sub-18': 2300, 'Sub-19': 2200, Adulto: 2400, Master: 1800 };
+  const PASSOS = ['Quem e quando', 'Fundamentos e ideias', 'Calendário', 'Revisão'];
+  const PRIO = {
+    A: { nome: 'A · Alvo', texto: 'A competição mais importante do ciclo. Todo o treino é planejado para chegar no melhor momento nela.' },
+    B: { nome: 'B · Importante', texto: 'Competição relevante, com redução leve de carga nos dias anteriores. Não muda o planejamento.' },
+    C: { nome: 'C · Treino', texto: 'Competição usada como teste e treino. Sem ajuste de carga.' },
+  };
   const SUGESTAO_BASE = {
     fundamentos: [
       { id: 'saque', prio: 'alta', ideia: 'Saque como arma, com zona e tipo definidos' },
@@ -21,50 +27,43 @@
     ideias: ['Treinar com placar em pelo menos duas sessões por semana'],
   };
 
-  function novoCiclo(i) {
-    return {
-      nome: `Ciclo ${i + 1}`, alvo: '',
-      sem: { base: 5, especifico: 5, polimento: 2, competicao: 3, transicao: 2 },
-      pautas: copiar(PAUTA_PADRAO),
-    };
-  }
+  const proximaSegunda = () => iso(segunda(HOJE) + 7 * DIA);
+  const temporadaPadrao = () => { const a = new Date(HOJE).getUTCFullYear(); return `Temporada ${a}/${String((a + 1) % 100).padStart(2, '0')}`; };
 
   function novoRascunho() {
     const livres = dados.turmasSemPlano();
     const turma = livres[0] ? livres[0].id : '';
-    const seg = iso(segunda(HOJE) + 7 * DIA);
     return {
-      passo: 1, turma, nome: '', temporada: 'Temporada 2026/27', inicio: seg,
-      pico: turma ? PICO_SUGERIDO[TURMAS[turma].faixa] || 3000 : 3000,
+      passo: 1, turma, nome: '', temporada: temporadaPadrao(), inicio: proximaSegunda(), sessoes: 4,
+      baseline: turma ? BASELINE_SUGERIDA[TURMAS[turma].faixa] || 2000 : 2000,
       base: { objetivo: '', fundamentos: [], ideias: [] },
-      ciclos: [novoCiclo(0)],
+      prioridades: {}, novaComp: false,
     };
   }
-
   let w = novoRascunho();
-  const fasesDe = (c) => dados.ORDEM_FASES.filter((t) => c.sem[t] > 0).map((t) => [t, c.sem[t]]);
-  const crono = () => dados.cronograma(w.inicio, w.ciclos.map((c) => ({ fases: fasesDe(c) })));
-  const totalSem = (c) => dados.ORDEM_FASES.reduce((a, t) => a + c.sem[t], 0);
+
+  const cfg = () => ({ turma: w.turma, nome: w.nome.trim(), temporada: w.temporada.trim(), inicio: w.inicio, baseline: w.baseline, sessoesSemana: w.sessoes, prioridades: w.prioridades, base: copiar(w.base) });
 
   /* ---------- Passos ---------- */
 
   function passo1() {
     const livres = dados.turmasSemPlano();
-    if (!livres.length) {
-      return '<p class="vazio">Todas as equipes já têm plano. <a href="#equipes-nova">Cadastre uma nova equipe</a> para criar outro plano.</p>';
-    }
+    if (!livres.length) return '<p class="vazio">Todas as equipes já têm periodização. <a href="#equipes-nova">Cadastre uma nova equipe</a> para criar outra.</p>';
     const turma = TURMAS[w.turma];
     return `
       <div class="form-grid">
-        <div class="field field-wide"><label class="label" for="w-turma">Para quem é o plano</label>
+        <div class="field field-wide"><label class="label" for="w-turma">Para quem é a periodização</label>
           <select class="select" id="w-turma" style="min-width:0">${livres.map((t) => `<option value="${t.id}" ${t.id === w.turma ? 'selected' : ''}>${esc(t.nome)} · ${t.atletas.length} atletas</option>`).join('')}</select></div>
-        <div class="field field-wide"><label class="label" for="w-nome">Nome do plano</label>
+        <div class="field field-wide"><label class="label" for="w-nome">Nome</label>
           <input class="input" id="w-nome" type="text" maxlength="60" value="${esc(w.nome)}" placeholder="${esc(turma.nome)}"></div>
         <div class="field"><label class="label" for="w-temp">Temporada</label><input class="input" id="w-temp" type="text" maxlength="40" value="${esc(w.temporada)}"></div>
         <div class="field"><label class="label" for="w-ini">Início</label><input class="input" id="w-ini" type="date" value="${esc(w.inicio)}"></div>
-        <div class="field"><label class="label" for="w-pico">Carga semanal máxima (UA)</label><input class="input num" id="w-pico" type="number" min="1000" max="6000" step="100" value="${w.pico}"></div>
+        <fieldset class="field field-wide ef-gen" style="border:0;padding:0;margin:0"><legend class="label">Sessões por semana</legend>
+          ${[3, 4, 5].map((n) => `<label class="ef-chip"><input type="radio" name="w-sess" value="${n}" ${w.sessoes === n ? 'checked' : ''}><span>${n} sessões</span></label>`).join('')}
+        </fieldset>
+        <div class="field"><label class="label" for="w-base">Carga semanal de referência (UA)</label><input class="input num" id="w-base" type="number" min="500" max="6000" step="50" value="${w.baseline}"></div>
       </div>
-      <p class="hint">O plano começa sempre numa segunda-feira (${dd(segunda(ms(w.inicio || iso(HOJE))))} para a data escolhida). A carga semanal máxima é o teto que o grupo suporta: cada fase usa uma fração dela. Sugestão para ${esc(turma.faixa)}: ${(PICO_SUGERIDO[turma.faixa] || 3000).toLocaleString('pt-BR')} UA.</p>`;
+      <p class="hint">A periodização começa sempre numa segunda-feira (${dd(segunda(ms(w.inicio || iso(HOJE))))} para a data escolhida). A carga de referência é o que o grupo faz numa semana normal (soma de duração × PSE das sessões); cada semana é uma porcentagem dela. Sugestão para ${esc(turma.faixa)}: ${num(BASELINE_SUGERIDA[turma.faixa] || 2000)} UA. Depois de algumas semanas registradas, o sistema calcula a referência pelo que foi feito de verdade.</p>`;
   }
 
   function passo2() {
@@ -75,169 +74,114 @@
         <span class="label">Fundamentos base e ideias</span>
         <button class="link-btn" type="button" id="w-sug" style="margin:0">Começar com uma sugestão</button>
       </div>
-      <p class="hint" style="margin-top:0">Esses itens valem para toda a temporada. Na etapa seguinte, cada fase pode ter a sua própria pauta.</p>
+      <p class="hint" style="margin-top:0">Esses itens valem para toda a temporada. Depois de criar, cada bloco pode ter a sua própria pauta.</p>
       <div id="w-pauta-base"></div>`;
   }
 
-  function opcoesAlvo(c, inicioMs) {
-    const cats = TURMAS[w.turma].categorias;
-    const todas = CAL.lista().filter((q) => q.data >= inicioMs);
-    const da = todas.filter((q) => q.categorias.some((k) => cats.includes(k)));
-    const outras = todas.filter((q) => !da.includes(q));
-    const op = (q) => `<option value="${q.id}" ${q.id === c.alvo ? 'selected' : ''}>${dd(q.data)}/${String(new Date(q.data).getUTCFullYear()).slice(2)} · ${esc(q.nome)} (${esc(q.local)})</option>`;
-    return `<option value="">Escolha a competição alvo…</option>
-      ${da.length ? `<optgroup label="Da categoria da turma">${da.map(op).join('')}</optgroup>` : ''}
-      ${outras.length ? `<optgroup label="Outras competições">${outras.map(op).join('')}</optgroup>` : ''}`;
-  }
-
-  function avisoAlvo(c, ini) {
-    if (!c.alvo) return '';
-    const alvo = CAL.COMPETICOES[c.alvo];
-    let t = ini.inicio;
-    let faseDoAlvo = null;
-    for (const [tipo, qtd] of fasesDe(c)) {
-      const fimFase = t + qtd * 7 * DIA;
-      if (alvo.data >= t && alvo.data < fimFase) faseDoAlvo = tipo;
-      t = fimFase;
-    }
-    if (!faseDoAlvo) return `<p class="alerta">A competição alvo (${dd(alvo.data)}) está fora deste ciclo, que vai de ${dd(ini.inicio)} a ${dd(ini.fim)}. Use “Distribuir fases até o alvo” ou ajuste as semanas.</p>`;
-    if (faseDoAlvo !== 'competicao') return `<p class="alerta">A competição alvo cai na fase ${dados.FASES[faseDoAlvo].nome}. O ideal é que caia na fase Competição.</p>`;
-    return '';
+  // Competições que ainda não aconteceram (a partir do início), as da categoria da equipe primeiro.
+  function competicoesDisponiveis() {
+    const cats = TURMAS[w.turma] ? TURMAS[w.turma].categorias : [];
+    const ini = segunda(ms(w.inicio));
+    const lista = CAL.lista().filter((c) => CAL.fimDe(c) >= ini && c.status !== 'cancelled');
+    return lista.sort((a, b) => (b.categorias.some((k) => cats.includes(k)) - a.categorias.some((k) => cats.includes(k))) || a.data - b.data);
   }
 
   function passo3() {
-    const cr = crono();
+    const lista = competicoesDisponiveis();
+    const cats = TURMAS[w.turma].categorias;
+    const previa = dados.previaPeriodizacao(cfg());
+    const avisos = [...previa.conflitos.filter((c) => c.tipo !== 'provisorio'), ...previa.janelas.map((j) => ({ severidade: 'warning', texto: j.texto })), ...previa.sugestoes.map((s) => ({ severidade: 'info', texto: s.texto }))];
     return `
-      <div class="ciclos-ed">
-        ${w.ciclos.map((c, i) => {
-          const ini = cr[i];
-          return `
-          <section class="card ciclo-ed" data-c="${i}">
-            <div class="card-head">
-              <div class="field" style="flex:1 1 200px"><label class="label" for="w-cn-${i}">Nome do ciclo</label><input class="input" id="w-cn-${i}" type="text" maxlength="40" value="${esc(c.nome)}"></div>
-              <span class="label num">${dd(ini.inicio)} a ${dd(ini.fim)} · ${plural(ini.semanas, 'semana', 'semanas')}</span>
-            </div>
-            <div class="add-linha" style="grid-template-columns:minmax(0,1fr) auto">
-              <div class="field"><label class="label" for="w-alvo-${i}">Competição alvo</label><select class="select" id="w-alvo-${i}" style="min-width:0">${opcoesAlvo(c, ini.inicio)}</select></div>
-              <button class="btn" type="button" data-dist="${i}">Distribuir fases até o alvo</button>
-            </div>
-            ${avisoAlvo(c, ini)}
-            <details class="alvo-rapido" ${CAL.lista().some((q) => q.data >= ini.inicio) ? '' : 'open'}>
-              <summary>Cadastrar a competição alvo agora</summary>
-              <div class="alvo-rapido-f">
-                <div class="field"><label class="label" for="w-rc-nome-${i}">Nome</label><input class="input" id="w-rc-nome-${i}" type="text" maxlength="80" placeholder="ex.: Campeonato Paraibano"></div>
-                <div class="field"><label class="label" for="w-rc-data-${i}">Data</label><input class="input" id="w-rc-data-${i}" type="date" min="${iso(ini.inicio + 28 * DIA)}"></div>
-                <div class="field"><label class="label" for="w-rc-local-${i}">Local</label><input class="input" id="w-rc-local-${i}" type="text" maxlength="60" placeholder="cidade/UF"></div>
-                <button class="btn" type="button" data-rc="${i}">Cadastrar e usar como alvo</button>
-              </div>
-            </details>
-            <div class="table-scroll">
-              <table class="mesos fases-ed">
-                <thead><tr><th>Fase</th><th class="r">Semanas</th><th>Período</th></tr></thead>
-                <tbody>
-                  ${(() => { let t = ini.inicio; return dados.ORDEM_FASES.map((tipo) => {
-                    const f = dados.FASES[tipo];
-                    const q = c.sem[tipo];
-                    const linha = `<tr class="${q ? '' : 'fase-off'}">
-                      <td><span class="dot" style="background:var(${f.cor})"></span>${f.nome}</td>
-                      <td class="r"><span class="stepper"><button type="button" class="step" data-w-step="${i}:${tipo}:-1" aria-label="Uma semana a menos em ${f.nome}" ${q <= 0 ? 'disabled' : ''}>−</button><span class="num">${q}</span><button type="button" class="step" data-w-step="${i}:${tipo}:1" aria-label="Uma semana a mais em ${f.nome}" ${q >= 12 ? 'disabled' : ''}>+</button></span></td>
-                      <td class="num">${q ? `${dd(t)} a ${dd(t + q * 7 * DIA - DIA)}` : 'não usada'}</td></tr>`;
-                    t += q * 7 * DIA;
-                    return linha;
-                  }).join(''); })()}
-                </tbody>
-              </table>
-            </div>
-            <div class="detail-block">
-              <span class="label">Pauta de cada fase</span>
-              ${dados.ORDEM_FASES.filter((t) => c.sem[t] > 0).map((tipo) => `
-                <details class="fase-pauta" data-ci="${i}" data-tipo="${tipo}">
-                  <summary><span class="dot" style="background:var(${dados.FASES[tipo].cor})"></span>${dados.FASES[tipo].nome} <small class="cont">· ${plural(c.pautas[tipo].fundamentos.length, 'fundamento', 'fundamentos')}</small></summary>
-                  <div class="pauta-mount"></div>
-                </details>`).join('')}
-            </div>
-            ${w.ciclos.length > 1 ? `<div class="actions" style="margin-top:12px"><button class="link-btn" type="button" data-rem-ciclo="${i}" style="margin:0">Remover este ciclo</button></div>` : ''}
-          </section>`;
-        }).join('')}
-        <div class="actions"><button class="btn" type="button" id="w-add-ciclo">Adicionar ciclo</button>
-          <span class="hint" style="margin:0">Não achou a competição? <button class="link-btn" type="button" id="w-ir-comp" style="margin:0">Cadastre em Competições</button> e volte: o rascunho fica salvo.</span></div>
-      </div>`;
+      <p class="hint" style="margin-top:0">Escolha a prioridade de cada competição. O sistema monta o ciclo em contagem regressiva a partir do evento <b>A</b>. Competições sem prioridade ficam fora da periodização.</p>
+      <ul class="pr-legenda">${Object.entries(PRIO).map(([k, v]) => `<li><b class="pr pr-${k}">${k}</b><span><b>${esc(v.nome.split(' · ')[1])}</b>: ${esc(v.texto)}</span></li>`).join('')}</ul>
+      ${lista.length ? `<div class="table-scroll"><table class="mesos pr-tab"><thead><tr><th>Competição</th><th>Data</th><th>Prioridade</th></tr></thead><tbody>
+        ${lista.map((c) => `<tr>
+          <td><b>${esc(c.nome)}</b><small class="sub-linha">${esc(c.local)}${c.categorias.some((k) => cats.includes(k)) ? '' : ' · outra categoria'}${c.status === 'provisional' ? ' · provisória' : ''}</small></td>
+          <td class="num">${dd(c.data)}${c.fim && c.fim !== c.data ? ` a ${dd(c.fim)}` : ''}</td>
+          <td><div class="pr-seg" role="radiogroup" aria-label="Prioridade de ${esc(c.nome)}">${['A', 'B', 'C', ''].map((k) => `<button type="button" class="pr-bt ${k ? `pr-${k}` : 'pr-x'}" role="radio" aria-checked="${(w.prioridades[c.id] || '') === k}" data-prio="${c.id}|${k}" title="${k ? esc(PRIO[k].nome) : 'Fora da periodização'}">${k || '—'}</button>`).join('')}</div></td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="vazio">Nenhuma competição cadastrada ainda. Cadastre abaixo ou siga sem competição: a periodização fica em manutenção até você ter um evento A.</p>'}
+      <details class="alvo-rapido" ${w.novaComp || !lista.length ? 'open' : ''} id="w-nc"><summary>Cadastrar uma competição agora</summary>
+        <div class="alvo-rapido-f">
+          <div class="field"><label class="label" for="w-rc-nome">Nome</label><input class="input" id="w-rc-nome" type="text" maxlength="80" placeholder="ex.: Campeonato Paraibano"></div>
+          <div class="field"><label class="label" for="w-rc-data">Data</label><input class="input" id="w-rc-data" type="date" min="${esc(w.inicio)}"></div>
+          <div class="field"><label class="label" for="w-rc-local">Local</label><input class="input" id="w-rc-local" type="text" maxlength="60" placeholder="cidade/UF"></div>
+          <div class="field"><label class="label" for="w-rc-prio">Prioridade</label><select class="select" id="w-rc-prio"><option value="A">A · Alvo</option><option value="B">B · Importante</option><option value="C">C · Treino</option></select></div>
+          <button class="btn" type="button" id="w-rc-ok">Cadastrar</button>
+        </div></details>
+      ${avisos.length ? `<ul class="pr-avisos" role="status">${avisos.map((a) => `<li class="pr-av ${a.severidade}">${esc(a.texto)}</li>`).join('')}</ul>` : ''}`;
+  }
+
+  function resumoEstrutura(previa) {
+    const sem = previa.semanas;
+    const blocos = [];
+    sem.forEach((s) => { const u = blocos[blocos.length - 1]; if (u && u.bloco === s.bloco && u.ciclo === s.ciclo) u.n++; else blocos.push({ bloco: s.bloco, ciclo: s.ciclo, n: 1 }); });
+    return { sem, blocos };
   }
 
   function passo4() {
-    const cr = crono();
     const turma = TURMAS[w.turma];
-    const nSem = cr.reduce((a, c) => a + c.semanas, 0);
+    const previa = dados.previaPeriodizacao(cfg());
+    const { sem, blocos } = resumoEstrutura(previa);
+    const ciclos = [...new Set(sem.map((s) => s.ciclo))];
     return `
       <dl class="kv">
-        <div><dt>Plano</dt><dd>${esc(w.nome || turma.nome)}</dd></div>
+        <div><dt>Equipe</dt><dd>${esc(w.nome || turma.nome)}</dd></div>
         <div><dt>Temporada</dt><dd>${esc(w.temporada)}</dd></div>
-        <div><dt>Período</dt><dd class="num">${dd(cr[0].inicio)} a ${dd(cr[cr.length - 1].fim)}</dd></div>
-        <div><dt>Tamanho</dt><dd class="num">${nSem} <small>semanas · ${plural(w.ciclos.length, 'ciclo', 'ciclos')}</small></dd></div>
+        <div><dt>Período</dt><dd class="num">${dd(sem[0].inicio)} a ${dd(sem[sem.length - 1].inicio + 6 * DIA)}</dd></div>
+        <div><dt>Tamanho</dt><dd class="num">${sem.length} <small>semanas · ${plural(ciclos.length, 'ciclo', 'ciclos')}</small></dd></div>
+        <div><dt>Referência</dt><dd class="num">${num(w.baseline)} <small>UA/sem · ${w.sessoes} sessões</small></dd></div>
       </dl>
-      ${w.ciclos.map((c, i) => {
-        const alvo = CAL.COMPETICOES[c.alvo];
-        return `
-        <div class="detail-block">
-          <span class="label">${esc(c.nome)} · ${dd(cr[i].inicio)} a ${dd(cr[i].fim)} · alvo ${esc(alvo.nome)}, ${dd(alvo.data)}</span>
-          <div class="stack" style="height:22px" role="img" aria-label="Fases do ciclo">
-            ${fasesDe(c).map(([t, q]) => `<i style="width:${(q / totalSem(c)) * 100}%;background:var(${dados.FASES[t].cor})" title="${dados.FASES[t].nome}, ${q} sem"></i>`).join('')}
-          </div>
-          <div class="stack-legend num">${fasesDe(c).map(([t, q]) => `<span><span class="dot" style="background:var(${dados.FASES[t].cor})"></span>${dados.FASES[t].nome} ${q}</span>`).join('')}</div>
-        </div>`;
-      }).join('')}
+      <div class="detail-block">
+        <span class="label">Blocos</span>
+        <div class="stack" style="height:24px" role="img" aria-label="Blocos: ${blocos.map((b) => `${dados.FASES[b.bloco].nome} ${b.n}`).join(', ')}">
+          ${blocos.map((b) => `<i style="width:${(b.n / sem.length) * 100}%;background:var(${dados.FASES[b.bloco].cor})" title="${dados.FASES[b.bloco].nome}, ${b.n} sem"></i>`).join('')}
+        </div>
+        <div class="stack-legend num">${blocos.map((b) => `<span><span class="dot" style="background:var(${dados.FASES[b.bloco].cor})"></span>${dados.FASES[b.bloco].nome} ${b.n}</span>`).join('')}</div>
+      </div>
+      <div class="table-scroll"><table class="mesos pr-tab"><thead><tr><th>Semana</th><th>Bloco</th><th>Tipo</th><th class="r">Meta</th><th>Eventos</th></tr></thead><tbody>
+        ${sem.map((s, i) => `<tr><td class="num">${i + 1} · ${dd(s.inicio)}</td><td><span class="dot" style="background:var(${dados.FASES[s.bloco].cor})"></span>${dados.FASES[s.bloco].nome}</td>
+          <td>${esc(dados.TIPOS_MICRO[s.tipoSemana].nome)}</td><td class="r num">${num(w.baseline * s.fator)} UA <small>(${Math.round(s.fator * 100)}%)</small></td>
+          <td>${s.eventos.map((e) => `<span class="pr pr-${e.prioridade}" title="${esc((CAL.COMPETICOES[e.id] || {}).nome || '')}">${e.prioridade}</span>`).join(' ')}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${previa.conflitos.length || previa.sugestoes.length ? `<ul class="pr-avisos">${[...previa.conflitos, ...previa.sugestoes].map((a) => `<li class="pr-av ${a.severidade || 'info'}">${esc(a.texto)}</li>`).join('')}</ul>` : ''}
       <div class="detail-block">
         <span class="label">Fundamentos base</span>
         ${window.Farol.pauta.leitura(w.base, 'Nenhum fundamento base.')}
         ${w.base.objetivo ? `<p><b>Objetivo:</b> ${esc(w.base.objetivo)}</p>` : ''}
       </div>
-      <p class="hint">As semanas são geradas com sessões-modelo para cada tipo de microciclo. Depois de criar, edite cada semana na escala Microciclo.</p>`;
+      <p class="hint">As sessões de cada semana seguem a ondulatória: dia pesado, de volume e de potência, com o dia principal conforme o bloco. Edite qualquer semana na escala Microciclo; semanas editadas não são refeitas. Se o calendário mudar, o sistema mostra o que muda antes de você confirmar.</p>`;
   }
 
   /* ---------- Validação ---------- */
 
   function validar(passo) {
     if (passo === 1) {
-      if (!w.turma) return 'Escolha a turma ou o atleta.';
+      if (!w.turma) return 'Escolha a equipe.';
       if (!w.temporada.trim()) return 'Dê um nome à temporada.';
       if (!w.inicio) return 'Informe a data de início.';
-      if (!(w.pico >= 1000 && w.pico <= 6000)) return 'A carga semanal máxima deve ficar entre 1.000 e 6.000 UA.';
+      if (!(w.baseline >= 500 && w.baseline <= 6000)) return 'A carga de referência deve ficar entre 500 e 6.000 UA.';
     }
-    if (passo === 2) {
-      if (!w.base.fundamentos.length && !w.base.ideias.length) return 'Escolha ao menos um fundamento base ou escreva uma ideia para a temporada.';
-    }
-    if (passo === 3) {
-      const cr = crono();
-      for (let i = 0; i < w.ciclos.length; i++) {
-        const c = w.ciclos[i];
-        if (!c.nome.trim()) return `Dê um nome ao ciclo ${i + 1}.`;
-        if (totalSem(c) < 4) return `${c.nome}: o ciclo precisa de ao menos 4 semanas.`;
-        if (!c.sem.base || !c.sem.competicao) return `${c.nome}: use ao menos uma semana de Base e uma de Competição.`;
-        if (!c.alvo) return `${c.nome}: escolha a competição alvo.`;
-        const alvo = CAL.COMPETICOES[c.alvo];
-        if (alvo.data < cr[i].inicio || alvo.data > cr[i].fim + DIA - 1) return `${c.nome}: a competição alvo cai fora das datas do ciclo.`;
-      }
-    }
+    if (passo === 2 && !w.base.fundamentos.length && !w.base.ideias.length) return 'Escolha ao menos um fundamento base ou escreva uma ideia para a temporada.';
     return '';
   }
 
   /* ---------- Tela ---------- */
 
   P.criar = function (el, ctx) {
-    // A turma pode vir pedida (tela da equipe); senão, garante uma turma que ainda esteja sem plano.
+    // A turma pode vir pedida (tela da equipe); senão, garante uma equipe que ainda esteja sem periodização.
     const livresIni = dados.turmasSemPlano();
     const pedida = ctx.estado.turmaId && livresIni.find((t) => t.id === ctx.estado.turmaId);
-    if (pedida) { w.turma = pedida.id; w.pico = PICO_SUGERIDO[pedida.faixa] || 3000; ctx.estado.turmaId = null; }
-    else if (!livresIni.some((t) => t.id === w.turma)) { const base = novoRascunho(); w.turma = base.turma; w.pico = base.pico; }
+    if (pedida) { w.turma = pedida.id; w.baseline = BASELINE_SUGERIDA[pedida.faixa] || 2000; ctx.estado.turmaId = null; }
+    else if (!livresIni.some((t) => t.id === w.turma)) { const base = novoRascunho(); w.turma = base.turma; w.baseline = base.baseline; }
+
     function desenhar(foco) {
-      const livres = dados.turmasSemPlano();
-      const semTurma = !livres.length;
+      const semTurma = !dados.turmasSemPlano().length;
       el.innerHTML = `
         <section class="card" aria-labelledby="h-wiz">
-          <div class="card-head"><h2 id="h-wiz">Novo plano de temporada</h2>
+          <div class="card-head"><h2 id="h-wiz">Nova periodização</h2>
             <button class="link-btn" id="w-cancelar" style="margin:0">Cancelar</button></div>
           <ol class="passos" aria-label="Etapas">
-            ${PASSOS.map((n, i) => `<li class="${i + 1 === w.passo ? 'atual' : i + 1 < w.passo ? 'feito' : ''}" ${i + 1 === w.passo ? 'aria-current="step"' : ''}><span class="passo-n num">${i + 1}</span><span>${n}</span></li>`).join('')}
+            ${PASSOS.map((n, i) => `<li class="${i + 1 === w.passo ? 'atual' : i + 1 < w.passo ? 'feito' : ''}" ${i + 1 === w.passo ? 'aria-current="step"' : ''}><span class="passo-n num">${i + 1}</span><span class="passo-t">${n}</span></li>`).join('')}
           </ol>
           <div id="w-corpo">${[passo1, passo2, passo3, passo4][w.passo - 1]()}</div>
           <p class="form-erro" id="w-erro" role="alert" hidden></p>
@@ -245,7 +189,7 @@
             ${w.passo > 1 ? '<button class="btn" id="w-voltar">Voltar</button>' : ''}
             ${w.passo < 4
               ? `<button class="btn btn-primary" id="w-seguir" ${semTurma ? 'disabled' : ''}>Continuar</button>`
-              : '<button class="btn btn-primary" id="w-criar">Criar plano</button>'}
+              : '<button class="btn btn-primary" id="w-criar">Criar periodização</button>'}
           </div>
         </section>`;
       ligar();
@@ -256,18 +200,15 @@
 
     function ligar() {
       const $ = (s) => el.querySelector(s);
-      $('#w-cancelar').addEventListener('click', () => ctx.ir('macro', {}, '#tab-macro'));
+      $('#w-cancelar').addEventListener('click', () => (dados.planos.length ? ctx.ir('macro', {}, '#tab-macro') : window.Farol.ir('inicio')));
 
       if (w.passo === 1 && $('#w-turma')) {
-        $('#w-turma').addEventListener('change', (e) => {
-          w.turma = e.target.value;
-          w.pico = PICO_SUGERIDO[TURMAS[w.turma].faixa] || 3000;
-          desenhar('#w-turma');
-        });
+        $('#w-turma').addEventListener('change', (e) => { w.turma = e.target.value; w.baseline = BASELINE_SUGERIDA[TURMAS[w.turma].faixa] || 2000; desenhar('#w-turma'); });
         $('#w-nome').addEventListener('input', (e) => { w.nome = e.target.value; });
         $('#w-temp').addEventListener('input', (e) => { w.temporada = e.target.value; });
         $('#w-ini').addEventListener('change', (e) => { w.inicio = e.target.value; desenhar('#w-ini'); });
-        $('#w-pico').addEventListener('input', (e) => { w.pico = Number(e.target.value); });
+        $('#w-base').addEventListener('input', (e) => { w.baseline = Number(e.target.value); });
+        el.querySelectorAll('input[name="w-sess"]').forEach((i) => i.addEventListener('change', () => { w.sessoes = Number(i.value); }));
       }
 
       if (w.passo === 2) {
@@ -281,50 +222,22 @@
       }
 
       if (w.passo === 3) {
-        el.querySelectorAll('.ciclo-ed').forEach((sec) => {
-          const i = Number(sec.dataset.c);
-          const c = w.ciclos[i];
-          sec.querySelector(`#w-cn-${i}`).addEventListener('input', (e) => { c.nome = e.target.value; });
-          sec.querySelector(`#w-alvo-${i}`).addEventListener('change', (e) => { c.alvo = e.target.value; desenhar(`#w-alvo-${i}`); });
-          sec.querySelector('[data-rc]').addEventListener('click', () => {
-            const nome = sec.querySelector(`#w-rc-nome-${i}`).value.trim(), data = sec.querySelector(`#w-rc-data-${i}`).value, local = sec.querySelector(`#w-rc-local-${i}`).value.trim();
-            const ini = crono()[i].inicio;
-            if (nome.length < 3) return erro('Dê um nome à competição.');
-            if (!data) return erro('Informe a data da competição.');
-            if (ms(data) < ini + 28 * DIA) return erro('A competição precisa ficar a pelo menos 4 semanas do início do ciclo.');
-            const id = CAL.criar({ nome, data: ms(data), fim: ms(data), local: local || 'A definir', nivel: 'Estadual', categorias: TURMAS[w.turma].categorias.slice() });
-            c.alvo = id;
-            const f = dados.distribuirAteAlvo(ini, ms(data), c.sem.transicao > 0 ? c.sem.transicao : 0);
-            if (f) { dados.ORDEM_FASES.forEach((t) => { c.sem[t] = 0; }); f.forEach(([t, q]) => { c.sem[t] = q; }); }
-            erro('');
-            desenhar(`#w-alvo-${i}`);
-          });
-          sec.querySelector('[data-dist]').addEventListener('click', () => {
-            if (!c.alvo) return erro(`${c.nome}: escolha a competição alvo antes de distribuir as fases.`);
-            const ini = crono()[i].inicio;
-            const f = dados.distribuirAteAlvo(ini, CAL.COMPETICOES[c.alvo].data, c.sem.transicao > 0 ? c.sem.transicao : 0);
-            if (!f) return erro(`${c.nome}: a competição alvo está a menos de 4 semanas do início do ciclo. Escolha outro alvo ou outra data de início.`);
-            dados.ORDEM_FASES.forEach((t) => { c.sem[t] = 0; });
-            f.forEach(([t, q]) => { c.sem[t] = q; });
-            desenhar('[data-dist]');
-          });
-          sec.querySelectorAll('[data-w-step]').forEach((b) => b.addEventListener('click', () => {
-            const [, tipo, d] = b.dataset.wStep.split(':');
-            c.sem[tipo] = Math.max(0, Math.min(12, c.sem[tipo] + Number(d)));
-            desenhar(`[data-w-step="${b.dataset.wStep}"]`);
-          }));
-          sec.querySelectorAll('.fase-pauta').forEach((det) => {
-            const tipo = det.dataset.tipo;
-            window.Farol.pauta.editor(det.querySelector('.pauta-mount'), c.pautas[tipo], {
-              prefixo: `wc${i}${tipo}`,
-              onChange: (p) => { det.querySelector('.cont').textContent = `· ${plural(p.fundamentos.length, 'fundamento', 'fundamentos')}`; },
-            });
-          });
-          const rem = sec.querySelector('[data-rem-ciclo]');
-          if (rem) rem.addEventListener('click', () => { w.ciclos.splice(i, 1); desenhar('#w-add-ciclo'); });
+        el.querySelectorAll('[data-prio]').forEach((b) => b.addEventListener('click', () => {
+          const [id, k] = b.dataset.prio.split('|');
+          if (k) w.prioridades[id] = k; else delete w.prioridades[id];
+          desenhar(`[data-prio="${b.dataset.prio}"]`);
+        }));
+        $('#w-nc').addEventListener('toggle', (e) => { w.novaComp = e.target.open; });
+        $('#w-rc-ok').addEventListener('click', () => {
+          const nome = $('#w-rc-nome').value.trim(), data = $('#w-rc-data').value, local = $('#w-rc-local').value.trim(), prio = $('#w-rc-prio').value;
+          if (nome.length < 3) return erro('Dê um nome à competição.');
+          if (!data) return erro('Informe a data da competição.');
+          if (ms(data) < segunda(ms(w.inicio))) return erro('A competição precisa ser depois do início da periodização.');
+          const id = CAL.criar({ nome, data: ms(data), fim: ms(data), local: local || 'A definir', nivel: 'Estadual', status: 'confirmed', categorias: TURMAS[w.turma].categorias.slice() });
+          w.prioridades[id] = prio;
+          erro('');
+          desenhar('#w-rc-nome');
         });
-        $('#w-add-ciclo').addEventListener('click', () => { w.ciclos.push(novoCiclo(w.ciclos.length)); desenhar(`#w-cn-${w.ciclos.length - 1}`); });
-        $('#w-ir-comp').addEventListener('click', () => window.Farol.ir('planejamento-competicoes', {}));
       }
 
       const voltar = $('#w-voltar');
@@ -339,15 +252,11 @@
       });
       const criar = $('#w-criar');
       if (criar) criar.addEventListener('click', () => {
-        for (let p = 1; p <= 3; p++) { const msg = validar(p); if (msg) return erro(msg); }
-        const id = dados.criarPlano({
-          nome: w.nome.trim(), turma: w.turma, temporada: w.temporada.trim(), inicio: w.inicio, pico: w.pico,
-          base: copiar(w.base),
-          ciclos: w.ciclos.map((c) => ({ nome: c.nome.trim(), alvo: c.alvo, fases: fasesDe(c), pautas: copiar(c.pautas) })),
-        });
+        for (let p = 1; p <= 2; p++) { const msg = validar(p); if (msg) return erro(msg); }
+        const id = dados.criarPeriodizacao(cfg());
         w = novoRascunho();
         window.Farol.compartilhado.planoId = id;
-        ctx.ir('macro', { ciclo: null, mesoId: null, semana: null, editor: null, aviso: 'Plano criado. Ajuste as semanas na escala Microciclo.' });
+        ctx.ir('macro', { ciclo: null, mesoId: null, semana: null, editor: null, aviso: 'Periodização criada. Confira o calendário e ajuste as semanas na escala Microciclo.' });
       });
     }
 

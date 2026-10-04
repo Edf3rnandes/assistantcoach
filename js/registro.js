@@ -378,6 +378,8 @@
     if (params && params.planoId) window.Farol.compartilhado.planoId = params.planoId;
     if (params && params.abrir) { estado.abrir = params.abrir; estado.filtro = 'todos'; }
     const plano = dados.plano(window.Farol.compartilhado.planoId);
+    if (!estado.linkTurma || !(plano.turmas || [plano.turma]).includes(estado.linkTurma)) estado.linkTurma = plano.turma;
+    const linkTurma = estado.linkTurma;
     const todos = sessoesRegistraveis(plano);
     const aguardando = todos.filter((x) => x.st === 'aguardando' || x.st === 'semregistro');
     const registrados = todos.filter((x) => x.st === 'registrado');
@@ -386,7 +388,7 @@
     root.innerHTML = `
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>Registro do treino</h1>
           <p class="lead">O que de fato aconteceu em cada sessão do microciclo: presença, PSE e PSR de cada atleta da turma, mais as anotações do professor.</p>
         </div>
@@ -404,10 +406,10 @@
       ${estado.aviso ? `<div class="aviso-ok" role="status">${esc(estado.aviso)}</div>` : ''}
 
       <section class="card link-unico" aria-labelledby="h-link">
-        <div class="card-head"><h2 id="h-link">Link único para os atletas</h2><span class="label">${esc(TURMAS[plano.turma].nome)}</span></div>
+        <div class="card-head"><h2 id="h-link">Link único para os atletas</h2>${plano.turmas && plano.turmas.length > 1 ? `<select class="select sm" id="link-turma" aria-label="Equipe do link" style="min-width:0;width:auto">${plano.turmas.map((id) => `<option value="${id}" ${id === linkTurma ? 'selected' : ''}>${esc(TURMAS[id].nome)}</option>`).join('')}</select>` : `<span class="label">${esc(TURMAS[plano.turma].nome)}</span>`}</div>
         <p>Envie este link no grupo da turma. Cada atleta abre, escolhe o próprio nome e responde o esforço (PSE), a recuperação (PSR) e se sentiu dor. Não precisa de senha.</p>
         <div class="link-url">
-          <code id="link-txt">atleta.html?t=${esc(TURMAS[plano.turma].token)}</code>
+          <code id="link-txt">atleta.html?t=${esc(TURMAS[linkTurma].token)}</code>
           <button class="btn" id="link-copiar">Copiar link</button>
         </div>
         <p class="hint" id="link-msg" aria-live="polite" style="margin:0">${esc(estado.copiado) || 'O endereço completo é o mesmo do painel, com atleta.html no lugar de index.html.'}</p>
@@ -443,8 +445,9 @@
       estado.abrir = null; estado.aviso = '';
       tela(root);
     });
+    const lt = root.querySelector('#link-turma'); if (lt) lt.addEventListener('change', (e) => { estado.linkTurma = e.target.value; estado.copiado = ''; tela(root); });
     root.querySelector('#link-copiar').addEventListener('click', () => {
-      const url = new URL(`atleta.html?t=${TURMAS[plano.turma].token}`, location.href).href;
+      const url = new URL(`atleta.html?t=${TURMAS[linkTurma].token}`, location.href).href;
       const msg = root.querySelector('#link-msg');
       const falhou = () => { estado.copiado = ''; msg.textContent = `Não consegui copiar sozinho. Copie manualmente: ${url}`; };
       try { navigator.clipboard.writeText(url).then(() => { estado.copiado = 'Link copiado.'; msg.textContent = 'Link copiado.'; }, falhou); } catch (e) { falhou(); }
@@ -452,7 +455,7 @@
     root.querySelector('#ir-semana').addEventListener('click', () => window.Farol.ir('treinos-microciclo', { planoId: plano.id }));
     root.querySelector('#ver-atleta').addEventListener('click', () => window.Farol.ir('atleta-previa', {}));
     const nl = root.querySelector('#novo-link'); if (nl) nl.addEventListener('click', () => { estado.confirmaLink = true; tela(root); });
-    const nls = root.querySelector('#novo-link-sim'); if (nls) nls.addEventListener('click', () => { elenco.novoToken(plano.turma); estado.confirmaLink = false; estado.copiado = 'Novo link gerado. O anterior não funciona mais.'; tela(root); });
+    const nls = root.querySelector('#novo-link-sim'); if (nls) nls.addEventListener('click', () => { elenco.novoToken(linkTurma); estado.confirmaLink = false; estado.copiado = 'Novo link gerado. O anterior não funciona mais.'; tela(root); });
     const nln = root.querySelector('#novo-link-nao'); if (nln) nln.addEventListener('click', () => { estado.confirmaLink = false; tela(root); });
     root.querySelectorAll('[data-filtro]').forEach((b) => b.addEventListener('click', () => { estado.filtro = b.dataset.filtro; tela(root); }));
     root.querySelector('#reg-mais').addEventListener('click', () => { estado.dias += 28; tela(root); });

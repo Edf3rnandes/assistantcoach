@@ -19,7 +19,13 @@
     c9: { id: 'c9', nome: 'Brasileiro Sub-19, final', data: ms('2027-04-10'), fim: ms('2027-04-11'), local: 'Rio de Janeiro/RJ', nivel: 'Nacional', categorias: ['Sub-19 Fem'] },
   };
 
-  const CATEGORIAS = ['Sub-16 Fem', 'Sub-18 Masc', 'Sub-18 Fem', 'Sub-19 Fem', 'Sub-19 Masc', 'Adulto Masc', 'Adulto Fem', 'Adulto Misto'];
+  // Categorias: faixa × (masculino, feminino, misto), mais as que já aparecem em competições ou equipes (por exemplo, as de exemplo antigas).
+  const categorias = () => {
+    const E = window.Farol.elenco;
+    const base = E.cadastro.FAIXAS.flatMap((f) => ['Masc', 'Fem', 'Misto'].map((g) => `${f} ${g}`));
+    const extras = [...Object.values(COMPETICOES).flatMap((c) => c.categorias || []), ...Object.values(E.TURMAS).flatMap((t) => t.categorias || [])];
+    return [...new Set([...base, ...extras])].sort((a, b) => E.cadastro.idadeLimite(E.cadastro.parseCategoria(a).faixa) - E.cadastro.idadeLimite(E.cadastro.parseCategoria(b).faixa) || a.localeCompare(b));
+  };
   const NIVEIS = ['Estadual', 'Regional', 'Nacional', 'Aberto', 'Amistoso'];
   const CATEGORIAS_ORCAMENTO = {
     inscricao: 'Inscrição',
@@ -211,7 +217,7 @@
   /* ---------- Edição ---------- */
 
   const api = {
-    COMPETICOES, CATEGORIAS, NIVEIS, CATEGORIAS_ORCAMENTO, STATUS_DUPLA, FUNCOES_EQUIPE,
+    COMPETICOES, categorias, NIVEIS, CATEGORIAS_ORCAMENTO, STATUS_DUPLA, FUNCOES_EQUIPE,
     plan, fimDe, passada, quemVai, orcamentoTotais, prontidao,
     lista: () => Object.values(COMPETICOES).sort((a, b) => a.data - b.data),
 
@@ -225,6 +231,8 @@
 
     adicionarDupla(id, d) {
       const p = plan(id);
+      const motivo = window.Farol.elenco.cadastro.validarDupla(d.a, d.b, d.cat);
+      if (motivo) return { erro: motivo };
       if (p.duplas.some((x) => [x.a, x.b].includes(d.a) || [x.a, x.b].includes(d.b))) {
         const quem = p.duplas.find((x) => [x.a, x.b].includes(d.a) || [x.a, x.b].includes(d.b));
         const nome = [quem.a, quem.b].map((a) => ATLETAS[a].nome).join(' e ');

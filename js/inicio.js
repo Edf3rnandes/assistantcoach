@@ -71,7 +71,7 @@
     const fora = c.lesao + c.retorno;
     const ok = c.ok;
     return `<button class="ix2-eq" data-equipe="${t.id}" style="--c:var(${meso ? meso.cor : '--accent'})" aria-label="Abrir a equipe ${esc(t.nome)}">
-      <span class="ix2-eq-top"><span class="ix2-eq-faixa">${esc(t.faixa)}</span><span class="ix2-eq-seta" aria-hidden="true">${ic('seta', 18)}</span></span>
+      <span class="ix2-eq-top"><span class="ix2-eq-faixa">${esc(t.faixas.join(' + '))}</span><span class="ix2-eq-seta" aria-hidden="true">${ic('seta', 18)}</span></span>
       <b class="ix2-eq-nome">${esc(t.nome)}</b>
       <span class="ix2-eq-fase">${plano && semana ? (R.comeca ? `Periodização começa em ${esc(dd(R.comeca))}` : `${meso ? `<i class="ix2-eq-dot"></i>${esc(meso.nome)} · ` : ''}semana ${semana.n}`) : plano ? 'Fora do período do plano' : 'Sem periodização'}</span>
       ${sessoes.length ? `<span class="ix2-eq-semana" role="img" aria-label="Sessões da semana: ${R.nReg} de ${sessoes.length} registradas">${sessoes.map((x) => `<i class="${x.st} ${x.t === HOJE ? 'hoje' : ''}" style="--s:var(${dados.TIPOS_SESSAO[x.s.tipo].cor})" title="${esc(dados.TIPOS_SESSAO[x.s.tipo].nome)}, ${esc(dd(x.t))}"></i>`).join('')}<small class="num">${R.nReg}/${sessoes.length}</small></span>` : '<span class="ix2-eq-semana vazio"><small>Crie a periodização para ver a semana</small></span>'}

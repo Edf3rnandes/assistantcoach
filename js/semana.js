@@ -227,7 +227,7 @@
     root.innerHTML = `
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>Resposta da semana</h1>
           <p class="lead">Como os atletas estão respondendo ao microciclo: esforço (PSE), recuperação (PSR), dor, sono e disposição, sessão por sessão, com o semáforo de cada um.</p>
         </div>

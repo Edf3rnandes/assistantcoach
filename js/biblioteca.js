@@ -25,7 +25,7 @@
   function sessoesFisicas(alvo) {
     const out = [];
     dados.planos.filter((pl) => pl.semanaAtual >= 0).forEach((pl) => {
-      const serve = alvo.tipo === 'turma' ? pl.turma === alvo.turmaId : alvo.ids.every((id) => pl.atletas.includes(id));
+      const serve = alvo.tipo === 'turma' ? (pl.turmas || [pl.turma]).includes(alvo.turmaId) : alvo.ids.every((id) => pl.atletas.includes(id));
       if (!serve) return;
       pl.semanas.slice(Math.max(0, pl.semanaAtual - 1), pl.semanaAtual + 4).forEach((sem) => sem.sessoes.filter((s) => s.tipo === 'fisico').forEach((s) => {
         const t = sem.inicio + s.dia * 864e5;
@@ -239,7 +239,7 @@
     el.innerHTML = `
       <div><button class="link-btn" id="bb-voltar" style="margin:0">‹ Prescrições</button></div>
       <header class="page-head">
-        <div><span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+        <div>${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>${esc(m.nome)}</h1>
           <p class="lead num">${esc(dataCurta(p.data))} · ${esc(nomeAlvo(p))}${ses ? ` · sessão física de ${esc(dataCurta(ses.t))}` : ''}</p></div>
         <div class="actions">${p.status === 'feita' ? '<span class="ix-sel ok">Feita</span>' : ''}<button class="btn" id="bb-feita">${p.status === 'feita' ? 'Reabrir' : 'Marcar como feita'}</button></div>
@@ -514,7 +514,7 @@
     }
     root.innerHTML = `
       <header class="page-head">
-        <div><span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+        <div>${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>Exercícios e prescrição</h1>
           <p class="lead">Catálogo de exercícios, modelos de treino físico e a prescrição para turmas e atletas, já cruzada com lesões e restrições.</p></div>
       </header>

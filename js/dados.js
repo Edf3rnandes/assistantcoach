@@ -413,7 +413,9 @@
   function montar(raw) {
     const inicio = ms(raw.inicio);
     const turma = TURMAS[raw.turma];
-    const atletas = raw.atletas || (turma ? turma.atletas : []);
+    // A periodização pode valer para mais de uma equipe (as que treinam juntas ou não, mas seguem o mesmo planejamento).
+    const equipes = (raw.turmas && raw.turmas.length ? raw.turmas : [raw.turma]).map((id) => TURMAS[id]).filter(Boolean);
+    const atletas = raw.atletas || [...new Set(equipes.flatMap((t) => t.atletas))];
     const { todas, mesos, semanas, ciclos, n } = raw.motor ? montarMotor(raw, inicio) : montarLegado(raw, inicio);
 
     mesos.forEach((m) => {
@@ -431,8 +433,8 @@
 
     const semanaAtual = semanas.findIndex((s) => HOJE >= s.inicio && HOJE < s.inicio + 7 * DIA);
     const plano = {
-      id: raw.id, nome: raw.nome, tipo: raw.tipo, mock: !!raw.mock, turma: raw.turma, temporada: raw.temporada, pico: raw.pico,
-      detalhe: raw.tipo === 'atleta' ? `Individual · ${turma ? turma.faixa : ''}` : `Turma · ${atletas.length} atletas`,
+      id: raw.id, nome: raw.nome, tipo: raw.tipo, mock: !!raw.mock, turma: raw.turma, turmas: equipes.map((t) => t.id), temporada: raw.temporada, pico: raw.pico,
+      detalhe: raw.tipo === 'atleta' ? `Individual · ${turma ? turma.faixa : ''}` : equipes.length > 1 ? `${equipes.length} equipes · ${atletas.length} atletas` : `Turma · ${atletas.length} atletas`,
       atletas, professores: turma ? turma.professores : [],
       base: raw.base || { objetivo: '', fundamentos: [], ideias: [] },
       inicioMs: inicio, fimMs: inicio + n * 7 * DIA - DIA,
@@ -530,7 +532,7 @@
     distribuirAteAlvo, cronograma,
     recarregar() { RAW.forEach((r, i) => { planos[i] = montar(r); }); },
 
-    turmasSemPlano: () => Object.values(TURMAS).filter((t) => !RAW.some((r) => r.turma === t.id && r.tipo === 'turma')),
+    turmasSemPlano: () => Object.values(TURMAS).filter((t) => !RAW.some((r) => (r.turmas || [r.turma]).includes(t.id) && r.tipo === 'turma')),
 
     criarPlano(cfg) {
       const turma = TURMAS[cfg.turma];
@@ -556,10 +558,10 @@
 
     // Cria a periodização a partir das prioridades dos eventos: { turma, nome, temporada, inicio, baseline, sessoesSemana, prioridades, base }
     criarPeriodizacao(cfg) {
-      const turma = TURMAS[cfg.turma];
+      const ids = cfg.turmas && cfg.turmas.length ? cfg.turmas : [cfg.turma];
       const id = `p${RAW.length + 1}`;
       const raw = {
-        id, turma: cfg.turma, mock: false, nome: cfg.nome || turma.nome, tipo: 'turma',
+        id, turma: ids[0], turmas: ids.slice(), mock: false, nome: cfg.nome || ids.map((t) => TURMAS[t].nome).join(' + '), tipo: 'turma',
         temporada: cfg.temporada, inicio: iso(segunda(ms(cfg.inicio))), base: cfg.base || { objetivo: '', fundamentos: [], ideias: [] },
         ciclos: [], sessoes: {}, microTipos: {},
         motor: { baseline: cfg.baseline, sessoesSemana: cfg.sessoesSemana, prioridades: { ...cfg.prioridades }, params: cfg.params || {}, pautas: {}, revisoes: [], estrutura: [] },

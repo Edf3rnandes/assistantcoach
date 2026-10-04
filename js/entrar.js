@@ -38,6 +38,7 @@
             <form id="en-form" novalidate>
               <h2>${criar ? 'Crie sua conta de técnico' : 'Que bom ver você de novo'}</h2>
               ${criar ? `<div class="field"><label class="label" for="en-nome">Seu nome</label><input class="input" id="en-nome" autocomplete="name" required aria-invalid="${est.campo === 'nome'}" ${est.campo === 'nome' ? 'aria-describedby="en-erro"' : ''}></div>` : ''}
+              ${criar ? `<div class="field"><label class="label" for="en-org">Centro de treinamento ou clube <small>(opcional)</small></label><input class="input" id="en-org" autocomplete="organization" maxlength="80"></div>` : ''}
               <div class="field"><label class="label" for="en-email">E-mail</label><input class="input" id="en-email" type="email" autocomplete="email" inputmode="email" required aria-invalid="${est.campo === 'email'}" ${est.campo === 'email' ? 'aria-describedby="en-erro"' : ''}></div>
               <div class="field"><label class="label" for="en-senha">Senha${criar ? ' (mínimo de 8 caracteres)' : ''}</label>
                 <div class="en-senha"><input class="input" id="en-senha" type="password" autocomplete="${criar ? 'new-password' : 'current-password'}" required aria-invalid="${est.campo === 'senha'}" ${est.campo === 'senha' ? 'aria-describedby="en-erro"' : ''}>
@@ -60,14 +61,14 @@
       el.querySelector('#en-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const v = (id) => { const x = el.querySelector(id); return x ? x.value : ''; };
-        const dados = { nome: v('#en-nome'), email: v('#en-email'), senha: v('#en-senha') };
+        const dados = { nome: v('#en-nome'), email: v('#en-email'), senha: v('#en-senha'), org: v('#en-org') };
         est.ocupado = true; el.querySelector('.en-ok').disabled = true;
         const r = criar ? await C.criar(dados) : await C.entrar(dados);
         est.ocupado = false;
         if (r.erro) {
           est.erro = r.erro; est.campo = r.campo || '';
           desenhar(); // mantém o que foi digitado
-          el.querySelector('#en-email').value = dados.email; if (el.querySelector('#en-nome')) el.querySelector('#en-nome').value = dados.nome;
+          el.querySelector('#en-email').value = dados.email; if (el.querySelector('#en-nome')) el.querySelector('#en-nome').value = dados.nome; if (el.querySelector('#en-org')) el.querySelector('#en-org').value = dados.org;
           const f = el.querySelector(`#en-${est.campo}`) || el.querySelector('#en-email'); if (f) f.focus();
           return;
         }

@@ -275,7 +275,7 @@
     root.innerHTML = `
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>Saúde do elenco</h1>
           <p class="lead">Lesões, retornos e dúvidas de cada atleta, com a conduta, as restrições e a evolução. O Início, a Análise e as competições usam o que for registrado aqui.</p>
         </div>

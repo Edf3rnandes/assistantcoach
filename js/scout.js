@@ -251,7 +251,7 @@
       <div><button class="link-btn" id="sc-lista" style="margin:0">‹ Todos os jogos</button></div>
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>${esc(tituloJogo(j))}</h1>
           <p class="lead num">${dataLonga(j.data)} · ${esc(versus(j))} · ${esc(resumoSets(j))}</p>
         </div>
@@ -275,12 +275,15 @@
      ABA JOGOS
      ==================================================================== */
 
+  const primeiraTurma = () => Object.keys(TURMAS)[0] || '';
+
   function formNovo() {
     const f = est.novo;
     const comps = CAL.lista().filter((c) => CAL.plan(c.id).duplas.some((d) => d.status === 'confirmada'));
     const comp = CAL.COMPETICOES[f.compId];
     const duplas = comp ? CAL.plan(f.compId).duplas.filter((d) => d.status === 'confirmada') : [];
-    const turma = TURMAS[f.turmaId];
+    const CAD = elenco.cadastro;
+    const lista = CAD.atletasPor(f.filtro);
     const opt = (v, n, sel) => `<option value="${v}" ${sel ? 'selected' : ''}>${esc(n)}</option>`;
     const par = f.tipo === 'jogo' ? (duplas.find((d) => d.id === f.duplaId) ? [duplas.find((d) => d.id === f.duplaId).a, duplas.find((d) => d.id === f.duplaId).b] : null) : [f.a, f.b];
     const valido = par && par[0] && par[1] && par[0] !== par[1];
@@ -298,15 +301,16 @@
             <div class="field"><label class="label" for="nv-dupla">Nossa dupla</label><select class="select" id="nv-dupla">${duplas.map((d) => opt(d.id, `${D.rotuloDupla([d.a, d.b])} (${d.cat})`, d.id === f.duplaId)).join('')}</select></div>
             <div class="field"><label class="label" for="nv-titulo">Fase</label><input class="input" id="nv-titulo" value="${esc(f.titulo)}" maxlength="40" placeholder="Quartas de final"></div>`
           : `
-            <div class="field"><label class="label" for="nv-turma">Turma</label><select class="select" id="nv-turma">${Object.values(TURMAS).map((t) => opt(t.id, t.nome, t.id === f.turmaId)).join('')}</select></div>
-            <div class="field"><label class="label" for="nv-a">Atleta 1</label><select class="select" id="nv-a">${turma.atletas.map((id) => opt(id, ATLETAS[id].nome, id === f.a)).join('')}</select></div>
-            <div class="field"><label class="label" for="nv-b">Atleta 2</label><select class="select" id="nv-b">${turma.atletas.map((id) => opt(id, ATLETAS[id].nome, id === f.b)).join('')}</select></div>`}
+            <div class="field"><label class="label" for="nv-filtro">Atletas de</label><select class="select" id="nv-filtro">${CAD.filtrosAtletas().map((o) => opt(o.v, o.n, o.v === f.filtro)).join('')}</select></div>
+            <div class="field"><label class="label" for="nv-a">Atleta 1</label><select class="select" id="nv-a">${lista.map((a) => opt(a.id, `${a.nome} (${a.faixa})`, a.id === f.a)).join('')}</select></div>
+            <div class="field"><label class="label" for="nv-b">Atleta 2</label><select class="select" id="nv-b">${lista.map((a) => opt(a.id, `${a.nome} (${a.faixa})`, a.id === f.b)).join('')}</select></div>`}
           <div class="field"><label class="label" for="nv-adv">Adversários</label><input class="input" id="nv-adv" value="${esc(f.adv)}" maxlength="40" placeholder="Silva e Moura"></div>
           <div class="field"><label class="label" for="nv-fmt">Formato</label><select class="select" id="nv-fmt">${Object.entries(D.FORMATOS).map(([k, x]) => opt(k, x.nome, k === f.formato)).join('')}</select></div>
           <div class="field"><label class="label" for="nv-sac">Quem saca primeiro</label><select class="select" id="nv-sac">
             ${par && par[0] ? `${opt('nos:0', `Nós, ${nm(par[0])}`, f.sac === 'nos:0')}${opt('nos:1', `Nós, ${par[1] ? nm(par[1]) : '…'}`, f.sac === 'nos:1')}` : opt('nos:0', 'Nós', true)}${opt('adv:0', 'Eles', f.sac === 'adv:0')}</select></div>
         </div>
         ${valido ? '' : '<p class="hint" style="margin:0 0 10px">Escolha dois atletas diferentes.</p>'}
+        ${!valido && f.tipo === 'treino' ? '<p class="form-erro">Cadastre ao menos dois atletas no Início para coletar um treino-jogo.</p>' : !valido && !duplas.length ? '<p class="hint">Para coletar um jogo de competição, confirme uma dupla na competição (Jogos › Competições). Ou use o Treino-jogo.</p>' : ''}
         <div class="actions"><button class="btn btn-primary" id="nv-ok" ${valido ? '' : 'disabled'}>Começar a coletar</button><button class="btn" id="nv-cancela">Cancelar</button></div>
       </section>`;
   }
@@ -316,10 +320,10 @@
     const alvo = comps.slice().sort((a, b) => Math.abs(a.data - HOJE) - Math.abs(b.data - HOJE))[0];
     const compId = (pre && pre.compId) || (alvo && alvo.id);
     const dp = compId ? CAL.plan(compId).duplas.filter((d) => d.status === 'confirmada') : [];
-    const t = TURMAS.sub18;
+    const ini = elenco.cadastro.atletasPor(pre && pre.turmaId ? `eq:${pre.turmaId}` : 'todas');
     est.novo = {
       tipo: pre && pre.turmaId ? 'treino' : 'jogo', compId, duplaId: (pre && pre.duplaId) || (dp[0] && dp[0].id), titulo: '', adv: '',
-      turmaId: (pre && pre.turmaId) || 'sub18', a: t.atletas[0], b: t.atletas[1], formato: 'melhor3', sac: 'nos:0',
+      filtro: pre && pre.turmaId ? `eq:${pre.turmaId}` : 'todas', a: ini[0] && ini[0].id, b: ini[1] && ini[1].id, formato: 'melhor3', sac: 'nos:0',
     };
     if (est.novo.tipo === 'treino') est.novo.formato = 'set21';
   }
@@ -381,8 +385,8 @@
       f.adv = v('#nv-adv') ?? f.adv; f.formato = v('#nv-fmt') || f.formato; f.sac = v('#nv-sac') || f.sac;
     };
     el.querySelectorAll('[data-nv-tipo]').forEach((b) => b.addEventListener('click', () => { ler(); f.tipo = b.dataset.nvTipo; f.formato = f.tipo === 'treino' ? 'set21' : 'melhor3'; f.sac = 'nos:0'; render(raiz, `[data-nv-tipo="${f.tipo}"]`); }));
-    const re = (sel) => { const x = $(sel); if (x) x.addEventListener('change', () => { ler(); if (sel === '#nv-comp') { f.compId = x.value; const d = CAL.plan(f.compId).duplas.filter((q) => q.status === 'confirmada'); f.duplaId = d[0] && d[0].id; } if (sel === '#nv-dupla') f.duplaId = x.value; if (sel === '#nv-turma') { f.turmaId = x.value; const t = TURMAS[f.turmaId]; f.a = t.atletas[0]; f.b = t.atletas[1] || t.atletas[0]; } if (sel === '#nv-a' || sel === '#nv-b') f.sac = 'nos:0'; render(raiz, sel); }); };
-    ['#nv-comp', '#nv-dupla', '#nv-turma', '#nv-a', '#nv-b'].forEach(re);
+    const re = (sel) => { const x = $(sel); if (x) x.addEventListener('change', () => { ler(); if (sel === '#nv-comp') { f.compId = x.value; const d = CAL.plan(f.compId).duplas.filter((q) => q.status === 'confirmada'); f.duplaId = d[0] && d[0].id; } if (sel === '#nv-dupla') f.duplaId = x.value; if (sel === '#nv-filtro') { f.filtro = x.value; const l = elenco.cadastro.atletasPor(f.filtro); f.a = l[0] && l[0].id; f.b = (l[1] || l[0] || {}).id; } if (sel === '#nv-a' || sel === '#nv-b') f.sac = 'nos:0'; render(raiz, sel); }); };
+    ['#nv-comp', '#nv-dupla', '#nv-filtro', '#nv-a', '#nv-b'].forEach(re);
     $('#nv-cancela').addEventListener('click', () => { est.novo = null; render(raiz, '#sc-novo'); });
     $('#nv-ok').addEventListener('click', () => {
       ler();
@@ -391,7 +395,7 @@
       const [sac, idx] = f.sac.split(':');
       const j = D.criarJogo({
         tipo: f.tipo, titulo: f.titulo.trim() || (f.tipo === 'jogo' ? 'Jogo' : 'Treino-jogo'), adv: f.adv.trim() || 'Adversários', dupla, formato: f.formato,
-        origem: f.tipo === 'jogo' ? { compId: f.compId, duplaId: f.duplaId } : { turmaId: f.turmaId }, sacaPrimeiro: sac, idx: +idx,
+        origem: f.tipo === 'jogo' ? { compId: f.compId, duplaId: f.duplaId } : { turmaId: (ATLETAS[f.a] || {}).turma }, sacaPrimeiro: sac, idx: +idx,
         data: f.tipo === 'jogo' ? (CAL.COMPETICOES[f.compId].data <= HOJE ? CAL.COMPETICOES[f.compId].data : HOJE) : HOJE,
       });
       est.novo = null;
@@ -475,7 +479,7 @@
     el.querySelectorAll('[data-sug]').forEach((b) => b.addEventListener('click', () => {
       const s = sug[+b.dataset.sug];
       est.aba = 'fund'; est.treino = null;
-      est.novoTreino = { fund: s.fund, nome: s.nome, meta: s.meta, turmaId: 'sub18' };
+      est.novoTreino = { fund: s.fund, nome: s.nome, meta: s.meta, turmaId: primeiraTurma() };
       render(raiz, '#nt-nome'); window.scrollTo({ top: 0 });
     }));
   }
@@ -513,7 +517,8 @@
           <div class="field"><label class="label" for="nt-meta">Meta de acerto (%)</label><input class="input num" id="nt-meta" type="number" min="10" max="100" step="5" value="${nt.meta}"></div>
         </div>
         <p class="hint" style="margin:0 0 10px">Acerto é a bola que cumpriu o critério do exercício (por exemplo, caiu na zona). Combine o critério antes de contar.</p>
-        <div class="actions"><button class="btn btn-primary" id="nt-ok">Começar a contar</button><button class="btn" id="nt-cancela">Cancelar</button></div>
+        ${nt.turmaId ? '' : '<p class="form-erro">Cadastre uma equipe no Início antes de contar um exercício.</p>'}
+        <div class="actions"><button class="btn btn-primary" id="nt-ok" ${nt.turmaId ? '' : 'disabled'}>Começar a contar</button><button class="btn" id="nt-cancela">Cancelar</button></div>
       </section>` : '';
 
     el.innerHTML = `
@@ -533,7 +538,7 @@
 
     const $ = (s) => el.querySelector(s);
     const novo = $('#nt-novo');
-    if (novo) novo.addEventListener('click', () => { est.novoTreino = { fund: 'saque', nome: '', meta: 70, turmaId: 'sub18' }; render(raiz, '#nt-nome'); });
+    if (novo) novo.addEventListener('click', () => { est.novoTreino = { fund: 'saque', nome: '', meta: 70, turmaId: primeiraTurma() }; render(raiz, '#nt-nome'); });
     el.querySelectorAll('[data-ft-abre]').forEach((b) => b.addEventListener('click', () => { est.treino = b.dataset.ftAbre; render(raiz); window.scrollTo({ top: 0 }); }));
     if (nt) {
       const ler = () => { nt.fund = $('#nt-fund').value; nt.nome = $('#nt-nome').value; nt.turmaId = $('#nt-turma').value; nt.meta = Math.max(10, Math.min(100, +$('#nt-meta').value || 70)); };
@@ -606,7 +611,7 @@
     root.innerHTML = `
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>Scout</h1>
           <p class="lead">Registre o jogo ou o treino-jogo ponto a ponto e veja o que a dupla faz bem e o que levar para o treino.</p>
         </div>
@@ -637,7 +642,7 @@
     est.sel = params && params.jogo ? params.jogo : null;
     if (params && params.aba) est.aba = params.aba;
     if (params && params.novo) { est.aba = 'jogos'; abrirNovo(params.novo); }
-    if (params && params.novoTreino) { est.aba = 'fund'; est.treino = null; est.novoTreino = { fund: 'saque', nome: '', meta: 70, turmaId: 'sub18' }; }
+    if (params && params.novoTreino) { est.aba = 'fund'; est.treino = null; est.novoTreino = { fund: 'saque', nome: '', meta: 70, turmaId: primeiraTurma() }; }
     render(root);
   };
   window.Farol.scoutUI = { tituloJogo, versus, resumoSets, descrever, seloResultado, kpi };

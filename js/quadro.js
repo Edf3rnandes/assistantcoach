@@ -75,7 +75,7 @@
       const txt = localStorage.getItem(CHAVE);
       if (txt) { const v = JSON.parse(txt); if (Array.isArray(v) && v.length) return v.map(normal); }
     } catch (e) { /* sem armazenamento */ }
-    return copiar(SEMENTES).map(normal);
+    return window.Farol.conta.guardaDados() ? [] : copiar(SEMENTES).map(normal); // conta nova começa sem jogadas
   }
   let lib = carregar();
   const gravar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(lib)); } catch (e) { /* sem armazenamento */ } };
@@ -90,7 +90,7 @@
     });
   }
 
-  let ed = normal(copiar(lib[0]));
+  let ed = lib.length ? normal(copiar(lib[0])) : nova();
   const ui = {
     ferr: 'mover', tipoSeta: 'desloc', atual: 0, sel: null, tocando: false, aviso: '',
     desfazer: [], refazer: [], paleta: false, menu: false, sujo: false, confirmaExcluirAtual: false, vertical: null, ativo: false,

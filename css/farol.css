@@ -2302,3 +2302,8 @@ tr.rev-muda td:nth-child(3) { background: color-mix(in srgb, var(--beam) 10%, tr
 .dia-tipo.dt-heavy { color: var(--s-fisico); border-color: color-mix(in srgb, var(--s-fisico) 50%, var(--line)); }
 .dia-tipo.dt-power { color: var(--s-tatica); border-color: color-mix(in srgb, var(--s-tatica) 50%, var(--line)); }
 .dia-tipo.dt-volume { color: var(--s-tecnica); border-color: color-mix(in srgb, var(--s-tecnica) 50%, var(--line)); }
+
+.dupla-acima { color: var(--accent); font-weight: 700; }
+.ef-sel { min-width: 0; width: auto; }
+.ef-at { flex-wrap: wrap; }
+.ef-gen small { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink-2); }

@@ -9,6 +9,17 @@
    aparelhos entram com o Supabase Auth e o schema `ft` no lugar deste arquivo (mesma interface: usuario, entrar, criar, sair). */
 (function () {
   const CHAVE = 'ft.conta.v1';
+
+  // Versão dos dados guardados no navegador. Quando muda, tudo do app (`ft.*`) é apagado uma vez e o app começa do zero,
+  // como para um cliente novo. Só mudar de propósito: apaga contas e dados deste aparelho.
+  const VERSAO_DADOS = '2026-10-04-limpo';
+  try {
+    if (localStorage.getItem('ft.versao') !== VERSAO_DADOS) {
+      Object.keys(localStorage).filter((k) => k.startsWith('ft.')).forEach((k) => localStorage.removeItem(k));
+      localStorage.setItem('ft.versao', VERSAO_DADOS);
+    }
+  } catch (e) { /* sem armazenamento */ }
+
   const enc = new TextEncoder();
 
   const ler = () => {
@@ -43,20 +54,20 @@
     usuario() {
       if (db.sessao === 'demo') return DEMO;
       const u = db.usuarios.find((x) => x.id === db.sessao);
-      return u ? { id: u.id, nome: u.nome, email: u.email } : null;
+      return u ? { id: u.id, nome: u.nome, email: u.email, org: u.org || '' } : null;
     },
     // Chave de armazenamento: a original na demonstração; separada por conta nas contas cadastradas.
     chave: (base) => (db.sessao && db.sessao !== 'demo' ? `ft.u.${db.sessao}.${base}` : base),
     guardaDados: () => !!db.sessao && db.sessao !== 'demo',
 
-    async criar({ nome, email, senha }) {
-      nome = String(nome || '').trim(); email = limpoEmail(email);
+    async criar({ nome, email, senha, org }) {
+      nome = String(nome || '').trim(); email = limpoEmail(email); org = String(org || '').trim().slice(0, 80);
       if (nome.length < 2) return { erro: 'Informe seu nome.', campo: 'nome' };
       if (!emailOk(email)) return { erro: 'Informe um e-mail válido.', campo: 'email' };
       if (String(senha || '').length < 8) return { erro: 'A senha precisa ter ao menos 8 caracteres.', campo: 'senha' };
       if (db.usuarios.some((u) => u.email === email)) return { erro: 'Já existe uma conta com este e-mail. Use Entrar.', campo: 'email' };
       const sal = aleatorio();
-      const u = { id: `u${Date.now().toString(36)}${aleatorio().slice(0, 4)}`, nome, email, sal, hash: await hash(senha, sal), criada: Date.now() };
+      const u = { id: `u${Date.now().toString(36)}${aleatorio().slice(0, 4)}`, nome, email, org, sal, hash: await hash(senha, sal), criada: Date.now() };
       db.usuarios.push(u);
       db.sessao = u.id;
       gravar();

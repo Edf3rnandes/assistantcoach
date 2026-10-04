@@ -5,14 +5,14 @@
 (function () {
   const { dados, util, elenco, calendario: CAL } = window.Farol;
   const { DIA, dd, ano, brl, esc, plural, iso, ms, HOJE } = util;
-  const { ATLETAS, ATLETAS_LISTA, PROFS } = elenco;
+  const { ATLETAS, ATLETAS_LISTA, TURMAS, PROFS } = elenco;
 
   const estado = { sel: null, filtro: 'proximas', aviso: '', nova: false, editar: false };
 
+  const CAD = window.Farol.elenco.cadastro;
   const nomeDupla = (d) => `${ATLETAS[d.a].nome} e ${ATLETAS[d.b].nome}`;
   const periodo = (c) => (CAL.fimDe(c) > c.data ? `${dd(c.data)} a ${dd(CAL.fimDe(c))}` : dd(c.data));
   const periodoAno = (c) => `${periodo(c)}/${ano(c.data)}`;
-  const generoDe = (cat) => (/Masc/.test(cat) ? 'M' : /Fem/.test(cat) ? 'F' : null);
 
   function usadaPor(id) {
     const lista = [];
@@ -35,7 +35,7 @@
     root.innerHTML = `
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>Competições</h1>
           <p class="lead">Planeje cada campeonato: quais duplas vão, quem está confirmado, viagem e custos, professores acompanhando e o resultado depois.</p>
         </div>
@@ -107,7 +107,7 @@
           <div class="field field-wide"><label class="label" for="nc-local">Local</label><input class="input" id="nc-local" type="text" maxlength="60" placeholder="Cidade/UF"></div>
         </div>
         <fieldset class="reg-fund"><legend class="label">Categorias</legend>
-          <div class="checks">${CAL.CATEGORIAS.map((k) => `<label class="check chipcheck"><input type="checkbox" name="nc-cat" value="${k}"><span>${k}</span></label>`).join('')}</div>
+          <div class="checks">${CAL.categorias().map((k) => `<label class="check chipcheck"><input type="checkbox" name="nc-cat" value="${k}"><span>${k}</span></label>`).join('')}</div>
         </fieldset>
         <p class="form-erro" id="nc-erro" role="alert" hidden></p>
         <div class="actions"><button class="btn btn-primary" type="submit">Criar competição</button><button class="btn" type="button" id="nc-cancelar">Cancelar</button></div>
@@ -130,7 +130,7 @@
           <div class="field field-wide"><label class="label" for="dc-local">Local</label><input class="input" id="dc-local" type="text" maxlength="60" value="${esc(c.local)}"></div>
         </div>
         <fieldset class="reg-fund"><legend class="label">Categorias</legend>
-          <div class="checks">${CAL.CATEGORIAS.map((k) => `<label class="check chipcheck"><input type="checkbox" name="dc-cat" value="${k}" ${c.categorias.includes(k) ? 'checked' : ''}><span>${k}</span></label>`).join('')}</div>
+          <div class="checks">${CAL.categorias().map((k) => `<label class="check chipcheck"><input type="checkbox" name="dc-cat" value="${k}" ${c.categorias.includes(k) ? 'checked' : ''}><span>${k}</span></label>`).join('')}</div>
         </fieldset>
         <p class="form-erro" id="dc-erro" role="alert" hidden></p>
         <div class="actions"><button class="btn btn-primary" type="submit">Salvar dados</button><button class="btn" type="button" id="dc-cancelar">Cancelar</button></div>
@@ -158,7 +158,7 @@
             <tbody>
               ${duplas.map((d) => `
                 <tr>
-                  <td>${esc(nomeDupla(d))}</td>
+                  <td>${esc(nomeDupla(d))}${(() => { const A = ATLETAS[d.a], B = ATLETAS[d.b]; if (!A || !B) return ''; const ac = [A, B].some((x) => CAD.podeJogar(x, d.cat).acima); return `<small class="sub-linha">${esc(A.faixa)}${A.faixa === B.faixa ? '' : ` e ${esc(B.faixa)}`}${ac ? ' · <b class="dupla-acima">joga acima</b>' : ''}</small>`; })()}</td>
                   <td>
                     <select class="select sm st-${d.status}" data-dupla-status="${d.id}" aria-label="Situação da dupla ${esc(nomeDupla(d))}">
                       ${Object.entries(CAL.STATUS_DUPLA).map(([s, v]) => `<option value="${s}" ${s === d.status ? 'selected' : ''}>${v.nome}</option>`).join('')}
@@ -172,6 +172,8 @@
         <form class="add-linha" id="form-dupla" novalidate>
           <div class="field"><label class="label" for="fd-cat">Categoria</label>
             <select class="select" id="fd-cat" style="min-width:0">${c.categorias.map((k) => `<option>${k}</option>`).join('')}</select></div>
+          <div class="field"><label class="label" for="fd-filtro">Atletas de</label>
+            <select class="select" id="fd-filtro" style="min-width:0">${CAD.filtrosAtletas().map((o) => `<option value="${o.v}">${esc(o.n)}</option>`).join('')}</select></div>
           <div class="field"><label class="label" for="fd-a">Atleta 1</label><select class="select" id="fd-a" style="min-width:0"></select></div>
           <div class="field"><label class="label" for="fd-b">Atleta 2</label><select class="select" id="fd-b" style="min-width:0"></select></div>
           <div class="field"><label class="label" for="fd-st">Situação</label>
@@ -179,6 +181,7 @@
           <button class="btn btn-primary" type="submit">Adicionar dupla</button>
         </form>
         <p class="form-erro" id="fd-erro" role="alert" hidden></p>
+        <p class="hint" id="fd-info" role="status" style="margin-bottom:6px"></p>
         <p class="hint"><b>Prevista</b> é a dupla que queremos levar. <b>Confirmada</b> é a que já tem inscrição feita. Só as confirmadas entram na conta de quem viaja. Categoria inicial: ${esc(catPadrao)}.</p>
       </section>`;
   }
@@ -374,7 +377,7 @@
       <div><button class="link-btn" id="voltar" style="margin:0">‹ Todas as competições</button></div>
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>${esc(c.nome)}</h1>
           <p class="lead num">${periodoAno(c)} · ${esc(c.local)} · ${esc(c.nivel)} · ${CAL.passada(c) ? 'realizada' : dias === 0 ? 'hoje' : `em ${dias} dias`}</p>
           <p class="cats">${c.categorias.map((k) => `<span class="chip">${esc(k)}</span>`).join(' ')}</p>
@@ -440,21 +443,28 @@
     }
 
     /* duplas */
-    const selCat = $('#fd-cat'), selA = $('#fd-a'), selB = $('#fd-b');
+    const selCat = $('#fd-cat'), selA = $('#fd-a'), selB = $('#fd-b'), selF = $('#fd-filtro');
     const usados = new Set(); p.duplas.forEach((d) => { usados.add(d.a); usados.add(d.b); });
+    // Só aparecem atletas livres que podem jogar a categoria: quem é mais velho que a faixa não entra; quem é mais novo entra e "joga acima".
     const preencher = () => {
-      const g = generoDe(selCat.value);
-      const aptos = ATLETAS_LISTA.filter((a) => (!g || a.genero === g) && !usados.has(a.id));
-      const opts = aptos.map((a) => `<option value="${a.id}">${esc(a.nome)} (${esc(a.faixa)})</option>`).join('');
+      const cat = selCat.value;
+      const todos = CAD.atletasPor(selF.value).filter((a) => !usados.has(a.id));
+      const aptos = todos.filter((a) => CAD.podeJogar(a, cat).ok);
+      const rotulo = (a) => { const r = CAD.podeJogar(a, cat); const t = TURMAS[a.turma]; return `${esc(a.nome)} (${esc(a.faixa)}${r.acima ? ', joga acima' : ''}${t ? ` · ${esc(t.nome)}` : ''})`; };
+      const opts = aptos.map((a) => `<option value="${a.id}">${rotulo(a)}</option>`).join('');
       selA.innerHTML = opts; selB.innerHTML = opts;
       if (aptos.length > 1) selB.selectedIndex = 1;
+      const fora = todos.length - aptos.length;
+      $('#fd-info').textContent = aptos.length ? `${aptos.length === 1 ? '1 atleta livre pode' : `${aptos.length} atletas livres podem`} jogar ${cat}${fora ? `; ${fora} ficam de fora por faixa ou gênero` : ''}.` : `Nenhum atleta livre pode jogar ${cat} neste filtro${fora ? ` (${fora} ficam de fora por faixa ou gênero)` : ''}. Troque o filtro ou a categoria.`;
     };
     selCat.addEventListener('change', preencher);
+    selF.addEventListener('change', preencher);
     preencher();
     $('#form-dupla').addEventListener('submit', (e) => {
       e.preventDefault();
       const erro = $('#fd-erro');
-      if (!selA.value || !selB.value || selA.value === selB.value) { erro.textContent = 'Escolha dois atletas diferentes para a dupla.'; erro.hidden = false; return; }
+      const motivo = CAD.validarDupla(selA.value, selB.value, selCat.value);
+      if (motivo) { erro.textContent = motivo; erro.hidden = false; return; }
       const r = CAL.adicionarDupla(c.id, { a: selA.value, b: selB.value, cat: selCat.value, status: $('#fd-st').value });
       if (r.erro) { erro.textContent = r.erro; erro.hidden = false; return; }
       recarregar('Dupla adicionada.', '#form-dupla button');

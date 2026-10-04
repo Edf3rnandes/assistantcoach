@@ -24,7 +24,7 @@
 
   /* ---------- Dados da equipe (também usados pelo Início) ---------- */
 
-  const planoDe = (t) => dados.planos.find((p) => p.turma === t.id && p.tipo === 'turma') || dados.planos.find((p) => p.turma === t.id) || null;
+  const planoDe = (t) => dados.planos.find((p) => (p.turmas || [p.turma]).includes(t.id) && p.tipo === 'turma') || dados.planos.find((p) => (p.turmas || [p.turma]).includes(t.id)) || null;
 
   // Situação de cada atleta: lesão ou retorno do cadastro de saúde; senão, atenção de carga; senão, disponível.
   function situacoes(t, plano) {
@@ -121,7 +121,7 @@
 
   function semPlano(root, t) {
     root.innerHTML = `
-      <header class="page-head"><div><h1>${esc(t.nome)}</h1><p class="lead">${plural(t.atletas.length, 'atleta', 'atletas')} · ${esc(t.faixa)}</p></div></header>
+      <header class="page-head"><div><h1>${esc(t.nome)}</h1><p class="lead">${plural(t.atletas.length, 'atleta', 'atletas')} · ${esc(elenco.cadastro.rotuloEquipe(t))}</p></div></header>
       <section class="card eq-vazio"><h2>Esta equipe ainda não tem periodização</h2>
         <p>Com a periodização, o painel mostra a semana, os dias de treino e as sessões a registrar.</p>
         <div class="actions" style="justify-content:center"><button class="btn btn-primary" id="eq-criar">Criar a periodização da equipe</button><button class="btn" id="eq-editar">Editar equipe</button></div></section>
@@ -190,7 +190,7 @@
     root.innerHTML = `
       <section class="eq-topo" style="--c:var(${meso ? meso.cor : '--accent'})" aria-label="${esc(t.nome)}">
         <div class="eq-topo-c">
-          <span class="eq-faixa">${esc(t.faixa)} · ${plural(t.atletas.length, 'atleta', 'atletas')} · <button class="eq-editar" id="eq-editar">Editar equipe</button></span>
+          <span class="eq-faixa">${esc(elenco.cadastro.rotuloEquipe(t))} · ${plural(t.atletas.length, 'atleta', 'atletas')} · <button class="eq-editar" id="eq-editar">Editar equipe</button></span>
           <h1>${esc(t.nome)}</h1>
           <p class="eq-fase"><b>${meso ? esc(meso.nome) : 'Sem fase'}</b>${ciclo ? ` · ${esc(ciclo.nome)}` : ''} · semana ${semana.n}${tm ? ` · microciclo ${esc(tm.nome.toLowerCase())}` : ''}</p>
           ${alvo ? `<p class="eq-alvo">Alvo do ciclo: <b>${esc(alvo.nome)}</b>, ${dd(alvo.data)}${emDias(alvo.data) >= 0 ? ` (em ${plural(emDias(alvo.data), 'dia', 'dias')})` : ''}</p>` : ''}

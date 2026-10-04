@@ -285,7 +285,7 @@
     root.innerHTML = `
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>Análise</h1>
           <p class="lead">Carga, esforço, recuperação e resultados, calculados a partir dos registros de treino.</p>
         </div>

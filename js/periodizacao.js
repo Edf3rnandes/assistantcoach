@@ -98,7 +98,7 @@
     root.innerHTML = `
       <header class="page-head">
         <div>
-          <span class="chip" style="margin-bottom:10px">Dados de exemplo</span>
+          ${window.Farol.conta.guardaDados() ? '' : '<span class="chip" style="margin-bottom:10px">Dados de exemplo</span>'}
           <h1>Periodização</h1>
           <p class="lead">Planeje a temporada em três escalas. O evento A define o fim de cada ciclo e o sistema refaz o futuro quando o calendário muda.</p>
         </div>

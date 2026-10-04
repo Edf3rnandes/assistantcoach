@@ -9,7 +9,10 @@
   const P = (window.Farol.periodo = window.Farol.periodo || {});
 
   const copiar = (o) => JSON.parse(JSON.stringify(o));
-  const BASELINE_SUGERIDA = { 'Sub-14': 1500, 'Sub-16': 1800, 'Sub-18': 2300, 'Sub-19': 2200, Adulto: 2400, Master: 1800 };
+  const BASELINE_SUGERIDA = { 'Sub-13': 1400, 'Sub-14': 1500, 'Sub-15': 1700, 'Sub-16': 1800, 'Sub-17': 2100, 'Sub-18': 2300, 'Sub-19': 2300, 'Sub-21': 2400, Adulto: 2400, Master: 1800 };
+  // Referência sugerida para as equipes marcadas: a da faixa mais velha entre elas.
+  const sugerida = (ids) => Math.max(1500, ...ids.flatMap((id) => (TURMAS[id] ? TURMAS[id].faixas : [])).map((f) => BASELINE_SUGERIDA[f] || 2000));
+  const categoriasDe = (ids) => [...new Set(ids.flatMap((id) => (TURMAS[id] ? TURMAS[id].categorias : [])))];
   const PASSOS = ['Quem e quando', 'Fundamentos e ideias', 'Calendário', 'Revisão'];
   const PRIO = {
     A: { nome: 'A · Alvo', texto: 'A competição mais importante do ciclo. Todo o treino é planejado para chegar no melhor momento nela.' },
@@ -34,28 +37,29 @@
     const livres = dados.turmasSemPlano();
     const turma = livres[0] ? livres[0].id : '';
     return {
-      passo: 1, turma, nome: '', temporada: temporadaPadrao(), inicio: proximaSegunda(), sessoes: 4,
-      baseline: turma ? BASELINE_SUGERIDA[TURMAS[turma].faixa] || 2000 : 2000,
+      passo: 1, turmas: turma ? [turma] : [], nome: '', temporada: temporadaPadrao(), inicio: proximaSegunda(), sessoes: 4,
+      baseline: turma ? sugerida([turma]) : 2000,
       base: { objetivo: '', fundamentos: [], ideias: [] },
       prioridades: {}, novaComp: false,
     };
   }
   let w = novoRascunho();
 
-  const cfg = () => ({ turma: w.turma, nome: w.nome.trim(), temporada: w.temporada.trim(), inicio: w.inicio, baseline: w.baseline, sessoesSemana: w.sessoes, prioridades: w.prioridades, base: copiar(w.base) });
+  const cfg = () => ({ turmas: w.turmas.slice(), nome: w.nome.trim(), temporada: w.temporada.trim(), inicio: w.inicio, baseline: w.baseline, sessoesSemana: w.sessoes, prioridades: w.prioridades, base: copiar(w.base) });
 
   /* ---------- Passos ---------- */
 
   function passo1() {
     const livres = dados.turmasSemPlano();
     if (!livres.length) return '<p class="vazio">Todas as equipes já têm periodização. <a href="#equipes-nova">Cadastre uma nova equipe</a> para criar outra.</p>';
-    const turma = TURMAS[w.turma];
+    const sel = w.turmas.map((id) => TURMAS[id]).filter(Boolean);
     return `
       <div class="form-grid">
-        <div class="field field-wide"><label class="label" for="w-turma">Para quem é a periodização</label>
-          <select class="select" id="w-turma" style="min-width:0">${livres.map((t) => `<option value="${t.id}" ${t.id === w.turma ? 'selected' : ''}>${esc(t.nome)} · ${t.atletas.length} atletas</option>`).join('')}</select></div>
+        <fieldset class="field field-wide ef-gen" style="border:0;padding:0;margin:0"><legend class="label">Para quais equipes <small>(marque mais de uma se seguem o mesmo planejamento, treinando juntas ou não)</small></legend>
+          ${livres.map((t) => `<label class="ef-chip"><input type="checkbox" name="w-eq" value="${t.id}" ${w.turmas.includes(t.id) ? 'checked' : ''}><span>${esc(t.nome)} <small class="num">· ${t.atletas.length}</small></span></label>`).join('')}
+        </fieldset>
         <div class="field field-wide"><label class="label" for="w-nome">Nome</label>
-          <input class="input" id="w-nome" type="text" maxlength="60" value="${esc(w.nome)}" placeholder="${esc(turma.nome)}"></div>
+          <input class="input" id="w-nome" type="text" maxlength="60" value="${esc(w.nome)}" placeholder="${esc(sel.map((t) => t.nome).join(' + ') || 'Nome da periodização')}"></div>
         <div class="field"><label class="label" for="w-temp">Temporada</label><input class="input" id="w-temp" type="text" maxlength="40" value="${esc(w.temporada)}"></div>
         <div class="field"><label class="label" for="w-ini">Início</label><input class="input" id="w-ini" type="date" value="${esc(w.inicio)}"></div>
         <fieldset class="field field-wide ef-gen" style="border:0;padding:0;margin:0"><legend class="label">Sessões por semana</legend>
@@ -63,7 +67,7 @@
         </fieldset>
         <div class="field"><label class="label" for="w-base">Carga semanal de referência (UA)</label><input class="input num" id="w-base" type="number" min="500" max="6000" step="50" value="${w.baseline}"></div>
       </div>
-      <p class="hint">A periodização começa sempre numa segunda-feira (${dd(segunda(ms(w.inicio || iso(HOJE))))} para a data escolhida). A carga de referência é o que o grupo faz numa semana normal (soma de duração × PSE das sessões); cada semana é uma porcentagem dela. Sugestão para ${esc(turma.faixa)}: ${num(BASELINE_SUGERIDA[turma.faixa] || 2000)} UA. Depois de algumas semanas registradas, o sistema calcula a referência pelo que foi feito de verdade.</p>`;
+      <p class="hint">A periodização começa sempre numa segunda-feira (${dd(segunda(ms(w.inicio || iso(HOJE))))} para a data escolhida). A carga de referência é o que o grupo faz numa semana normal (soma de duração × PSE das sessões); cada semana é uma porcentagem dela. Sugestão para ${esc([...new Set(sel.flatMap((t) => t.faixas))].join(' e ') || 'a equipe')}: ${num(sugerida(w.turmas))} UA. Depois de algumas semanas registradas, o sistema calcula a referência pelo que foi feito de verdade.</p>`;
   }
 
   function passo2() {
@@ -80,7 +84,7 @@
 
   // Competições que ainda não aconteceram (a partir do início), as da categoria da equipe primeiro.
   function competicoesDisponiveis() {
-    const cats = TURMAS[w.turma] ? TURMAS[w.turma].categorias : [];
+    const cats = categoriasDe(w.turmas);
     const ini = segunda(ms(w.inicio));
     const lista = CAL.lista().filter((c) => CAL.fimDe(c) >= ini && c.status !== 'cancelled');
     return lista.sort((a, b) => (b.categorias.some((k) => cats.includes(k)) - a.categorias.some((k) => cats.includes(k))) || a.data - b.data);
@@ -88,7 +92,7 @@
 
   function passo3() {
     const lista = competicoesDisponiveis();
-    const cats = TURMAS[w.turma].categorias;
+    const cats = categoriasDe(w.turmas);
     const previa = dados.previaPeriodizacao(cfg());
     const avisos = [...previa.conflitos.filter((c) => c.tipo !== 'provisorio'), ...previa.janelas.map((j) => ({ severidade: 'warning', texto: j.texto })), ...previa.sugestoes.map((s) => ({ severidade: 'info', texto: s.texto }))];
     return `
@@ -119,13 +123,13 @@
   }
 
   function passo4() {
-    const turma = TURMAS[w.turma];
+    const nomes = w.turmas.map((id) => TURMAS[id].nome).join(' + ');
     const previa = dados.previaPeriodizacao(cfg());
     const { sem, blocos } = resumoEstrutura(previa);
     const ciclos = [...new Set(sem.map((s) => s.ciclo))];
     return `
       <dl class="kv">
-        <div><dt>Equipe</dt><dd>${esc(w.nome || turma.nome)}</dd></div>
+        <div><dt>Equipe${w.turmas.length > 1 ? 's' : ''}</dt><dd>${esc(w.nome || nomes)}</dd></div>
         <div><dt>Temporada</dt><dd>${esc(w.temporada)}</dd></div>
         <div><dt>Período</dt><dd class="num">${dd(sem[0].inicio)} a ${dd(sem[sem.length - 1].inicio + 6 * DIA)}</dd></div>
         <div><dt>Tamanho</dt><dd class="num">${sem.length} <small>semanas · ${plural(ciclos.length, 'ciclo', 'ciclos')}</small></dd></div>
@@ -156,7 +160,7 @@
 
   function validar(passo) {
     if (passo === 1) {
-      if (!w.turma) return 'Escolha a equipe.';
+      if (!w.turmas.length) return 'Marque ao menos uma equipe.';
       if (!w.temporada.trim()) return 'Dê um nome à temporada.';
       if (!w.inicio) return 'Informe a data de início.';
       if (!(w.baseline >= 500 && w.baseline <= 6000)) return 'A carga de referência deve ficar entre 500 e 6.000 UA.';
@@ -171,8 +175,11 @@
     // A turma pode vir pedida (tela da equipe); senão, garante uma equipe que ainda esteja sem periodização.
     const livresIni = dados.turmasSemPlano();
     const pedida = ctx.estado.turmaId && livresIni.find((t) => t.id === ctx.estado.turmaId);
-    if (pedida) { w.turma = pedida.id; w.baseline = BASELINE_SUGERIDA[pedida.faixa] || 2000; ctx.estado.turmaId = null; }
-    else if (!livresIni.some((t) => t.id === w.turma)) { const base = novoRascunho(); w.turma = base.turma; w.baseline = base.baseline; }
+    if (pedida) { w.turmas = [pedida.id]; w.baseline = sugerida(w.turmas); ctx.estado.turmaId = null; }
+    else {
+      w.turmas = w.turmas.filter((id) => livresIni.some((t) => t.id === id));
+      if (!w.turmas.length && livresIni[0]) { w.turmas = [livresIni[0].id]; w.baseline = sugerida(w.turmas); }
+    }
 
     function desenhar(foco) {
       const semTurma = !dados.turmasSemPlano().length;
@@ -202,8 +209,12 @@
       const $ = (s) => el.querySelector(s);
       $('#w-cancelar').addEventListener('click', () => (dados.planos.length ? ctx.ir('macro', {}, '#tab-macro') : window.Farol.ir('inicio')));
 
-      if (w.passo === 1 && $('#w-turma')) {
-        $('#w-turma').addEventListener('change', (e) => { w.turma = e.target.value; w.baseline = BASELINE_SUGERIDA[TURMAS[w.turma].faixa] || 2000; desenhar('#w-turma'); });
+      if (w.passo === 1 && $('#w-nome')) {
+        el.querySelectorAll('input[name="w-eq"]').forEach((i) => i.addEventListener('change', () => {
+          w.turmas = [...el.querySelectorAll('input[name="w-eq"]:checked')].map((x) => x.value);
+          if (w.turmas.length) w.baseline = sugerida(w.turmas);
+          desenhar(`input[name="w-eq"][value="${i.value}"]`);
+        }));
         $('#w-nome').addEventListener('input', (e) => { w.nome = e.target.value; });
         $('#w-temp').addEventListener('input', (e) => { w.temporada = e.target.value; });
         $('#w-ini').addEventListener('change', (e) => { w.inicio = e.target.value; desenhar('#w-ini'); });
@@ -233,7 +244,7 @@
           if (nome.length < 3) return erro('Dê um nome à competição.');
           if (!data) return erro('Informe a data da competição.');
           if (ms(data) < segunda(ms(w.inicio))) return erro('A competição precisa ser depois do início da periodização.');
-          const id = CAL.criar({ nome, data: ms(data), fim: ms(data), local: local || 'A definir', nivel: 'Estadual', status: 'confirmed', categorias: TURMAS[w.turma].categorias.slice() });
+          const id = CAL.criar({ nome, data: ms(data), fim: ms(data), local: local || 'A definir', nivel: 'Estadual', status: 'confirmed', categorias: categoriasDe(w.turmas) });
           w.prioridades[id] = prio;
           erro('');
           desenhar('#w-rc-nome');

@@ -262,7 +262,7 @@
         <span class="conta-av">${esc(iniciales(u.nome))}</span><span class="conta-nome">${esc(u.nome.split(' ')[0])}</span>
       </button>
       <div class="conta-menu" id="conta-menu" hidden>
-        <div class="conta-quem"><b>${esc(u.nome)}</b><small>${demo ? 'Dados de exemplo' : esc(u.email)}</small></div>
+        <div class="conta-quem"><b>${esc(u.nome)}</b>${u.org ? `<small>${esc(u.org)}</small>` : ''}<small>${demo ? 'Dados de exemplo' : esc(u.email)}</small></div>
         ${demo ? '<p class="conta-dica">Você está vendo o app com dados de exemplo. Crie sua conta para cadastrar as suas equipes e atletas.</p>' : '<p class="conta-dica">Seus dados ficam guardados neste aparelho.</p>'}
         <button class="btn btn-sm ${demo ? 'btn-primary' : ''}" id="conta-sair">${demo ? 'Criar minha conta' : 'Sair da conta'}</button>
       </div>`;

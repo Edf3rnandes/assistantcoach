@@ -145,6 +145,8 @@
       </ol>`;
   }
 
+  P.listaCompeticoes = listaCompeticoes;
+
   P.macro = function (el, ctx) {
     const { plano, estado } = ctx;
     const semanas = plano.semanas.length;
@@ -191,7 +193,7 @@
           ${listaCompeticoes(plano)}
         </section>`}
       </div>
-      ${plano.motor ? P.blocosMotor(plano) : ''}`;
+      ${plano.motor ? P.blocosMotor(plano, 'resto') : ''}`;
     if (plano.motor) P.ligarMotor(el, ctx);
 
     el.querySelectorAll('[data-ciclo]').forEach((b) => {

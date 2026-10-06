@@ -156,6 +156,33 @@
     const m = /^Sub-(\d+)/.exec(faixa || '');
     return m ? Number(m[1]) : faixa === 'Master' ? 200 : 99;
   }
+  // A faixa sai do ano de nascimento: idade que o atleta completa no ano da competição (ano menos ano de nascimento).
+  // Sub-N vai até N anos; acima de 21 é Adulto. Master é sempre escolhido à mão.
+  function anoAtual() { return new Date(window.Farol.util.HOJE).getUTCFullYear(); }
+  function faixaPorNascimento(nasc, ano) {
+    const idade = (ano || anoAtual()) - Number(String(nasc).slice(0, 4));
+    for (const n of [13, 15, 17, 19, 21]) if (idade <= n) return `Sub-${n}`;
+    return 'Adulto';
+  }
+  // Idade completa em uma data (ms). Sem data de referência, hoje.
+  function idadeEm(nasc, ref) {
+    const [y, m, d] = String(nasc).split('-').map(Number);
+    const r = new Date(ref == null ? window.Farol.util.HOJE : ref);
+    let i = r.getUTCFullYear() - y;
+    if (r.getUTCMonth() + 1 < m || (r.getUTCMonth() + 1 === m && r.getUTCDate() < d)) i--;
+    return i;
+  }
+  const nascimentoValido = (iso) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return false;
+    const [y, m, d] = iso.split('-').map(Number);
+    const t = Date.UTC(y, m - 1, d);
+    const dt = new Date(t);
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d && t <= window.Farol.util.HOJE && y >= 1940 && idadeEm(iso) >= 6;
+  };
+  // Faixa do atleta no ano dado (ou hoje): com data de nascimento ela é calculada; sem data, vale a escolhida.
+  const faixaDe = (a, ano) => (a.nascimento && a.faixa !== 'Master' ? faixaPorNascimento(a.nascimento, ano) : a.faixa);
+  // Campos da ficha do atleta, além de nome, faixa, gênero e nascimento.
+  const CAMPOS_FICHA = ['altura', 'mao', 'posicao', 'telefone', 'responsavel', 'responsavelTel', 'emergenciaNome', 'emergenciaTel', 'alergias', 'atestado', 'obs'];
   const categoriasDe = (faixas, generos) => faixas.flatMap((f) => generos.map((g) => `${f} ${SIGLA[g]}`));
   const rotuloLista = (v) => (v.length <= 1 ? (v[0] || '') : `${v.slice(0, -1).join(', ')} e ${v[v.length - 1]}`);
   const rotuloGeneros = (g) => (g.length === 2 ? 'Masculino e feminino' : g[0] === 'F' ? 'Feminino' : 'Masculino');
@@ -170,13 +197,14 @@
     t.genero = t.generos.length === 2 ? 'X' : t.generos[0];
     return t;
   };
+  ATLETAS_LISTA.forEach((a) => { if (a.nascimento && a.faixa !== 'Master') a.faixa = faixaPorNascimento(a.nascimento); });
   Object.values(TURMAS).forEach(normalizar);
 
   const limpa = (t) => String(t || '').replace(/\s+/g, ' ').trim();
   const ordenaFaixas = (l) => l.slice().sort((x, y) => idadeLimite(x) - idadeLimite(y));
 
   const cadastro = {
-    FAIXAS, GENEROS, idadeLimite, categoriasDe, rotuloLista, rotuloGeneros,
+    FAIXAS, GENEROS, idadeLimite, faixaPorNascimento, faixaDe, idadeEm, nascimentoValido, CAMPOS_FICHA, categoriasDe, rotuloLista, rotuloGeneros,
     rotuloEquipe: (t) => `${t.faixas.join(' + ')} · ${rotuloGeneros(t.generos).toLowerCase()}`,
     // Cria uma equipe com uma ou mais faixas e um ou dois gêneros.
     criarTurma({ nome, faixas, generos }) {
@@ -213,6 +241,9 @@
       if (!faixas || !faixas.length) return { erro: 'Marque ao menos uma faixa.', campo: 'faixas' };
       if (!generos || !generos.length) return { erro: 'Marque ao menos um gênero.', campo: 'generos' };
       if (Object.values(TURMAS).some((o) => o.id !== id && o.nome.toLowerCase() === nome.toLowerCase())) return { erro: 'Já existe uma equipe com este nome.', campo: 'nome' };
+      (atletas || []).forEach((a) => { if (a.nascimento) { if (!nascimentoValido(a.nascimento)) a.nascimento = ''; else if (a.faixa !== 'Master') a.faixa = faixaPorNascimento(a.nascimento); } });
+      // Quem tem data de nascimento traz a própria faixa: se a equipe ainda não a tem, ela entra.
+      faixas = [...new Set([...faixas, ...(atletas || []).filter((a) => a.nascimento).map((a) => a.faixa)])];
       const fora = (atletas || []).filter((a) => !faixas.includes(a.faixa) || !generos.includes(a.genero));
       if (fora.length) return { erro: `${fora.slice(0, 3).map((a) => a.nome.split(' ')[0]).join(', ')} ${fora.length === 1 ? 'está' : 'estão'} numa faixa ou gênero que não é da equipe. Ajuste ${fora.length === 1 ? 'o atleta' : 'os atletas'} ou marque a faixa e o gênero.`, campo: 'faixas' };
       const fx = ordenaFaixas(faixas);
@@ -227,8 +258,8 @@
       }
       normalizar(t);
       (atletas || []).forEach((a) => {
-        if (a.id && ATLETAS[a.id]) Object.assign(ATLETAS[a.id], { nome: limpa(a.nome), faixa: a.faixa, genero: a.genero });
-        else { const n = { id: `u${++seq.u}`, nome: limpa(a.nome), faixa: a.faixa, genero: a.genero, turma: t.id }; ATLETAS_LISTA.push(n); ATLETAS[n.id] = n; t.atletas.push(n.id); }
+        if (a.id && ATLETAS[a.id]) Object.assign(ATLETAS[a.id], { nome: limpa(a.nome), faixa: a.faixa, genero: a.genero, nascimento: a.nascimento || '' });
+        else { const n = { id: `u${++seq.u}`, nome: limpa(a.nome), faixa: a.faixa, genero: a.genero, nascimento: a.nascimento || '', turma: t.id }; ATLETAS_LISTA.push(n); ATLETAS[n.id] = n; t.atletas.push(n.id); }
       });
       gravarElenco();
       return { turma: t };
@@ -253,19 +284,33 @@
       gravarElenco();
       return { atleta: a };
     },
-    atualizarAtleta(id, { nome, genero, faixa }) {
+    atualizarAtleta(id, patch) {
       const a = ATLETAS[id];
-      const t = TURMAS[a.turma];
-      if (nome != null) { const n = limpa(nome); if (n.length < 2) return { erro: 'Informe o nome.' }; a.nome = n; }
+      if (!a) return { erro: 'Atleta não encontrado.' };
+      const t = cadastro.turmaDe(id);
+      const { nome, genero, faixa, nascimento } = patch;
+      if (nome != null) { const n = limpa(nome); if (n.length < 2) return { erro: 'Informe o nome.', campo: 'nome' }; a.nome = n; }
       if (genero && t.generos.includes(genero)) a.genero = genero;
       if (faixa && t.faixas.includes(faixa)) a.faixa = faixa;
+      if (nascimento != null) {
+        if (nascimento === '') a.nascimento = '';
+        else if (!nascimentoValido(nascimento)) return { erro: 'Confira a data de nascimento.', campo: 'nascimento' };
+        else {
+          a.nascimento = nascimento;
+          if (a.faixa !== 'Master') {
+            a.faixa = faixaPorNascimento(nascimento);
+            if (!t.faixas.includes(a.faixa)) { t.faixas = ordenaFaixas([...t.faixas, a.faixa]); t.categorias = categoriasDe(t.faixas, t.generos); normalizar(t); }
+          }
+        }
+      }
+      CAMPOS_FICHA.forEach((k) => { if (patch[k] != null) a[k] = limpa(patch[k]); });
       gravarElenco();
       return {};
     },
     removerAtleta(id) {
       const a = ATLETAS[id];
       if (!a) return;
-      const t = TURMAS[a.turma];
+      const t = cadastro.turmaDe(id);
       if (t) t.atletas = t.atletas.filter((x) => x !== id);
       const i = ATLETAS_LISTA.indexOf(a);
       if (i >= 0) ATLETAS_LISTA.splice(i, 1);
@@ -285,22 +330,24 @@
     // "Sub-17 Masc" → { faixa: 'Sub-17', tipo: 'Masc' }; "Adulto Misto" → { faixa: 'Adulto', tipo: 'Misto' }.
     parseCategoria(cat) { const m = /^(.*)\s(Masc|Fem|Misto)$/.exec(cat || ''); return m ? { faixa: m[1], tipo: m[2] } : { faixa: cat, tipo: null }; },
     // Quem é de uma faixa joga na própria categoria e acima (um Sub-17 joga o Sub-21), nunca abaixo. Master só para Master.
-    podeJogar(a, cat) {
+    podeJogar(a, cat, ano) {
       const c = cadastro.parseCategoria(cat);
-      if (c.faixa === 'Master') return a.faixa === 'Master' ? { ok: true, acima: false } : { ok: false, motivo: `${a.nome} não é Master e não pode jogar a categoria ${cat}.` };
-      if (idadeLimite(a.faixa) > idadeLimite(c.faixa)) return { ok: false, motivo: `${a.nome} é ${a.faixa} e não pode jogar numa categoria mais nova (${cat}).` };
+      const fa = faixaDe(a, ano);
+      if (c.faixa === 'Master') return fa === 'Master' ? { ok: true, acima: false } : { ok: false, motivo: `${a.nome} não é Master e não pode jogar a categoria ${cat}.` };
+      if (idadeLimite(fa) > idadeLimite(c.faixa)) return { ok: false, motivo: `${a.nome} é ${fa} e não pode jogar numa categoria mais nova (${cat}).` };
       if (c.tipo === 'Masc' && a.genero !== 'M') return { ok: false, motivo: `${a.nome} é do gênero feminino e a categoria é masculina (${cat}).` };
       if (c.tipo === 'Fem' && a.genero !== 'F') return { ok: false, motivo: `${a.nome} é do gênero masculino e a categoria é feminina (${cat}).` };
-      return { ok: true, acima: idadeLimite(a.faixa) < idadeLimite(c.faixa) };
+      return { ok: true, acima: idadeLimite(fa) < idadeLimite(c.faixa) };
     },
     // Retorna a frase de erro ou '' se a dupla serve para a categoria.
-    validarDupla(idA, idB, cat) {
+    validarDupla(idA, idB, cat, ano) {
       const a = ATLETAS[idA], b = ATLETAS[idB];
       if (!a || !b || a === b) return 'Escolha dois atletas diferentes para a dupla.';
-      for (const x of [a, b]) { const r = cadastro.podeJogar(x, cat); if (!r.ok) return r.motivo; }
+      for (const x of [a, b]) { const r = cadastro.podeJogar(x, cat, ano); if (!r.ok) return r.motivo; }
       if (cadastro.parseCategoria(cat).tipo === 'Misto' && a.genero === b.genero) return 'Na categoria mista, a dupla precisa de um atleta e uma atleta.';
       return '';
     },
+    turmaDe(id) { return Object.values(TURMAS).find((t) => t.atletas.includes(id)) || null; },
     renomearAtleta(id, nome) { return cadastro.atualizarAtleta(id, { nome }); },
   };
 

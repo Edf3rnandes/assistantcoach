@@ -231,7 +231,7 @@
 
     adicionarDupla(id, d) {
       const p = plan(id);
-      const motivo = window.Farol.elenco.cadastro.validarDupla(d.a, d.b, d.cat);
+      const motivo = window.Farol.elenco.cadastro.validarDupla(d.a, d.b, d.cat, new Date(COMPETICOES[id].data).getUTCFullYear());
       if (motivo) return { erro: motivo };
       if (p.duplas.some((x) => [x.a, x.b].includes(d.a) || [x.a, x.b].includes(d.b))) {
         const quem = p.duplas.find((x) => [x.a, x.b].includes(d.a) || [x.a, x.b].includes(d.b));

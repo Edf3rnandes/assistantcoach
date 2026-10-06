@@ -10,6 +10,7 @@
   const estado = { sel: null, filtro: 'proximas', aviso: '', nova: false, editar: false };
 
   const CAD = window.Farol.elenco.cadastro;
+  const ANO = (c) => new Date(c.data).getUTCFullYear();
   const nomeDupla = (d) => `${ATLETAS[d.a].nome} e ${ATLETAS[d.b].nome}`;
   const periodo = (c) => (CAL.fimDe(c) > c.data ? `${dd(c.data)} a ${dd(CAL.fimDe(c))}` : dd(c.data));
   const periodoAno = (c) => `${periodo(c)}/${ano(c.data)}`;
@@ -158,7 +159,7 @@
             <tbody>
               ${duplas.map((d) => `
                 <tr>
-                  <td>${esc(nomeDupla(d))}${(() => { const A = ATLETAS[d.a], B = ATLETAS[d.b]; if (!A || !B) return ''; const ac = [A, B].some((x) => CAD.podeJogar(x, d.cat).acima); return `<small class="sub-linha">${esc(A.faixa)}${A.faixa === B.faixa ? '' : ` e ${esc(B.faixa)}`}${ac ? ' · <b class="dupla-acima">joga acima</b>' : ''}</small>`; })()}</td>
+                  <td>${esc(nomeDupla(d))}${(() => { const A = ATLETAS[d.a], B = ATLETAS[d.b]; if (!A || !B) return ''; const ac = [A, B].some((x) => CAD.podeJogar(x, d.cat, ANO(c)).acima); return `<small class="sub-linha">${esc(A.faixa)}${A.faixa === B.faixa ? '' : ` e ${esc(B.faixa)}`}${ac ? ' · <b class="dupla-acima">joga acima</b>' : ''}</small>`; })()}</td>
                   <td>
                     <select class="select sm st-${d.status}" data-dupla-status="${d.id}" aria-label="Situação da dupla ${esc(nomeDupla(d))}">
                       ${Object.entries(CAL.STATUS_DUPLA).map(([s, v]) => `<option value="${s}" ${s === d.status ? 'selected' : ''}>${v.nome}</option>`).join('')}
@@ -323,25 +324,6 @@
       </section>`;
   }
 
-  function secaoScout(c, p) {
-    const SD = window.Farol.scoutDados;
-    const jogos = SD.jogosDaCompeticao(c.id);
-    const conf = p.duplas.filter((d) => d.status === 'confirmada');
-    if (!conf.length) return '';
-    return `
-      <section class="card" aria-labelledby="h-scout">
-        <div class="card-head"><h2 id="h-scout">Scout dos jogos</h2><span class="label num">${jogos.length} ${jogos.length === 1 ? 'jogo' : 'jogos'} coletados</span></div>
-        ${jogos.length ? `<ul class="sc-lista">${jogos.map((j) => {
-          const e = SD.estado(j);
-          return `<li><span><b>${esc(j.titulo)}</b> · ${esc(SD.rotuloDupla(j.dupla))} × ${esc(j.adv)} <span class="num" style="color:var(--ink-2)">${e.sets.map((x) => `${x.a}–${x.b}`).join(' · ')}</span></span><button class="btn btn-sm" data-scout-rel="${j.id}">${e.encerrado ? 'Relatório' : 'Continuar'}</button></li>`;
-        }).join('')}</ul>` : '<p class="vazio" style="padding:4px 0">Nenhum jogo coletado nesta competição.</p>'}
-        <div class="actions" style="margin-top:12px">
-          <label class="label" for="scout-dupla" style="margin:0">Coletar um jogo de</label>
-          <select class="select sm" id="scout-dupla" style="min-width:0;width:auto">${conf.map((d) => `<option value="${d.id}">${esc(nomeDupla(d))}</option>`).join('')}</select>
-          <button class="btn btn-primary btn-sm" id="scout-novo" type="button">Coletar jogo</button>
-        </div>
-      </section>`;
-  }
 
   function secaoPreparo(c) {
     const blocos = [];
@@ -398,7 +380,6 @@
       ${secaoOrcamento(c, p)}
       ${secaoEquipe(c, p)}
       ${secaoResultados(c, p)}
-      ${secaoScout(c, p)}
 
       <section class="card" aria-labelledby="h-notas">
         <div class="card-head"><h2 id="h-notas">Anotações</h2></div>
@@ -415,12 +396,6 @@
     const $ = (s) => root.querySelector(s);
     const recarregar = (aviso, foco) => { estado.aviso = aviso || ''; const y = window.scrollY; detalhe(root); window.scrollTo({ top: y }); if (foco) { const f = $(foco); if (f) f.focus({ preventScroll: true }); } };
 
-    root.querySelectorAll('[data-scout-rel]').forEach((b) => b.addEventListener('click', () => {
-      const j = window.Farol.scoutDados.jogo(b.dataset.scoutRel);
-      window.Farol.ir(window.Farol.scoutDados.estado(j).encerrado ? 'analise-scout' : 'scout-coleta', { jogo: j.id });
-    }));
-    const sn = $('#scout-novo');
-    if (sn) sn.addEventListener('click', () => window.Farol.ir('analise-scout', { novo: { compId: c.id, duplaId: $('#scout-dupla').value } }));
     $('#voltar').addEventListener('click', () => { estado.sel = null; estado.aviso = ''; estado.editar = false; lista(root); window.scrollTo({ top: 0 }); });
     $('#editar-dados').addEventListener('click', () => { estado.editar = !estado.editar; recarregar('', estado.editar ? '#dc-nome' : null); });
 
@@ -449,8 +424,8 @@
     const preencher = () => {
       const cat = selCat.value;
       const todos = CAD.atletasPor(selF.value).filter((a) => !usados.has(a.id));
-      const aptos = todos.filter((a) => CAD.podeJogar(a, cat).ok);
-      const rotulo = (a) => { const r = CAD.podeJogar(a, cat); const t = TURMAS[a.turma]; return `${esc(a.nome)} (${esc(a.faixa)}${r.acima ? ', joga acima' : ''}${t ? ` · ${esc(t.nome)}` : ''})`; };
+      const aptos = todos.filter((a) => CAD.podeJogar(a, cat, ANO(c)).ok);
+      const rotulo = (a) => { const r = CAD.podeJogar(a, cat, ANO(c)); const t = TURMAS[a.turma]; return `${esc(a.nome)} (${esc(CAD.faixaDe(a, ANO(c)))}${r.acima ? ', joga acima' : ''}${t ? ` · ${esc(t.nome)}` : ''})`; };
       const opts = aptos.map((a) => `<option value="${a.id}">${rotulo(a)}</option>`).join('');
       selA.innerHTML = opts; selB.innerHTML = opts;
       if (aptos.length > 1) selB.selectedIndex = 1;
@@ -463,7 +438,7 @@
     $('#form-dupla').addEventListener('submit', (e) => {
       e.preventDefault();
       const erro = $('#fd-erro');
-      const motivo = CAD.validarDupla(selA.value, selB.value, selCat.value);
+      const motivo = CAD.validarDupla(selA.value, selB.value, selCat.value, ANO(c));
       if (motivo) { erro.textContent = motivo; erro.hidden = false; return; }
       const r = CAL.adicionarDupla(c.id, { a: selA.value, b: selB.value, cat: selCat.value, status: $('#fd-st').value });
       if (r.erro) { erro.textContent = r.erro; erro.hidden = false; return; }

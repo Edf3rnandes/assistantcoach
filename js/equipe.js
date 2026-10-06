@@ -15,7 +15,7 @@
   const TURNO = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
   const ORD = { manha: 0, tarde: 1, noite: 2 };
   const NOME_ESTADO = { lesao: 'Lesionado', retorno: 'Em retorno', duvida: 'Dúvida', atencao: 'Atenção', ok: 'Disponível' };
-  const est = { turmaId: null, semana: null, sel: null };
+  const est = { turmaId: null, planoId: null, semana: null, sel: null };
 
   const iniciais = (n) => n.split(' ').filter((x) => x.length > 2).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
   const emDias = (t) => Math.round((t - HOJE) / DIA);
@@ -30,15 +30,16 @@
   function situacoes(t, plano) {
     let nivel = {};
     if (plano) { try { A.atletas(plano).forEach((a) => { nivel[a.id] = a; }); } catch (e) { nivel = {}; } }
-    return t.atletas.map((id) => {
+    const ids = plano && plano.tipo === 'turma' && plano.atletas ? plano.atletas : t.atletas;
+    return ids.map((id) => {
       const sit = elenco.situacaoDe(id), an = nivel[id];
       const estado = sit ? (sit.tipo === 'lesao' ? 'lesao' : 'retorno') : an && an.nivel !== 'ok' ? 'atencao' : 'ok';
       return { id, sit, an, estado };
     });
   }
 
-  function resumo(t) {
-    const plano = planoDe(t);
+  function resumo(t, forcado) {
+    const plano = forcado || planoDe(t);
     const membros = situacoes(t, plano);
     const c = { lesao: 0, retorno: 0, atencao: 0, ok: 0 };
     membros.forEach((m) => { c[m.estado]++; });
@@ -144,6 +145,42 @@
     </section>`;
   }
 
+
+  // Bloco de atletas que abre e fecha: uma linha de resumo e, ao tocar, a lista com a situação de cada um.
+  let seqAtb = 0;
+  function blocoAtletasNovo(membros, aberto) {
+    const id = `atb${++seqAtb}`;
+    const c = { lesao: 0, retorno: 0, atencao: 0, ok: 0 };
+    membros.forEach((m) => { c[m.estado]++; });
+    const chip = (k, n, txt) => (n ? `<span class="atb-c ${k}">${n} ${txt}</span>` : '');
+    const motivo = (m) => (m.sit ? m.sit.local.toLowerCase() : m.an && m.an.motivos && m.an.motivos.length ? m.an.motivos[0].texto : '');
+    const sub = (a) => `${a.faixa || ''}${a.genero ? ` · ${a.genero === 'F' ? 'feminino' : 'masculino'}` : ''}`;
+    return `<div class="atb" data-atb>
+      <button type="button" class="atb-t" aria-expanded="${!!aberto}" aria-controls="${id}">
+        <span class="atb-res"><b>Atletas</b><span class="num atb-n">${membros.length}</span>${chip('ok', c.ok, c.ok === membros.length ? 'disponíveis' : 'ok')}${chip('atencao', c.atencao, 'atenção')}${chip('retorno', c.retorno, 'em retorno')}${chip('lesao', c.lesao, c.lesao === 1 ? 'lesão' : 'lesões')}</span>
+        <svg class="atb-seta" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <ul class="atb-l" id="${id}" ${aberto ? '' : 'hidden'}>${membros.length ? membros.map((m) => {
+        const a = ATLETAS[m.id];
+        const ac = m.an && m.an.acwr != null ? `ACWR ${dec(m.an.acwr)}` : '';
+        const det = m.estado === 'ok' ? ac : (motivo(m) || ac);
+        return `<li><button type="button" class="atb-i ${m.estado}" data-atleta="${m.id}" data-estado="${m.estado}">
+          <span class="atb-av"><i>${esc(iniciais(a.nome))}</i></span>
+          <span class="atb-nm"><b>${esc(a.nome)}</b><small>${esc(sub(a))}</small></span>
+          <span class="atb-st"><span class="atb-c ${m.estado}">${esc(NOME_ESTADO[m.estado])}</span>${det ? `<small class="num" title="${esc(det)}">${esc(det)}</small>` : ''}</span></button></li>`;
+      }).join('') : '<li class="vazio" style="padding:8px 4px">Ainda não há atletas nesta equipe.</li>'}</ul></div>`;
+  }
+
+  // Liga o abrir/fechar dos blocos de atletas de uma tela e o toque em cada atleta (abre a ficha).
+  function ligarAtb(root) {
+    root.querySelectorAll('[data-atb] .atb-t').forEach((b) => b.addEventListener('click', () => {
+      const abre = b.getAttribute('aria-expanded') !== 'true';
+      b.setAttribute('aria-expanded', String(abre));
+      root.querySelector(`#${b.getAttribute('aria-controls')}`).hidden = !abre;
+    }));
+    root.querySelectorAll('.atb-i').forEach((b) => b.addEventListener('click', () => window.Farol.ir('ficha', { atletaId: b.dataset.atleta })));
+  }
+
   function ligarAtletas(root) {
     root.querySelectorAll('[data-atleta]').forEach((b) => b.addEventListener('click', () => {
       const id = b.dataset.atleta;
@@ -154,13 +191,14 @@
 
   function montar(root, params) {
     if (params && params.turmaId) { est.turmaId = params.turmaId; est.semana = null; est.sel = null; }
+    if (params && params.planoId && params.planoId !== est.planoId) { est.planoId = params.planoId; est.semana = null; est.sel = null; }
     if (params && params.semana != null) est.semana = params.semana;
     if (params && params.sel) est.sel = params.sel;
     if (!est.turmaId || !TURMAS[est.turmaId]) est.turmaId = window.Farol.compartilhado.equipeId && TURMAS[window.Farol.compartilhado.equipeId] ? window.Farol.compartilhado.equipeId : Object.keys(TURMAS)[0];
     window.Farol.compartilhado.equipeId = est.turmaId;
     const t = TURMAS[est.turmaId];
     if (!t) { window.Farol.ir('inicio'); return; }
-    const R = resumo(t);
+    const R = resumo(t, est.planoId ? dados.plano(est.planoId) : null);
     if (!R.plano) { semPlano(root, t); return; }
     const { plano } = R;
     window.Farol.compartilhado.planoId = plano.id;
@@ -188,21 +226,6 @@
     const media = meso ? meso.pauta.fundamentos.filter((f) => f.prio === 'media') : [];
 
     root.innerHTML = `
-      <section class="eq-topo" style="--c:var(${meso ? meso.cor : '--accent'})" aria-label="${esc(t.nome)}">
-        <div class="eq-topo-c">
-          <span class="eq-faixa">${esc(elenco.cadastro.rotuloEquipe(t))} · ${plural(t.atletas.length, 'atleta', 'atletas')} · <button class="eq-editar" id="eq-editar">Editar equipe</button></span>
-          <h1>${esc(t.nome)}</h1>
-          <p class="eq-fase"><b>${meso ? esc(meso.nome) : 'Sem fase'}</b>${ciclo ? ` · ${esc(ciclo.nome)}` : ''} · semana ${semana.n}${tm ? ` · microciclo ${esc(tm.nome.toLowerCase())}` : ''}</p>
-          ${alvo ? `<p class="eq-alvo">Alvo do ciclo: <b>${esc(alvo.nome)}</b>, ${dd(alvo.data)}${emDias(alvo.data) >= 0 ? ` (em ${plural(emDias(alvo.data), 'dia', 'dias')})` : ''}</p>` : ''}
-        </div>
-        <div class="eq-topo-n" aria-label="Resumo da semana">
-          <span><b class="num">${nReg}/${lista.length}</b><small>sessões registradas</small></span>
-          <span><b class="num">${num(semana.planejado)}</b><small>UA planejadas</small></span>
-          <span class="${R.pendentes ? 'alerta' : ''}"><b class="num">${R.pendentes}</b><small>${R.pendentes === 1 ? 'treino em atraso' : 'treinos em atraso'}</small></span>
-        </div>
-      </section>
-
-      ${window.Farol.periodo && window.Farol.periodo.bannerRevisao ? window.Farol.periodo.bannerRevisao(plano) : ''}
       <section class="card eq-semana" aria-labelledby="eq-sem-t">
         <div class="card-head eq-sem-h">
           <h2 id="eq-sem-t">Semana ${semana.n}</h2>
@@ -218,7 +241,7 @@
         <p class="eq-leg"><span><i class="eq-st registrado">${ST_ICO.registrado}</i> registrada</span><span><i class="eq-st aguardando">${ST_ICO.aguardando}</i> aguardando registro</span><span><i class="eq-st futuro">${ST_ICO.futuro}</i> planejada</span></p>
       </section>
 
-      ${blocoAtletas(t, R.membros)}
+      ${blocoAtletasNovo(R.membros, false)}
 
       <div class="eq-g2">
         <section class="card" aria-labelledby="eq-foco-t">
@@ -234,12 +257,11 @@
         </section>
       </div>
 
-      <nav class="eq-links" aria-label="Mais sobre a equipe">
-        <button class="eq-link" data-ir="treinos-periodizacao">Periodização da equipe<small>ciclos, blocos e semanas</small></button>
-        <button class="eq-link" data-ir="analise">Análise da equipe<small>carga, ACWR e comparativos</small></button>
-        <button class="eq-link" data-ir="treinos-microciclo">Resposta da semana<small>como os atletas se sentiram</small></button>
-        <button class="eq-link" id="eq-link-copiar">Link dos atletas<small id="eq-link-msg">copiar para enviar</small></button>
-      </nav>`;
+      <div class="eq-rodape">
+        <button class="btn btn-sm" data-ir="treinos-microciclo">Resposta da semana</button>
+        <button class="btn btn-sm" id="eq-link-copiar">Copiar link dos atletas<small id="eq-link-msg" class="eq-link-msg"></small></button>
+        <button class="btn btn-sm" id="eq-editar">Editar equipe</button>
+      </div>`;
 
     const refaz = (foco) => { const y = window.scrollY; montar(root); window.scrollTo({ top: y }); if (foco) { const f = root.querySelector(foco); if (f) f.focus({ preventScroll: true }); } };
     const $ = (s) => root.querySelector(s);
@@ -254,14 +276,11 @@
       else if (a === 'editar') window.Farol.ir('treinos-periodizacao', { planoId: plano.id, nivel: 'micro', semana: semana.idx, editor: { dia: x.s.dia, turno: x.s.turno, id: x.s.id }, painel: x.st === 'futuro' ? 'plano' : 'registro' });
       else if (a === 'fisico') window.Farol.ir('treinos-biblioteca', { nova: { planoId: plano.id, semana: semana.idx, sessaoId: x.s.id } });
     }));
-    ligarAtletas(root);
+    ligarAtb(root);
     root.querySelectorAll('[data-ir]').forEach((b) => b.addEventListener('click', () => {
       const rota = b.dataset.ir;
-      if (rota === 'treinos-periodizacao') window.Farol.ir(rota, { planoId: plano.id, nivel: 'micro', semana: semana.idx, editor: null });
-      else if (rota === 'treinos-microciclo') window.Farol.ir(rota, { planoId: plano.id, semana: semana.idx });
-      else window.Farol.ir(rota, { aba: 'geral' });
+      if (rota === 'treinos-microciclo') window.Farol.ir(rota, { planoId: plano.id, semana: semana.idx });
     }));
-    const rev = root.querySelector('[data-revisar]'); if (rev) rev.addEventListener('click', () => window.Farol.ir('treinos-periodizacao', { planoId: plano.id, nivel: 'revisao', editor: null }));
     $('#eq-editar').addEventListener('click', () => window.Farol.ir('equipes-editar', { turmaId: t.id }));
     const pa = $('#eq-pauta'); if (pa) pa.addEventListener('click', () => window.Farol.ir('treinos-periodizacao', { planoId: plano.id, nivel: 'meso', mesoId: meso.id }));
     const co = $('#eq-comp'); if (co) co.addEventListener('click', () => window.Farol.ir('planejamento-competicoes', { competicao: comp.id }));
@@ -269,13 +288,19 @@
     $('#eq-link-copiar').addEventListener('click', () => {
       const url = new URL(`atleta.html?t=${encodeURIComponent(t.token)}`, location.href).href;
       const msg = $('#eq-link-msg');
-      const ok = () => { msg.textContent = 'link copiado'; };
+      const ok = () => { msg.textContent = ' · copiado'; };
       const falha = () => { msg.textContent = url; };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, falha); else falha();
     });
   }
 
-  window.Farol.equipes = { resumo, planoDe, situacoes };
+  window.Farol.equipes = { resumo, planoDe, situacoes, blocoAtletasNovo, ligarAtb, semana: (root, params) => montar(root, params) };
   window.Farol.views = window.Farol.views || {};
-  window.Farol.views.equipe = montar;
+  // A tela de equipe deixou de existir à parte: ela é a periodização escolhida, na aba Semana.
+  window.Farol.views.equipe = (root, params) => {
+    const t = params && params.turmaId ? TURMAS[params.turmaId] : null;
+    const pl = t ? planoDe(t) : null;
+    if (pl) window.Farol.ir('treinos-periodizacao', { planoId: pl.id, nivel: 'semana', turmaId: t.id, ...(params.sel ? { sel: params.sel } : {}) });
+    else window.Farol.ir('treinos-periodizacao', { nivel: 'criar', editor: null, turmaId: t ? t.id : null });
+  };
 })();

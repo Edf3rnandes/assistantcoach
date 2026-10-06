@@ -29,7 +29,7 @@
 
   // `pronta` indica se a tela já foi construída; as demais mostram o que entra nela.
   const GRUPOS = [
-    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }, { id: 'equipe', nome: 'Equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'equipes-nova', nome: 'Nova equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'equipes-editar', nome: 'Editar equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'saude', nome: 'Saúde do elenco', icone: 'cruz', pronta: true, oculta: true }] },
+    { titulo: 'Início', itens: [{ id: 'inicio', nome: 'Início', icone: 'casa', pronta: true }, { id: 'equipe', nome: 'Equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'equipes-nova', nome: 'Nova equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'equipes-editar', nome: 'Editar equipe', icone: 'pessoas', pronta: true, oculta: true }, { id: 'saude', nome: 'Saúde do elenco', icone: 'cruz', pronta: true, oculta: true }, { id: 'ficha', nome: 'Ficha do atleta', icone: 'pessoas', pronta: true, oculta: true }] },
     {
       titulo: 'Já existe',
       itens: [
@@ -72,11 +72,9 @@
       titulo: 'Análise',
       itens: [
         {
-          id: 'analise', nome: 'Análise', icone: 'graf', pronta: true,
+          id: 'analise', nome: 'Carga', icone: 'pulso', pronta: true,
           resumo: '', bullets: [], tabelas: [],
         },
-        { id: 'analise-scout', nome: 'Scout', icone: 'alvo', pronta: true },
-        { id: 'scout-coleta', nome: 'Coleta do scout', icone: 'alvo', pronta: true, oculta: true },
       ],
     },
   ];
@@ -91,22 +89,22 @@
   const BARRA = [
     { id: 'inicio', rotulo: 'Início' },
     { id: 'treinos-periodizacao', rotulo: 'Periodização' },
-    { id: 'planejamento-competicoes', rotulo: 'Jogos', icone: 'placar' },
-    { id: 'analise', rotulo: 'Análise' },
+    { id: 'analise', rotulo: 'Carga', icone: 'pulso' },
   ];
   // Telas que não aparecem na barra acendem o item a que pertencem.
   const PAI = {
-    equipe: 'inicio', 'equipes-nova': 'inicio', 'equipes-editar': 'inicio', saude: 'inicio', 'treino-registro': 'inicio', 'treinos-microciclo': 'inicio', 'treino-quadro': 'inicio',
-    'treinos-biblioteca': 'treinos-periodizacao', 'atleta-previa': 'treinos-periodizacao',
-    'analise-scout': 'planejamento-competicoes', 'scout-coleta': 'planejamento-competicoes',
+    'equipes-nova': 'inicio', 'equipes-editar': 'inicio', saude: 'inicio', ficha: 'inicio',
+    equipe: 'treinos-periodizacao', 'treino-registro': 'treinos-periodizacao', 'treinos-microciclo': 'treinos-periodizacao', 'treino-quadro': 'treinos-periodizacao',
+    'treinos-biblioteca': 'treinos-periodizacao', 'atleta-previa': 'treinos-periodizacao', 'planejamento-competicoes': 'treinos-periodizacao',
   };
   // Para onde volta o botão "‹" de cada tela que não é uma porta.
-  const VOLTA = { 'equipes-editar': ['equipe', 'Equipe'], 'treino-registro': ['equipe', 'Equipe'], 'treinos-microciclo': ['equipe', 'Equipe'], 'scout-coleta': ['analise-scout', 'Scout'] };
-  // Abas de cada porta (a barra de baixo troca de porta; esta linha troca de assunto dentro dela).
-  const SUBNAV = [
-    { ids: ['treinos-periodizacao', 'treinos-biblioteca'], itens: [['treinos-periodizacao', 'Temporada'], ['treinos-biblioteca', 'Exercícios e prescrição']] },
-    { ids: ['planejamento-competicoes', 'analise-scout', 'scout-coleta'], itens: [['planejamento-competicoes', 'Competições'], ['analise-scout', 'Scout']] },
-  ];
+  const VOLTA = {
+    'equipes-editar': ['inicio', 'Início'], 'equipes-nova': ['inicio', 'Início'], ficha: ['inicio', 'Início'], saude: ['inicio', 'Início'],
+    'treino-registro': ['treinos-periodizacao', 'Periodização'], 'treinos-microciclo': ['treinos-periodizacao', 'Periodização'],
+    'planejamento-competicoes': ['treinos-periodizacao', 'Periodização'], 'treinos-biblioteca': ['treinos-periodizacao', 'Periodização'],
+  };
+  // As abas de cada porta ficam dentro da própria tela (Periodização: Semana, Bloco, Temporada, Calendário, Exercícios, Atletas).
+  const SUBNAV = [];
   let rotaAtual = null;
   const EXIGE_PLANO = ['treino-registro', 'treinos-microciclo', 'atleta-previa'];
 
@@ -180,7 +178,7 @@
     const sub = document.getElementById('subnav');
     const grupo = SUBNAV.find((g) => g.ids.includes(rota));
     if (grupo) {
-      const ativo = rota === 'scout-coleta' ? 'analise-scout' : rota;
+      const ativo = rota;
       sub.innerHTML = grupo.itens.map(([id, nome]) => `<a class="subnav-item" href="#${id}" data-rota="${id}" ${id === ativo ? 'aria-current="page"' : ''}>${esc(nome)}</a>`).join('');
       sub.hidden = false;
     } else { sub.innerHTML = ''; sub.hidden = true; }

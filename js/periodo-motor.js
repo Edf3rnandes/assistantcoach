@@ -101,20 +101,20 @@
         <button class="btn" id="pr-add-ok">Adicionar</button></div>` : ''}`;
   }
 
-  P.blocosMotor = function (plano) {
+  P.blocosMotor = function (plano, parte) {
     const m = plano.motor;
     const av = dados.avisos(plano.id);
     const alertas = dados.alertasPlano(plano.id);
     const todos = [...av.conflitos, ...av.sugestoes, ...av.janelas.map((j) => ({ severidade: 'warning', texto: j.texto }))];
     const rev = m.revisoes || [];
-    return `
+    if (parte === 'calendario') return `
       <section class="card" aria-labelledby="h-cal">
         <div class="card-head"><h2 id="h-cal">Calendário e prioridades</h2><span class="label">${av.provisorio ? 'depende de evento provisório' : 'A, B ou C'}</span></div>
         ${todos.length ? `<ul class="pr-avisos" role="status">${todos.map((a) => `<li class="pr-av ${a.severidade || 'info'}">${esc(a.texto)}</li>`).join('')}</ul>` : ''}
         ${tabelaCalendario(plano)}
         <p class="hint">Mudar a prioridade, a data ou o status de uma competição não altera nada de imediato: o sistema recalcula o futuro e mostra a diferença para você confirmar.</p>
-      </section>
-
+      </section>`;
+    return `
       <div class="corpo">
         <section class="card" aria-labelledby="h-aj">
           <div class="card-head"><h2 id="h-aj">Ajustes</h2></div>
@@ -145,7 +145,7 @@
 
   P.ligarMotor = function (el, ctx) {
     const { plano } = ctx;
-    const re = (foco, aviso) => ctx.ir('macro', aviso ? { aviso } : {}, foco);
+    const re = (foco, aviso) => ctx.ir(ctx.estado.nivel, aviso ? { aviso } : {}, foco);
     el.querySelectorAll('[data-pr]').forEach((b) => b.addEventListener('click', () => {
       const [id, k] = b.dataset.pr.split('|');
       dados.definirPrioridade(plano.id, id, k || null);

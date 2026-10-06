@@ -17,74 +17,80 @@
 
   const CATEGORIAS = { forca: 'Força', potencia: 'Potência', core: 'Core e estabilidade', prevencao: 'Prevenção', mobilidade: 'Mobilidade', cond: 'Condicionamento' };
   const GRUPOS = { quad: 'Quadríceps', post: 'Posterior de coxa', glut: 'Glúteos', pant: 'Panturrilha', aduc: 'Adutores', tornoz: 'Tornozelo', core: 'Core', ombro: 'Ombro', costas: 'Costas', peito: 'Peito', bracos: 'Braços', corpo: 'Corpo todo' };
-  const EQUIPS = ['Peso do corpo', 'Barra', 'Halter', 'Kettlebell', 'Elástico', 'Medicine ball', 'Caixote', 'Areia', 'Barra fixa', 'Superfície instável', 'Bicicleta', 'Bastão'];
+  // O treino físico é na areia: os únicos implementos são o disco (anilha), o cone e a escada de agilidade.
+  const EQUIPS = ['Peso do corpo', 'Disco', 'Cone', 'Escada de agilidade'];
   const NIVEIS = { inic: 'Iniciante', inter: 'Intermediário', avan: 'Avançado' };
   // O que o exercício exige. As chaves são as mesmas das restrições do cadastro de saúde.
   const TAGS = { salto: 'Saltos', corrida: 'Corrida', ataque: 'Braço acima da cabeça', queda: 'Quedas e mergulhos' };
   const REGIOES = { tornozelo: 'Tornozelo', joelho: 'Joelho', quadril: 'Quadril', lombar: 'Lombar', ombro: 'Ombro', punho: 'Punho ou mão', coxa: 'Coxa' };
   // Palavras da região do corpo (cadastro de saúde) que ligam a cada região de carga.
   const CHAVE_REGIAO = { tornozelo: 'tornozelo', joelho: 'joelho', quadril: 'quadril', lombar: 'lombar', ombro: 'ombro', punho: 'punho', dedos: 'punho', coxa: 'coxa' };
-  const CARGAS = { pc: 'Peso do corpo', kg: 'kg', pct: '% de 1RM', pse: 'PSE' };
+  const CARGAS = { pc: 'Peso do corpo', kg: 'kg', pse: 'PSE' };
 
   /* ---------- Catálogo de exemplo ---------- */
 
   const E = (id, nome, cat, grupos, equip, nivel, tags, regioes, dica) => ({ id, nome, cat, grupos, equip, nivel, tags, regioes, video: '', dica });
   const EXERCICIOS = [
-    E('e1', 'Agachamento livre', 'forca', ['quad', 'glut'], 'Barra', 'inter', [], ['joelho', 'lombar'], 'Peito aberto, joelhos na linha dos pés, desce até as coxas ficarem paralelas ao chão.'),
-    E('e2', 'Agachamento búlgaro', 'forca', ['quad', 'glut'], 'Halter', 'inter', [], ['joelho', 'tornozelo'], 'Pé de trás apoiado no banco, tronco firme, joelho da frente sem passar muito dos dedos.'),
-    E('e3', 'Levantamento terra romeno', 'forca', ['post', 'glut'], 'Barra', 'inter', [], ['lombar'], 'Quadril para trás, coluna neutra, barra rente às pernas.'),
-    E('e4', 'Avanço caminhando', 'forca', ['quad', 'glut'], 'Halter', 'inic', [], ['joelho', 'tornozelo'], 'Passo longo, tronco alto, joelho de trás quase toca o chão.'),
+    E('e1', 'Agachamento com disco junto ao peito', 'forca', ['quad', 'glut'], 'Disco', 'inter', [], ['joelho', 'lombar'], 'Disco junto ao peito, cotovelos para baixo; desce até as coxas ficarem paralelas ao chão, com os pés firmes na areia.'),
+    E('e2', 'Agachamento unilateral assistido', 'forca', ['quad', 'glut'], 'Peso do corpo', 'inter', [], ['joelho', 'tornozelo'], 'Desce sobre uma perna só, com a outra à frente; tronco firme e joelho alinhado com o pé.'),
+    E('e3', 'Levantamento terra romeno com disco', 'forca', ['post', 'glut'], 'Disco', 'inter', [], ['lombar'], 'Disco rente às pernas, quadril para trás, coluna neutra.'),
+    E('e4', 'Avanço caminhando com disco', 'forca', ['quad', 'glut'], 'Disco', 'inic', [], ['joelho', 'tornozelo'], 'Disco junto ao peito, passo longo, tronco alto; o joelho de trás quase toca a areia.'),
     E('e5', 'Elevação de quadril unilateral', 'forca', ['glut', 'post'], 'Peso do corpo', 'inic', [], [], 'Costas apoiadas, sobe o quadril apertando o glúteo, sem arquear a lombar.'),
-    E('e6', 'Panturrilha em pé unilateral', 'forca', ['pant'], 'Halter', 'inic', [], ['tornozelo'], 'Sobe devagar, pausa de 1 segundo no alto, desce completo.'),
-    E('e7', 'Supino com halteres', 'forca', ['peito', 'bracos'], 'Halter', 'inter', [], ['ombro'], 'Escápulas juntas, cotovelos a 45 graus do tronco.'),
-    E('e8', 'Remada curvada', 'forca', ['costas', 'bracos'], 'Barra', 'inter', [], ['lombar'], 'Tronco inclinado e firme, puxa a barra em direção ao umbigo.'),
-    E('e9', 'Barra fixa', 'forca', ['costas', 'bracos'], 'Barra fixa', 'avan', [], ['ombro'], 'Ombros longe das orelhas, queixo passa da barra, desce controlado.'),
-    E('e10', 'Desenvolvimento com halteres', 'forca', ['ombro', 'bracos'], 'Halter', 'inter', ['ataque'], ['ombro'], 'Core firme, não arquear a lombar, sobe sem encostar os halteres.'),
-    E('e11', 'Flexão de braço', 'forca', ['peito', 'bracos'], 'Peso do corpo', 'inic', [], ['ombro', 'punho'], 'Corpo em linha reta, peito quase toca o chão.'),
-    E('e12', 'Remada unilateral com halter', 'forca', ['costas'], 'Halter', 'inic', [], [], 'Apoio no banco, cotovelo rente ao corpo, sem girar o tronco.'),
-    E('e13', 'Flexora nórdica', 'forca', ['post'], 'Peso do corpo', 'avan', [], ['joelho', 'coxa'], 'Quadril estendido, desce o mais lento possível e se ampara com as mãos.'),
+    E('e6', 'Panturrilha unilateral na areia', 'forca', ['pant'], 'Peso do corpo', 'inic', [], ['tornozelo'], 'Sobe devagar, pausa de 1 segundo no alto, desce completo; a areia exige mais do tornozelo.'),
+    E('e7', 'Flexão com as mãos sobre discos', 'forca', ['peito', 'bracos'], 'Disco', 'inter', [], ['ombro', 'punho'], 'Mãos apoiadas em dois discos no chão, maior amplitude e menos pressão no punho; corpo em linha reta.'),
+    E('e8', 'Remada curvada com disco', 'forca', ['costas', 'bracos'], 'Disco', 'inter', [], ['lombar'], 'Tronco inclinado e firme, puxa o disco em direção ao umbigo.'),
+    E('e9', 'Prancha com arrasto de disco', 'forca', ['costas', 'core'], 'Disco', 'inter', [], ['ombro', 'lombar'], 'Em prancha alta, arrasta o disco de um lado para o outro sem girar o quadril.'),
+    E('e10', 'Desenvolvimento com disco', 'forca', ['ombro', 'bracos'], 'Disco', 'inter', ['ataque'], ['ombro'], 'Disco com as duas mãos, core firme; sobe sem arquear a lombar.'),
+    E('e11', 'Flexão de braço', 'forca', ['peito', 'bracos'], 'Peso do corpo', 'inic', [], ['ombro', 'punho'], 'Corpo em linha reta, peito quase toca a areia.'),
+    E('e12', 'Remada unilateral com disco', 'forca', ['costas'], 'Disco', 'inic', [], [], 'Um apoio no chão, cotovelo rente ao corpo, sem girar o tronco.'),
+    E('e13', 'Flexora nórdica com parceiro', 'forca', ['post'], 'Peso do corpo', 'avan', [], ['joelho', 'coxa'], 'Um parceiro segura os tornozelos; quadril estendido, desce o mais lento possível e se ampara com as mãos.'),
     E('e14', 'Salto com contramovimento', 'potencia', ['quad', 'glut'], 'Peso do corpo', 'inic', ['salto'], ['tornozelo', 'joelho'], 'Desce rápido e sobe explosivo, aterrissa com os joelhos macios.'),
-    E('e15', 'Salto no caixote', 'potencia', ['quad', 'glut'], 'Caixote', 'inter', ['salto'], ['tornozelo', 'joelho'], 'Aterrissa com os dois pés no alto, desce andando.'),
-    E('e16', 'Salto em profundidade', 'potencia', ['quad', 'pant'], 'Caixote', 'avan', ['salto'], ['tornozelo', 'joelho'], 'Cai do caixote e salta de imediato, contato curto com o chão.'),
-    E('e17', 'Saltos horizontais na areia', 'potencia', ['quad', 'glut'], 'Areia', 'inter', ['salto'], ['tornozelo'], 'Séries de 5 saltos seguidos, ênfase em distância e na aterrissagem.'),
-    E('e18', 'Arremesso de medicine ball acima da cabeça', 'potencia', ['ombro', 'core'], 'Medicine ball', 'inic', ['ataque'], ['ombro'], 'Do quadril ao ombro, o corpo todo participa do arremesso.'),
-    E('e19', 'Arremesso rotacional de medicine ball', 'potencia', ['core'], 'Medicine ball', 'inic', [], ['lombar'], 'Gira a partir do quadril, solta a bola na frente do corpo.'),
+    E('e15', 'Salto sobre cones baixos', 'potencia', ['quad', 'glut'], 'Cone', 'inter', ['salto'], ['tornozelo', 'joelho'], 'Fila de cones pequenos; salta com os dois pés, aterrissa estável e encadeia o próximo.'),
+    E('e16', 'Saltos reativos sobre cones', 'potencia', ['quad', 'pant'], 'Cone', 'avan', ['salto'], ['tornozelo', 'joelho'], 'Cinco cones em fila, contato curto com a areia e subida imediata, sem pausa entre os saltos.'),
+    E('e17', 'Saltos horizontais na areia', 'potencia', ['quad', 'glut'], 'Peso do corpo', 'inter', ['salto'], ['tornozelo'], 'Séries de 5 saltos seguidos, ênfase em distância e na aterrissagem.'),
+    E('e18', 'Arremesso de disco acima da cabeça', 'potencia', ['ombro', 'core'], 'Disco', 'inic', ['ataque'], ['ombro'], 'Disco leve; do quadril ao ombro, o corpo todo participa e solta à frente.'),
+    E('e19', 'Arremesso rotacional de disco', 'potencia', ['core'], 'Disco', 'inic', [], ['lombar'], 'Gira a partir do quadril e solta o disco na frente do corpo, sem arquear a lombar.'),
     E('e20', 'Agachamento com salto', 'potencia', ['quad', 'glut'], 'Peso do corpo', 'inic', ['salto'], ['joelho', 'tornozelo'], 'Agacha até 90 graus e salta alto, braços ajudam no impulso.'),
-    E('e21', 'Kettlebell swing', 'potencia', ['glut', 'post'], 'Kettlebell', 'inter', [], ['lombar'], 'O movimento vem do quadril, braços só conduzem.'),
-    E('e22', 'Sprint de 10 metros na areia', 'potencia', ['quad', 'post'], 'Areia', 'inic', ['corrida'], ['coxa', 'tornozelo'], 'Primeiros passos curtos e rápidos, tronco inclinado.'),
-    E('e23', 'Sprint com mudança de direção', 'potencia', ['quad', 'post'], 'Areia', 'inter', ['corrida'], ['tornozelo', 'joelho'], 'Freia com o pé de fora, abaixa o centro de gravidade na curva.'),
-    E('e24', 'Arranque com halter', 'potencia', ['corpo'], 'Halter', 'avan', ['ataque'], ['ombro', 'lombar'], 'Extensão completa de quadril antes de puxar; técnica antes de carga.'),
+    E('e21', 'Balanço de disco', 'potencia', ['glut', 'post'], 'Disco', 'inter', [], ['lombar'], 'Disco com as duas mãos; o movimento vem do quadril, os braços só conduzem.'),
+    E('e22', 'Sprint de 10 metros na areia', 'potencia', ['quad', 'post'], 'Cone', 'inic', ['corrida'], ['coxa', 'tornozelo'], 'Largada e chegada marcadas com cones; primeiros passos curtos e rápidos, tronco inclinado.'),
+    E('e23', 'Sprint com mudança de direção entre cones', 'potencia', ['quad', 'post'], 'Cone', 'inter', ['corrida'], ['tornozelo', 'joelho'], 'Freia com o pé de fora, abaixa o centro de gravidade na curva do cone.'),
+    E('e24', 'Puxada de disco do chão ao peito', 'potencia', ['corpo'], 'Disco', 'inter', ['ataque'], ['ombro', 'lombar'], 'Extensão completa de quadril antes de puxar; técnica antes de carga.'),
     E('e25', 'Prancha frontal', 'core', ['core'], 'Peso do corpo', 'inic', [], [], 'Corpo em linha reta, glúteos e abdômen contraídos.'),
     E('e26', 'Prancha lateral', 'core', ['core', 'ombro'], 'Peso do corpo', 'inic', [], ['ombro'], 'Quadril alto, ombro sobre o cotovelo.'),
-    E('e27', 'Dead bug', 'core', ['core'], 'Peso do corpo', 'inic', [], [], 'Lombar colada no chão, braço e perna opostos descem juntos.'),
-    E('e28', 'Pallof press', 'core', ['core'], 'Elástico', 'inic', [], [], 'Resiste à rotação, empurra o elástico à frente sem girar o tronco.'),
-    E('e29', 'Rotação russa com medicine ball', 'core', ['core'], 'Medicine ball', 'inic', [], ['lombar'], 'Tronco inclinado, gira os ombros e não só os braços.'),
-    E('e30', 'Elevação de pernas na barra', 'core', ['core'], 'Barra fixa', 'avan', [], ['ombro', 'lombar'], 'Sem balançar, sobe as pernas controlando a descida.'),
-    E('e31', 'Rotação externa de ombro com elástico', 'prevencao', ['ombro'], 'Elástico', 'inic', [], ['ombro'], 'Cotovelo colado ao corpo, movimento lento e curto.'),
-    E('e32', 'Y, T e W no banco', 'prevencao', ['ombro', 'costas'], 'Halter', 'inic', [], ['ombro'], 'Peso leve, polegares para cima, escápulas ativas.'),
-    E('e33', 'Equilíbrio unipodal instável', 'prevencao', ['tornoz', 'pant'], 'Superfície instável', 'inic', [], ['tornozelo'], 'Joelho levemente flexionado, olhar à frente.'),
-    E('e34', 'Copenhagen', 'prevencao', ['aduc'], 'Peso do corpo', 'inter', [], ['coxa', 'quadril'], 'Pé de cima no banco, quadril alto, sobe e desce devagar.'),
-    E('e35', 'Fortalecimento de tornozelo com elástico', 'prevencao', ['tornoz'], 'Elástico', 'inic', [], ['tornozelo'], 'Quatro direções, amplitude completa e sem pressa.'),
+    E('e27', 'Dead bug', 'core', ['core'], 'Peso do corpo', 'inic', [], [], 'Lombar colada na areia, braço e perna opostos descem juntos.'),
+    E('e28', 'Prancha com toque no disco', 'core', ['core', 'ombro'], 'Disco', 'inic', [], ['ombro'], 'Em prancha, toca o disco à frente alternando as mãos sem balançar o quadril.'),
+    E('e29', 'Rotação russa com disco', 'core', ['core'], 'Disco', 'inic', [], ['lombar'], 'Tronco inclinado, gira os ombros e não só os braços.'),
+    E('e30', 'Elevação de pernas deitado', 'core', ['core'], 'Peso do corpo', 'inter', [], ['lombar'], 'Lombar no chão, sobe as pernas controlando a descida, sem balançar.'),
+    E('e31', 'Rotação externa de ombro com disco leve', 'prevencao', ['ombro'], 'Disco', 'inic', [], ['ombro'], 'Deitado de lado, cotovelo colado ao corpo, disco de 1 a 2 kg; movimento lento e curto.'),
+    E('e32', 'Y, T e W deitado de bruços', 'prevencao', ['ombro', 'costas'], 'Peso do corpo', 'inic', [], ['ombro'], 'Barriga na areia, polegares para cima, escápulas ativas.'),
+    E('e33', 'Equilíbrio unipodal na areia', 'prevencao', ['tornoz', 'pant'], 'Peso do corpo', 'inic', [], ['tornozelo'], 'A areia já é instável: joelho levemente flexionado, olhar à frente.'),
+    E('e34', 'Adução de quadril deitado de lado', 'prevencao', ['aduc'], 'Peso do corpo', 'inter', [], ['coxa', 'quadril'], 'Perna de baixo sobe até a de cima; quadril alinhado, sobe e desce devagar.'),
+    E('e35', 'Marcha lenta na escada de agilidade', 'prevencao', ['tornoz'], 'Escada de agilidade', 'inic', [], ['tornozelo'], 'Caminha pelos quadrados na ponta dos pés, no calcanhar e de lado; amplitude completa e sem pressa.'),
     E('e36', 'Aterrissagem controlada', 'prevencao', ['quad', 'glut'], 'Peso do corpo', 'inic', ['salto'], ['joelho', 'tornozelo'], 'Aterrissa e congela por 2 segundos, joelhos alinhados com os pés.'),
-    E('e37', 'Mobilidade de tornozelo na parede', 'mobilidade', ['tornoz'], 'Peso do corpo', 'inic', [], ['tornozelo'], 'Joelho vai à parede sem tirar o calcanhar do chão.'),
-    E('e38', 'Alongamento do flexor de quadril', 'mobilidade', ['quad'], 'Peso do corpo', 'inic', [], ['quadril'], 'Joelho no chão, abdômen firme, empurra o quadril à frente.'),
+    E('e37', 'Mobilidade de tornozelo com joelho à frente', 'mobilidade', ['tornoz'], 'Peso do corpo', 'inic', [], ['tornozelo'], 'Em avanço, leva o joelho à frente do pé sem tirar o calcanhar da areia.'),
+    E('e38', 'Alongamento do flexor de quadril', 'mobilidade', ['quad'], 'Peso do corpo', 'inic', [], ['quadril'], 'Joelho na areia, abdômen firme, empurra o quadril à frente.'),
     E('e39', 'Rotação torácica no solo', 'mobilidade', ['costas', 'core'], 'Peso do corpo', 'inic', [], [], 'Deitado de lado, abre o braço de cima e segue com os olhos.'),
-    E('e40', 'Mobilidade de ombro com bastão', 'mobilidade', ['ombro'], 'Bastão', 'inic', [], ['ombro'], 'Braços esticados, passa o bastão por cima da cabeça sem dobrar.'),
-    E('e41', 'Gato-camelo e agachamento profundo', 'mobilidade', ['core', 'quad'], 'Peso do corpo', 'inic', [], [], 'Alterna a coluna redonda e estendida, depois agacha fundo com calcanhares no chão.'),
-    E('e42', 'Corrida contínua leve', 'cond', ['corpo'], 'Areia', 'inic', ['corrida'], ['tornozelo', 'joelho'], 'Ritmo em que dá para conversar, 20 a 30 minutos.'),
-    E('e43', 'Circuito de defesa e mergulho na areia', 'cond', ['corpo'], 'Areia', 'inter', ['corrida', 'queda'], ['ombro', 'punho'], 'Séries curtas e intensas, volta caminhando.'),
-    E('e44', 'Bicicleta leve', 'cond', ['quad', 'post'], 'Bicicleta', 'inic', [], [], 'Sem impacto: boa opção de condicionamento durante o retorno de lesões.'),
-    E('e45', 'Deslocamento na água', 'cond', ['corpo'], 'Peso do corpo', 'inic', [], [], 'Corrida e saltos leves na água na altura da cintura; baixíssimo impacto.'),
+    E('e40', 'Mobilidade de ombro com disco', 'mobilidade', ['ombro'], 'Disco', 'inic', [], ['ombro'], 'Disco leve em círculos amplos acima da cabeça e à frente, sem forçar o fim do movimento.'),
+    E('e41', 'Gato-camelo e agachamento profundo', 'mobilidade', ['core', 'quad'], 'Peso do corpo', 'inic', [], [], 'Alterna a coluna redonda e estendida, depois agacha fundo com calcanhares na areia.'),
+    E('e42', 'Corrida contínua leve na areia', 'cond', ['corpo'], 'Peso do corpo', 'inic', ['corrida'], ['tornozelo', 'joelho'], 'Ritmo em que dá para conversar, 20 a 30 minutos.'),
+    E('e43', 'Circuito de defesa e mergulho entre cones', 'cond', ['corpo'], 'Cone', 'inter', ['corrida', 'queda'], ['ombro', 'punho'], 'Cones marcam as posições; séries curtas e intensas, volta caminhando.'),
+    E('e44', 'Caminhada forte na areia', 'cond', ['quad', 'post'], 'Peso do corpo', 'inic', [], [], 'Passo firme na areia molhada, sem salto nem corrida: boa opção de condicionamento durante o retorno de lesões.'),
+    E('e45', 'Deslocamento lateral e de costas entre cones', 'cond', ['corpo'], 'Cone', 'inic', [], [], 'Passos laterais e de costas em ritmo leve entre dois cones, baixo impacto.'),
+    E('e46', 'Escada de agilidade: um pé em cada quadrado', 'potencia', ['pant', 'corpo'], 'Escada de agilidade', 'inic', ['corrida'], ['tornozelo'], 'Passos curtos e rápidos, um pé por quadrado, olhar à frente e braços soltos.'),
+    E('e47', 'Escada de agilidade: lateral com duas entradas', 'potencia', ['quad', 'aduc'], 'Escada de agilidade', 'inter', ['corrida'], ['tornozelo', 'joelho'], 'Entra com os dois pés em cada quadrado, deslocando-se de lado; quadril baixo.'),
+    E('e48', 'Escada de agilidade: saltos com os dois pés', 'potencia', ['pant', 'quad'], 'Escada de agilidade', 'inter', ['salto'], ['tornozelo'], 'Salta quadrado a quadrado com os dois pés, contato curto e tronco alto.'),
+    E('e49', 'Caminhada com disco junto ao peito', 'forca', ['core', 'costas'], 'Disco', 'inic', [], ['lombar'], 'Disco junto ao peito, tronco ereto, passos curtos na areia por 20 a 30 metros.'),
   ];
 
   const I = (ex, series, reps, carga, valor, desc, obs) => ({ ex, series, reps: String(reps), carga, valor: valor == null ? null : valor, desc, obs: obs || '' });
   const PLANOS = [
-    { id: 'm1', nome: 'Força de base, inferiores', objetivo: 'Construir força geral de pernas e quadril na fase de base.', fase: 'base', itens: [I('e1', 4, 6, 'pct', 70, 150), I('e3', 3, 8, 'pct', 65, 120), I('e4', 3, 10, 'kg', null, 90), I('e5', 3, 12, 'pc', null, 60), I('e6', 3, 12, 'kg', null, 60), I('e25', 3, '40s', 'pc', null, 45)] },
-    { id: 'm2', nome: 'Força de base, superiores e core', objetivo: 'Força de tronco e ombros para atacar, sacar e se proteger.', fase: 'base', itens: [I('e7', 4, 8, 'kg', null, 120), I('e8', 4, 8, 'kg', null, 120), I('e10', 3, 10, 'kg', null, 90), I('e9', 3, 'máx.', 'pc', null, 120), I('e28', 3, 10, 'pc', null, 45), I('e26', 3, '30s', 'pc', null, 45)] },
-    { id: 'm3', nome: 'Potência e salto, fase específica', objetivo: 'Transformar a força em salto e velocidade.', fase: 'especifico', itens: [I('e14', 4, 5, 'pc', null, 90), I('e15', 4, 4, 'pc', null, 90), I('e21', 4, 10, 'kg', null, 90), I('e18', 3, 6, 'kg', null, 75, 'Bola de 3 kg'), I('e22', 6, '10 m', 'pc', null, 60), I('e19', 3, 8, 'kg', null, 60)] },
-    { id: 'm4', nome: 'Prevenção de ombro e tornozelo', objetivo: 'Reduzir o risco das lesões mais comuns do vôlei de praia.', fase: null, itens: [I('e31', 3, 15, 'pc', null, 30, 'Elástico leve'), I('e32', 3, 8, 'kg', null, 45), I('e33', 3, '30s', 'pc', null, 30), I('e35', 3, 15, 'pc', null, 30), I('e36', 3, 6, 'pc', null, 45), I('e34', 3, '20s', 'pc', null, 45)] },
+    { id: 'm1', nome: 'Força de base, inferiores', objetivo: 'Construir força geral de pernas e quadril na fase de base, na areia.', fase: 'base', itens: [I('e1', 4, 8, 'kg', null, 120, 'Disco de 10 a 15 kg'), I('e3', 3, 8, 'kg', null, 120), I('e4', 3, 10, 'kg', null, 90), I('e5', 3, 12, 'pc', null, 60), I('e6', 3, 12, 'pc', null, 60), I('e25', 3, '40s', 'pc', null, 45)] },
+    { id: 'm2', nome: 'Força de base, superiores e core', objetivo: 'Força de tronco e ombros para atacar, sacar e se proteger.', fase: 'base', itens: [I('e7', 4, 8, 'kg', null, 90), I('e8', 4, 8, 'kg', null, 90), I('e10', 3, 10, 'kg', null, 90), I('e9', 3, 8, 'kg', null, 90), I('e28', 3, 10, 'pc', null, 45), I('e26', 3, '30s', 'pc', null, 45)] },
+    { id: 'm3', nome: 'Potência e salto, fase específica', objetivo: 'Transformar a força em salto e velocidade.', fase: 'especifico', itens: [I('e14', 4, 5, 'pc', null, 90), I('e15', 4, 4, 'pc', null, 90), I('e21', 4, 10, 'kg', null, 90), I('e18', 3, 6, 'kg', null, 75, 'Disco de 2 a 5 kg'), I('e22', 6, '10 m', 'pc', null, 60), I('e19', 3, 8, 'kg', null, 60)] },
+    { id: 'm4', nome: 'Prevenção de ombro e tornozelo', objetivo: 'Reduzir o risco das lesões mais comuns do vôlei de praia.', fase: null, itens: [I('e31', 3, 15, 'kg', null, 30, 'Disco de 1 a 2 kg'), I('e32', 3, 8, 'pc', null, 45), I('e33', 3, '30s', 'pc', null, 30), I('e35', 3, '2 voltas', 'pc', null, 30), I('e36', 3, 6, 'pc', null, 45), I('e34', 3, '20s', 'pc', null, 45)] },
     { id: 'm5', nome: 'Mobilidade e recuperação ativa', objetivo: 'Soltar o corpo depois de semana pesada ou jogo.', fase: 'competicao', itens: [I('e37', 2, 10, 'pc', null, 20), I('e38', 2, '30s', 'pc', null, 20), I('e39', 2, 10, 'pc', null, 20), I('e40', 2, 10, 'pc', null, 20), I('e41', 2, 10, 'pc', null, 20), I('e44', 1, '15 min', 'pse', 3, 0)] },
-    { id: 'm6', nome: 'Retorno de tornozelo, sem impacto', objetivo: 'Manter condicionamento e força enquanto o tornozelo se recupera.', fase: null, itens: [I('e44', 1, '20 min', 'pse', 4, 0), I('e5', 3, 12, 'pc', null, 60), I('e27', 3, 10, 'pc', null, 30), I('e28', 3, 10, 'pc', null, 30), I('e35', 3, 15, 'pc', null, 30, 'Dentro da dor tolerável'), I('e12', 3, 10, 'kg', null, 60)] },
+    { id: 'm6', nome: 'Retorno de tornozelo, sem impacto', objetivo: 'Manter condicionamento e força enquanto o tornozelo se recupera.', fase: null, itens: [I('e44', 1, '20 min', 'pse', 4, 0), I('e5', 3, 12, 'pc', null, 60), I('e27', 3, 10, 'pc', null, 30), I('e28', 3, 10, 'pc', null, 30), I('e35', 3, '2 voltas', 'pc', null, 30, 'Dentro da dor tolerável'), I('e12', 3, 10, 'kg', null, 60)] },
+    { id: 'm7', nome: 'Agilidade na areia', objetivo: 'Pés rápidos e mudança de direção com escada e cones.', fase: 'especifico', itens: [I('e46', 4, '2 voltas', 'pc', null, 45), I('e47', 4, '2 voltas', 'pc', null, 45), I('e48', 3, '2 voltas', 'pc', null, 60), I('e23', 4, '1 circuito', 'pc', null, 60), I('e45', 3, '30 s', 'pc', null, 30), I('e43', 3, '40 s', 'pse', 7, 60)] },
   ];
 
   const prox = (offs) => HOJE + offs * DIA;
@@ -108,6 +114,7 @@
 
   /* ---------- Armazenamento ---------- */
 
+  const VERSAO_CAT = 2;
   const CHAVE = window.Farol.conta.chave('ft.prescricao.v1');
   const DEMO = !window.Farol.conta.guardaDados(); // conta cadastrada começa sem prescrições de exemplo (os modelos de treino ficam)
   let exercicios = EXERCICIOS.map((x) => ({ ...x }));
@@ -116,11 +123,20 @@
   let seq = { e: 100, m: 100, p: 100 };
   try {
     const g = JSON.parse(localStorage.getItem(CHAVE) || 'null');
-    if (g && g.exercicios && g.planos && g.prescricoes) { exercicios = g.exercicios; planos = g.planos; prescricoes = g.prescricoes; seq = g.seq || seq; }
+    if (g && g.exercicios && g.planos && g.prescricoes) {
+      exercicios = g.exercicios; planos = g.planos; prescricoes = g.prescricoes; seq = g.seq || seq;
+      // Catálogo novo (treino na areia: peso do corpo, disco, cone e escada de agilidade): o conteúdo de fábrica guardado antes é trocado;
+      // o que o técnico criou (ids acima de 100) fica, com o equipamento ajustado quando não existe mais.
+      if (g.v !== VERSAO_CAT) {
+        const custom = (x) => Number(String(x.id).replace(/\D/g, '')) > 100;
+        exercicios = EXERCICIOS.map((x) => ({ ...x })).concat(exercicios.filter(custom).map((x) => ({ ...x, equip: EQUIPS.includes(x.equip) ? x.equip : 'Peso do corpo' })));
+        planos = PLANOS.map((x) => ({ ...x, itens: x.itens.map((i) => ({ ...i })) })).concat(planos.filter(custom).map((m) => ({ ...m, itens: m.itens.map((i) => ({ ...i, carga: i.carga === 'pct' ? 'kg' : i.carga, valor: i.carga === 'pct' ? null : i.valor })) })));
+      }
+    }
     if (DEMO) PRESCRICOES.filter((x) => x.exec && !prescricoes.some((p) => p.id === x.id)).forEach((x) => prescricoes.push({ ...x, aj: {}, exec: execExemplo(x) }));
     if (DEMO) prescricoes.forEach((p) => { const seed = PRESCRICOES.find((x) => x.id === p.id && x.exec); if (seed && p.status === 'feita' && p.exec === undefined) { p.exec = seed.exec; p.exec = execExemplo(p); if (p.id === 'p2') p.data = seed.data; } });
   } catch (e) { /* segue em memória */ }
-  const gravar = () => { try { localStorage.setItem(CHAVE, JSON.stringify({ exercicios, planos, prescricoes, seq })); } catch (e) { /* ignora */ } };
+  const gravar = () => { try { localStorage.setItem(CHAVE, JSON.stringify({ v: VERSAO_CAT, exercicios, planos, prescricoes, seq })); } catch (e) { /* ignora */ } };
   const novoId = (p) => `${p}${++seq[p]}`;
 
   const ex = (id) => exercicios.find((x) => x.id === id) || null;

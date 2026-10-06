@@ -2497,3 +2497,60 @@ h3 { font-size: 20px; font-weight: 700; }
 .ph-stats { grid-template-columns: minmax(0, 1.5fr) minmax(0, .85fr) minmax(0, 1.05fr); }
 .ph-stats dd { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 520px) { .ph-stats dd { font-size: 21px; } .ph-stats { gap: 8px; } }
+
+/* ---------- Aba Atletas ---------- */
+.at-pil { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; }
+.at-p { flex: none; cursor: pointer; border: 0; height: 38px; padding: 0 16px; border-radius: 99px; font-size: 14px; font-weight: 800; background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(11, 31, 45, .1); }
+.at-p.on { background: var(--ink); color: var(--bg); }
+.at-p.atencao:not(.on) { color: #8a4b00; } .at-p.lesao:not(.on) { color: #a12318; } .at-p.retorno:not(.on) { color: #24518f; }
+.at-p:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.at-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.at-card { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 22px; background: var(--surface); box-shadow: var(--sombra); }
+.at-card.atencao { box-shadow: 0 0 0 2px #f2b84b, var(--sombra); } .at-card.lesao { box-shadow: 0 0 0 2px #f0a59d, var(--sombra); } .at-card.retorno { box-shadow: 0 0 0 2px #9db9e6, var(--sombra); }
+.at-card:hover { transform: translateY(-1px); }
+.at-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.at-top { display: flex; align-items: center; gap: 12px; }
+.at-av { flex: none; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 800; font-size: 20px; font-style: normal; background: #d8eef2; color: #0b4658; }
+.at-av i { font-style: normal; }
+.at-card.atencao .at-av { background: #ffe7b8; color: #8a4b00; } .at-card.retorno .at-av { background: #dfeafb; color: #24518f; } .at-card.lesao .at-av { background: #fbd9d4; color: #a12318; }
+.at-id { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.at-id b { font-size: 17px; font-weight: 800; line-height: 1.2; }
+.at-id small { color: var(--ink-2); font-size: 13px; }
+.at-m { display: flex; align-items: flex-end; gap: 14px; }
+.at-ac { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.at-ac-t { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.at-ac-t b { color: var(--ink); font-weight: 800; font-size: 14px; }
+.at-barra { position: relative; display: flex; height: 8px; border-radius: 99px; }
+.at-barra i { display: block; height: 100%; } .at-barra i:first-child { border-radius: 99px 0 0 99px; } .at-barra i:nth-child(4) { border-radius: 0 99px 99px 0; }
+.at-barra em { position: absolute; top: -4px; width: 3px; height: 16px; border-radius: 2px; background: var(--ink); transform: translateX(-1px); }
+.at-n { text-align: right; display: flex; flex-direction: column; }
+.at-n b { font-family: var(--font-display); font-size: 22px; font-weight: 800; line-height: 1; }
+.at-n small { color: var(--ink-2); font-size: 11px; font-weight: 700; }
+.at-nota { border-radius: 12px; padding: 9px 12px; font-size: 13px; line-height: 1.4; font-weight: 600; background: #fff4da; color: #4a3200; }
+.at-nota.lesao { background: #fdf0ee; color: #5c1710; } .at-nota.retorno { background: #eaf1fb; color: #1b3a63; } .at-nota.ok { background: var(--surface-2); color: var(--ink); }
+.at-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---------- Aba Exercícios ---------- */
+.ex-impl { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.ex-impl li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--sel); font-weight: 800; font-size: 14px; color: var(--ink); }
+.ex-impl svg { flex: none; color: var(--accent); }
+.ex-sess, .ex-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ex-sess li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.ex-sess li:last-child { border-bottom: 0; }
+.ex-dia { flex: none; width: 52px; display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 14px; background: color-mix(in srgb, var(--s-fisico) 18%, var(--surface)); }
+.ex-dia b { font-size: 13px; font-weight: 800; } .ex-dia small { font-size: 11px; color: var(--ink-2); }
+.ex-m { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ex-m b { font-size: 16px; font-weight: 800; } .ex-m small { color: var(--ink-2); font-size: 13px; }
+.ex-lista { gap: 10px; }
+.ex-card { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 20px; background: var(--surface); box-shadow: var(--sombra); }
+.ex-card:hover { transform: translateY(-1px); }
+.ex-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.ex-card.feita { opacity: .86; }
+.ex-data { flex: none; width: 54px; height: 58px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: color-mix(in srgb, var(--s-fisico) 16%, var(--surface)); }
+.ex-data b { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1; }
+.ex-data small { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--ink-2); }
+.ex-card.feita .ex-data { background: var(--sel); }
+.ex-imp { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.ex-i { padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 800; background: var(--sel); color: var(--ink); }
+.ex-seta { flex: none; color: var(--accent); }
+.ex-acoes { display: flex; flex-wrap: wrap; gap: 10px; }

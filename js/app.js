@@ -106,6 +106,9 @@
   // As abas de cada porta ficam dentro da própria tela (Periodização: Semana, Bloco, Temporada, Calendário, Exercícios, Atletas).
   const SUBNAV = [];
   let rotaAtual = null;
+  // Origem da tela atual: de onde o técnico veio ao tocar num atalho. O botão "‹" volta para lá (por exemplo, para a aba Atletas),
+  // e não sempre para o Início. Quem chega pela barra de baixo não tem origem e usa o destino padrão.
+  let origemPend = null, origemAtual = null, paramsAtual = null;
   const EXIGE_PLANO = ['treino-registro', 'treinos-microciclo', 'atleta-previa'];
 
   function semPlanoVazio(main, item) {
@@ -162,6 +165,7 @@
     const view = window.Farol.views && window.Farol.views[rota];
     const params = window.Farol.params;
     window.Farol.params = null;
+    origemAtual = origemPend; origemPend = null; paramsAtual = params;
     // Telas que dependem de um plano de treino: sem plano (conta nova), mostram o caminho para criar um.
     if (EXIGE_PLANO.includes(rota) && !window.Farol.dados.planos.length) semPlanoVazio(main, item);
     else if (item.pronta && view) view(main, params);
@@ -183,15 +187,21 @@
       sub.hidden = false;
     } else { sub.innerHTML = ''; sub.hidden = true; }
     const v = document.getElementById('voltar-w');
-    const [alvo, nome] = VOLTA[rota] || ['inicio', 'Início'];
+    const o = origemAtual && origemAtual.rota !== rota ? origemAtual : null;
+    const [alvo, nome] = o ? [o.rota, o.rotulo] : (VOLTA[rota] || ['inicio', 'Início']);
     const link = v.querySelector('a');
     link.setAttribute('href', `#${alvo}`);
     link.textContent = `‹ ${nome}`;
+    link.dataset.volta = o ? '1' : '';
     v.hidden = rota === 'inicio';
   }
 
   // Navega para outra tela levando parâmetros (por exemplo, abrir uma semana ou uma competição).
   window.Farol.ir = function (rota, params) {
+    const ctx = window.Farol.contexto;
+    origemPend = rotaAtual && rotaAtual !== rota
+      ? { rota: rotaAtual, params: paramsAtual, rotulo: (ctx && ctx.rota === rotaAtual && ctx.rotulo) || (ROTAS[rotaAtual] ? ROTAS[rotaAtual].nome : 'Voltar') }
+      : null;
     window.Farol.params = params || null;
     if (location.hash.slice(1) === rota) rotear();
     else location.hash = '#' + rota;
@@ -238,6 +248,17 @@
   };
   window.Farol.gaveta = gaveta;
   window.Farol.rota = (id) => ROTAS[id] || null;
+  // Volta para a tela de onde o técnico veio. A Periodização guarda a aba em que estava, então volta sem parâmetros.
+  window.Farol.voltar = function () {
+    const o = origemAtual;
+    if (!o) { window.Farol.ir('inicio'); return; }
+    const params = o.rota === 'treinos-periodizacao' ? null : o.params;
+    origemPend = null;
+    window.Farol.params = params || null;
+    if (location.hash.slice(1) === o.rota) rotear(); else location.hash = '#' + o.rota;
+    origemAtual = null;
+    window.scrollTo({ top: 0 });
+  };
 
   function ligarGaveta() {
     document.getElementById('gaveta-fechar').addEventListener('click', () => gaveta.fechar());
@@ -286,6 +307,10 @@
     };
     document.getElementById('barra').addEventListener('click', mesmaTela);
     document.getElementById('subnav').addEventListener('click', mesmaTela);
+    document.getElementById('voltar-w').addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (a && a.dataset.volta) { e.preventDefault(); window.Farol.voltar(); }
+    });
 
     window.addEventListener('hashchange', rotear);
     rotear();

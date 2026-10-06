@@ -14,8 +14,8 @@
   const TESTES = [
     { id: 'cmj', grupo: 'teste', nome: 'Salto vertical', un: 'cm', melhor: 'alto', casas: 0 },
     { id: 'sprint', grupo: 'teste', nome: 'Sprint de 10 m', un: 's', melhor: 'baixo', casas: 2 },
-    { id: 'agil', grupo: 'teste', nome: 'Agilidade (teste T)', un: 's', melhor: 'baixo', casas: 2 },
-    { id: 'med', grupo: 'teste', nome: 'Arremesso de medicine ball, 3 kg', un: 'm', melhor: 'alto', casas: 1 },
+    { id: 'agil', grupo: 'teste', nome: 'Agilidade (teste T com cones)', un: 's', melhor: 'baixo', casas: 2 },
+    { id: 'med', grupo: 'teste', nome: 'Arremesso de disco, 3 kg', un: 'm', melhor: 'alto', casas: 1 },
   ];
   const TREINO = [
     { id: 'carga', grupo: 'treino', nome: 'Carga semanal média', un: 'UA', melhor: null, casas: 0 },

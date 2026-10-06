@@ -459,7 +459,7 @@
       <div class="sc-barra"><p class="sc-resumo" style="margin:0">${plural(todos.length, 'exercício', 'exercícios')} no catálogo.</p>${est.exForm ? '' : '<button class="btn btn-primary" id="bb-novo-ex">Novo exercício</button>'}</div>
       ${est.exForm ? formEx() : ''}
       <div class="bb-filtros">
-        <div class="field"><label class="label" for="cf-q">Buscar</label><input class="input" id="cf-q" type="search" value="${esc(F.q)}" placeholder="Agachamento, ombro, elástico…"></div>
+        <div class="field"><label class="label" for="cf-q">Buscar</label><input class="input" id="cf-q" type="search" value="${esc(F.q)}" placeholder="Agachamento, ombro, escada…"></div>
         <div class="field"><label class="label" for="cf-cat">Categoria</label><select class="select" id="cf-cat"><option value="">Todas</option>${Object.entries(P.CATEGORIAS).map(([k, n]) => `<option value="${k}" ${F.cat === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="field"><label class="label" for="cf-grupo">Grupo muscular</label><select class="select" id="cf-grupo"><option value="">Todos</option>${Object.entries(P.GRUPOS).map(([k, n]) => `<option value="${k}" ${F.grupo === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="field"><label class="label" for="cf-equip">Equipamento</label><select class="select" id="cf-equip"><option value="">Todos</option>${P.EQUIPS.map((n) => `<option ${F.equip === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>

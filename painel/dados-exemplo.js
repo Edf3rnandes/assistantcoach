@@ -39,7 +39,25 @@
   };
   const FASES = {
     e1: [{ nome: 'Acumulação', semanas: 8, cor: '#2f7fa0' }, { nome: 'Transmutação', semanas: 5, cor: '#7e8f3a' }, { nome: 'Realização', semanas: 3, cor: '#e08a1e' }, { nome: 'Polimento', semanas: 2, cor: '#d94f3d' }, { nome: 'Transição', semanas: 6, cor: '#6b8190' }],
-    e2: [{ nome: 'Acumulação', semanas: 8, cor: '#2f7fa0' }, { nome: 'Transmutação', semanas: 8, cor: '#7e8f3a' }, { nome: 'Realização', semanas: 4, cor: '#e08a1e' }, { nome: 'Polimento', semanas: 2, cor: '#d94f3d' }, { nome: 'Transição', semanas: 2, cor: '#6b8190' }],
+    e2: [{ nome: 'Acumulação', semanas: 8, cor: '#2f7fa0' }, { nome: 'Transmutação', semanas: 6, cor: '#7e8f3a' }, { nome: 'Realização', semanas: 3, cor: '#e08a1e' }, { nome: 'Polimento', semanas: 2, cor: '#d94f3d' }, { nome: 'Transição', semanas: 5, cor: '#6b8190' }],
+  };
+
+  // O que cada fase pede: objetivo, fundamentos, como a carga se comporta e a onda semanal (100% = semana de referência).
+  const FASE_INFO = {
+    'Acumulação': { objetivo: 'Construir a base técnica e física com volume crescente: duas semanas de subida e uma de descarga.', regime: 'Volume sobe, intensidade moderada', fundamentos: ['Defesa', 'Saque', 'Bloqueio', 'Saída de rede'], onda: [100, 110, 115, 70] },
+    'Transmutação': { objetivo: 'Transformar a base em potência e velocidade: a intensidade sobe e o volume cai.', regime: 'Intensidade sobe, volume cai', fundamentos: ['Ataque', 'Transição', 'Leitura de jogo', 'Cobertura'], onda: [90, 100, 108, 65] },
+    'Realização': { objetivo: 'Treinar no ritmo da competição, com cargas curtas, específicas e parecidas com o jogo.', regime: 'Específico, sessões curtas', fundamentos: ['Sistema de jogo', 'Saque agressivo', 'Decisão sob pressão'], onda: [85, 95, 70] },
+    'Polimento': { objetivo: 'Chegar descansado ao alvo: o volume cai bastante e a intensidade se mantém.', regime: 'Volume cai muito, intensidade fica', fundamentos: ['Saque', 'Ajustes finos', 'Rotina de jogo'], onda: [70, 55] },
+    'Transição': { objetivo: 'Recuperar corpo e cabeça com atividade leve e livre, antes de recomeçar o ciclo.', regime: 'Atividade leve e livre', fundamentos: ['Prazer de jogar', 'Mobilidade', 'Outros esportes'], onda: [50, 40, 50, 40] },
+  };
+  // Itens de cada treino da semana (só peso do corpo, disco, cone e escada de agilidade).
+  const ITENS = {
+    'Técnica|Defesa': ['Defesa de costas e de lado', 'Posição de base com disco no chão', 'Defesa no ataque cruzado'],
+    'Tática|Saída de rede': ['Saída de rede em duplas', 'Leitura do bloqueio, 6×8 bolas', 'Jogo condicionado de 3 toques'],
+    'Físico|Membros inferiores': ['Agachamento com peso do corpo, 4×12', 'Escada de agilidade, 6 passagens', 'Saltos sobre cone, 5×6'],
+    'Jogo|Treino-jogo': ['Aquecimento com escada, 10 min', 'Jogo a 21 pontos, 3 sets', 'Volta à calma e alongamento'],
+    'Físico|Pesado, na areia': ['Avanço com salto, 4×8', 'Arrasto de disco, 6×15 m', 'Prancha com toque no cone, 3×30 s'],
+    'Técnica|Saque e recepção': ['Saque flutuante, 40 bolas', 'Recepção em dupla com alvo no cone', 'Saque com meta de pontos'],
   };
 
   /* ---------- O que o técnico fez (fica no navegador) ---------- */
@@ -75,7 +93,7 @@
       const id = `${eq.id}-s${i}`;
       const reg = feito.registros[`${iso(data)}-${id}`] || null;
       const passado = data < hoje();
-      return { id, equipe: eq.id, tipo: s.tipo, foco: s.foco, dur: s.dur, pse: s.pse, dia: s.dia, data, dow, reg, status: reg ? 'registrado' : data === hoje() ? 'hoje' : passado ? 'aguardando' : 'futuro' };
+      return { id, equipe: eq.id, tipo: s.tipo, foco: s.foco, dur: s.dur, pse: s.pse, dia: s.dia, itens: ITENS[`${s.tipo}|${s.foco}`] || [], data, dow, reg, status: reg ? 'registrado' : data === hoje() ? 'hoje' : passado ? 'aguardando' : 'futuro' };
     }).sort((a, b) => a.data - b.data);
   };
 
@@ -108,6 +126,31 @@
     registrarLesao: (atletaId, local) => { feito.lesoes[atletaId] = { local, texto: 'Registrado agora', desde: iso(hoje()), retorno: '', conduta: 'Avalie com o fisioterapeuta antes do próximo treino' }; gravar(); },
     liberarRetorno: (atletaId) => { delete feito.lesoes[atletaId]; feito.fichas[atletaId] = { ...(feito.fichas[atletaId] || {}), liberado: true }; gravar(); },
     salvarFicha: (atletaId, campos) => { feito.fichas[atletaId] = { ...(feito.fichas[atletaId] || {}), ...campos }; gravar(); },
+    periodo: (eqId) => {
+      const eq = EQUIPES.find((e) => e.id === eqId);
+      const fases = FASES[eqId];
+      const total = fases.reduce((t, f) => t + f.semanas, 0);
+      const inicio = segunda(hoje()) - (eq.semana - 1) * 7 * DIA;
+      let ini = 0;
+      const blocos = fases.map((f, idx) => {
+        const info = FASE_INFO[f.nome];
+        const b = { idx, nome: f.nome, cor: f.cor, semanas: f.semanas, ini, inicio: inicio + ini * 7 * DIA, fim: inicio + (ini + f.semanas) * 7 * DIA - DIA, objetivo: info.objetivo, regime: info.regime, fundamentos: info.fundamentos };
+        ini += f.semanas;
+        b.estado = eq.semana - 1 >= b.ini + b.semanas ? 'concluido' : eq.semana - 1 >= b.ini ? 'andamento' : 'planejado';
+        return b;
+      });
+      const fatorDe = (b, k) => FASE_INFO[b.nome].onda[k % FASE_INFO[b.nome].onda.length];
+      const atualB = blocos.find((b) => b.estado === 'andamento');
+      const ref = eq.cargaAlvo / (fatorDe(atualB, eq.semana - 1 - atualB.ini) / 100);
+      const rit = [0.97, 1.03, 0.99, 1.05, 0.94, 1.01, 0.98];
+      const semanas = [];
+      blocos.forEach((b) => { for (let k = 0; k < b.semanas; k++) {
+        const n = b.ini + k + 1, fator = fatorDe(b, k), planejado = Math.round((ref * fator) / 100 / 10) * 10;
+        semanas.push({ n, bloco: b.idx, k, fator, descarga: fator <= 70, planejado, inicio: inicio + (n - 1) * 7 * DIA, atual: n === eq.semana, realizado: n < eq.semana ? Math.round((planejado * rit[n % rit.length]) / 10) * 10 : null });
+      } });
+      const eventos = EVENTOS[eqId].map((e) => ({ ...e, dias: Math.round((e.data - hoje()) / DIA), semana: Math.floor((e.data - inicio) / (7 * DIA)) + 1 })).sort((a, b) => a.data - b.data);
+      return { total, semanaAtual: eq.semana, blocoAtual: atualB.idx, blocos, semanas, eventos, ref: Math.round(ref) };
+    },
     plano: (eqId) => ({ fases: FASES[eqId], eventos: EVENTOS[eqId].map((e) => ({ ...e, dias: Math.round((e.data - hoje()) / DIA) })).sort((a, b) => a.data - b.data) }),
     zerarExemplo: () => { feito = { registros: {}, lesoes: {}, fichas: {} }; gravar(); },
   };

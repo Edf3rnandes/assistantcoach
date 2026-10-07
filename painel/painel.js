@@ -12,6 +12,9 @@
   const NOME_ESTADO = { ok: 'Disponível', atencao: 'Atenção', retorno: 'Em retorno', lesao: 'Lesionado' };
   const dow = (t) => (new Date(t).getUTCDay() + 6) % 7;
   const diaMes = (t) => new Date(t).getUTCDate();
+  const dd = (t) => `${String(new Date(t).getUTCDate()).padStart(2, '0')}/${String(new Date(t).getUTCMonth() + 1).padStart(2, '0')}`;
+  const dataLonga = (t) => `${new Date(t).getUTCDate()} de ${MESES[new Date(t).getUTCMonth()]}`;
+  const milhar = (n) => n.toLocaleString('pt-BR');
   const dataCurta = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
   const iniciais = (n) => n.split(' ').filter((x) => x.length > 2).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
   const ic = (d, t = 20) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -19,6 +22,7 @@
     seta: '<path d="M9 6l6 6-6 6"/>', volta: '<path d="M15 6l-6 6 6 6"/>', ok: '<path d="M5 12l4 4 10-10"/>',
     casa: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
     equipes: '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 5a3 3 0 0 1 0 6M18 20a6 6 0 0 0-3-5"/>',
+    cal: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     mais: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
   };
   const MARCA = '<svg width="28" height="28" viewBox="0 0 34 34" fill="none" aria-hidden="true"><path d="M3 17 L16 14 V20 Z" fill="#F2A900" opacity=".9"/><path d="M31 17 L18 14 V20 Z" fill="#F2A900" opacity=".55"/><path d="M14 13h4l1.5 17h-7z" fill="currentColor"/><path d="M13 22h8M12.6 26h8.8" stroke="var(--bg)" stroke-width="1.6"/><rect x="14" y="8" width="6" height="5" rx="1" fill="#F2A900"/><path d="M13 8l4-4 4 4z" fill="currentColor"/></svg>';
@@ -47,6 +51,8 @@
 
   /* ---------- Telas ---------- */
 
+  function chipBloco(eqId) { const pe = D.periodo(eqId), sm = pe.semanas[pe.semanaAtual - 1]; return `<span class="p-chip">${esc(pe.blocos[sm.bloco].nome)} · semana ${pe.semanaAtual} · ${sm.fator}% da carga</span>`; }
+
   function hoje() {
     const ses = D.sessoesHoje();
     const agora = ses.find((s) => s.status === 'hoje');
@@ -63,7 +69,7 @@
       <header class="p-topo"><span class="p-data">${DIAS_L[dow(t)]}, ${d.getUTCDate()} de ${MESES[d.getUTCMonth()]}</span><h1>${sauda}, ${esc(D.usuario().nome)}</h1><p class="p-sub">${esc(resumo)}</p></header>
       ${agora ? `<section class="p-agora" aria-labelledby="ag-t"><span class="p-rot" id="ag-t">Próximo treino</span>
           <h2>${esc(agora.tipo)} · ${esc(agora.foco)}</h2>
-          <p class="meta">${esc(agora.equipeNome)} · ${agora.dur} min · PSE alvo ${agora.pse}</p><span class="p-chip">Dia ${esc(agora.dia)}</span>
+          <p class="meta">${esc(agora.equipeNome)} · ${agora.dur} min · PSE alvo ${agora.pse}</p><span class="p-chip">Dia ${esc(agora.dia)}</span>${chipBloco(agora.equipe)}
           <button type="button" class="p-btn beam grande" data-registrar="${agora.id}">Registrar treino</button></section>`
         : `<section class="p-card"><h2>${ses.length ? 'Treinos de hoje registrados' : 'Sem treino hoje'}</h2>
           <p class="p-vazio">${ses.length ? 'Tudo certo por hoje.' : prox ? `O próximo é ${DIAS_L[prox.dow]}, ${esc(prox.equipeNome)}: ${esc(prox.tipo.toLowerCase())}.` : 'Nenhum treino previsto nesta semana.'}</p></section>`}
@@ -91,27 +97,16 @@
   function equipe(id, aberto) {
     const e = D.equipe(id);
     if (!e) { location.hash = '#equipes'; return ''; }
-    const sem = D.semana(id);
     const at = D.atletas(id);
     const fora = at.filter((a) => a.estado !== 'ok');
     const bem = at.filter((a) => a.estado === 'ok');
-    const pct = Math.min(100, Math.round((100 * sem.cargaFeita) / sem.cargaAlvo));
-    const hojeT = D.hoje();
-    const dias = DIAS.map((n, i) => {
-      const t = sem.inicio + i * 86400000;
-      const s = sem.sessoes.filter((x) => x.dow === i);
-      return `<div class="p-d ${s.length ? 'tr' : ''} ${t === hojeT ? 'hoje' : ''}"><small>${n.toUpperCase()}</small><b class="num">${diaMes(t)}</b><span class="p-pts">${s.map((x) => `<i class="${x.status}"></i>`).join('')}</span></div>`;
-    }).join('');
     return `
       <header class="p-topo"><h1>${esc(e.nome)}</h1><p class="p-sub">${esc(e.faixas.join(' + '))} · ${esc(e.generos)} · ${plural(e.nAtletas, 'atleta', 'atletas')}</p>
         <div class="p-chips"><span class="p-chip" style="background:color-mix(in srgb, ${e.fase.cor} 22%, var(--surface))">${esc(e.fase.nome)} · semana ${e.semana} de ${e.semanas}</span><span class="p-chip">${esc(e.alvo.nome)} em ${e.alvo.dias} dias</span></div></header>
-      <section class="p-card" aria-labelledby="sm-t"><h2 id="sm-t">Semana ${e.semana}</h2>
-        <div><div class="p-3" style="grid-template-columns:1fr 1fr;margin-bottom:10px"><div><b class="num">${sem.cargaFeita.toLocaleString('pt-BR')}</b><small>UA feitas</small></div><div><b class="num">${sem.cargaAlvo.toLocaleString('pt-BR')}</b><small>UA alvo da semana</small></div></div>
-          <div class="p-prog" role="img" aria-label="${pct}% da carga da semana"><i style="width:${pct}%"></i></div></div>
-        <div class="p-dias" role="img" aria-label="Dias de treino da semana">${dias}</div>
-        <ul class="p-lista">${sem.sessoes.map((s) => `<li><div class="p-ses ${s.status}"><span class="p-ses-dia"><small>${DIAS[s.dow].toUpperCase()}</small><b class="num">${diaMes(s.data)}</b></span>
-          <span class="p-txt"><b>${esc(s.tipo)} · ${esc(s.foco)}</b><small>${s.dur} min · PSE alvo ${s.pse} · dia ${esc(s.dia)}${s.reg ? ` · feito: PSE ${s.reg.pse}, ${s.reg.presentes} presentes` : ''}</small></span>
-          ${s.status === 'registrado' ? `<span class="p-ok" aria-label="Registrado">${ic(I.ok, 24)}</span>` : s.status === 'futuro' ? '<small class="p-vazio">em breve</small>' : `<button type="button" class="p-btn peq ${s.status === 'hoje' ? 'primario' : ''}" data-registrar="${s.id}">Registrar</button>`}</div></li>`).join('')}</ul></section>
+      <a class="p-card pe-resumo" href="#periodo/${e.id}/bloco" aria-label="Abrir a periodização de ${esc(e.nome)}">
+        <div class="pe-cab"><span class="p-rot">Periodização</span><span class="p-seta">${ic(I.seta)}</span></div>
+        <div class="p-txt"><b class="pe-tn" style="--cor:${e.fase.cor}">${esc(e.fase.nome)}</b><small>Semana ${e.semana} de ${e.semanas} · ${esc(e.alvo.nome)} em ${e.alvo.dias} dias</small></div>
+        <div class="p-fases" aria-hidden="true">${D.plano(id).fases.map((f) => `<i style="width:${(f.semanas / e.semanas) * 100}%;background:${f.cor}"></i>`).join('')}</div></a>
       <section class="p-card" aria-labelledby="ae-t"><span class="p-rot" id="ae-t">${fora.length ? 'Pedem atenção' : 'Atletas'}</span>
         ${fora.length ? `<ul class="p-lista">${fora.map((a) => linhaAtleta(a, false)).join('')}</ul>` : '<p class="p-feito">' + ic(I.ok, 22) + 'Todos dentro da faixa segura.</p>'}
         ${bem.length ? `<button type="button" class="p-toggle" id="ver-bem" aria-expanded="${!!aberto}" aria-controls="lista-bem">${aberto ? 'Esconder' : 'Ver'} os ${bem.length} sem alerta</button>
@@ -158,7 +153,6 @@
       : `<li><div class="p-linha" aria-disabled="true"><span class="p-txt"><b>${txt}</b><small>${sub}</small></span><span class="p-tag">${tag}</span></div></li>`);
     return `<header class="p-topo"><h1>Mais</h1><p class="p-sub">O que não é do dia a dia fica aqui, a um toque.</p></header>
       <section class="p-card"><ul class="p-mais">
-        ${lin('Plano da temporada', 'Fases, semanas e competições com prioridade', '#plano/e1')}
         ${lin('Exercícios e prescrição', 'Treino físico na areia: peso do corpo, disco, cone e escada', '', 'na integração')}
         ${lin('Quadro técnico', 'Desenhar jogadas e exercícios', '', 'na integração')}
         ${lin('Competições', 'Editar data, local e prioridade', '', 'na integração')}
@@ -167,20 +161,118 @@
         <button type="button" class="p-btn" id="zerar">Apagar o que eu registrei no exemplo</button></section>`;
   }
 
-  function plano(id) {
+  /* ---------- Periodização: Semana, Bloco, Temporada ---------- */
+
+  let periodoEq = null;
+  const ESTADO_BLOCO = { concluido: 'Concluído', andamento: 'Em andamento', planejado: 'Planejado' };
+  const tipoSemana = (sm) => (sm.descarga ? 'Descarga' : sm.fator >= 110 ? 'Carga alta' : sm.fator >= 95 ? 'Carga base' : 'Carga leve');
+
+  function periodizacao(id, aba, idxBloco) {
     const e = D.equipe(id) || D.equipes()[0];
-    const pl = D.plano(e.id);
-    const total = pl.fases.reduce((t, f) => t + f.semanas, 0);
-    const mostra = D.hoje();
-    return `<a class="p-voltar" href="#mais" data-voltar>${ic(I.volta)}Mais</a>
-      <header class="p-topo"><h1>Plano da temporada</h1></header>
-      <div class="p-seg" role="group" aria-label="Escolher equipe">${D.equipes().map((x) => `<button type="button" data-plano-eq="${x.id}" aria-pressed="${x.id === e.id}">${esc(x.nome)}</button>`).join('')}</div>
-      <section class="p-card" aria-labelledby="ft-t"><h2 id="ft-t">${total} semanas</h2>
-        <div class="p-fases" role="img" aria-label="Fases da temporada">${pl.fases.map((f) => `<i style="width:${(f.semanas / total) * 100}%;background:${f.cor}" title="${esc(f.nome)}"></i>`).join('')}</div>
-        <ul class="p-lista p-fase-l">${pl.fases.map((f) => `<li><i style="background:${f.cor}"></i><span class="p-txt"><b>${esc(f.nome)}</b></span><small class="num">${plural(f.semanas, 'semana', 'semanas')}</small></li>`).join('')}</ul>
-        <p class="p-sub">Você está na semana ${e.semana}, em ${esc(e.fase.nome.toLowerCase())}.</p></section>
-      <section class="p-card" aria-labelledby="cp-t"><h2 id="cp-t">Competições</h2><ul class="p-lista">${pl.eventos.map((v) => `<li><div class="p-ses"><span class="p-prio ${v.prio}" aria-label="Prioridade ${v.prio}">${v.prio}</span>
-        <span class="p-txt"><b>${esc(v.nome)}</b><small class="num">${new Date(v.data).getUTCDate()} de ${MESES[new Date(v.data).getUTCMonth()]} · ${esc(v.status)}</small></span><span class="p-chip">${v.dias} dias</span></div></li>`).join('')}</ul>
+    periodoEq = e.id;
+    const pe = D.periodo(e.id);
+    const bAt = pe.blocos[pe.blocoAtual];
+    const alvo = pe.eventos.find((v) => v.prio === 'A');
+    const hero = `
+      <section class="pe-hero" aria-label="Equipe">
+        <div class="pe-pills" role="group" aria-label="Escolher equipe">${D.equipes().map((x) => `<button type="button" class="pe-pill" data-periodo-eq="${x.id}" aria-pressed="${x.id === e.id}">${esc(x.nome)}</button>`).join('')}</div>
+        <h1>${esc(e.nome)}</h1>
+        <p class="pe-sub">${esc(e.faixas.join(' + '))} · ${esc(e.generos)} · ${plural(e.nAtletas, 'atleta', 'atletas')}</p>
+        <div class="pe-cats">${e.cats.map((c) => `<span>${esc(c)}</span>`).join('')}</div>
+        <dl class="pe-stats"><div><dt>Fase</dt><dd>${esc(bAt.nome)}</dd></div><div><dt>Semana</dt><dd class="num">${pe.semanaAtual} <small>de ${pe.total}</small></dd></div>${alvo ? `<div><dt>${esc(alvo.nome)} (A)</dt><dd class="num beam">${alvo.dias} dias</dd></div>` : ''}</dl>
+      </section>
+      <nav class="pe-abas" aria-label="Periodização">${[['semana', 'Semana'], ['bloco', 'Bloco'], ['temporada', 'Temporada']].map(([k, n]) => `<a href="#periodo/${e.id}/${k}" ${k === aba ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>`;
+    const corpo = aba === 'semana' ? abaSemana(e, pe) : aba === 'temporada' ? abaTemporada(e, pe) : abaBloco(e, pe, idxBloco);
+    return hero + corpo;
+  }
+
+  function abaSemana(e, pe) {
+    const sem = D.semana(e.id);
+    const sm = pe.semanas[pe.semanaAtual - 1];
+    const b = pe.blocos[sm.bloco];
+    const pct = Math.min(100, Math.round((100 * sem.cargaFeita) / sem.cargaAlvo));
+    const hojeT = D.hoje();
+    const dias = DIAS.map((n, i) => {
+      const t = sem.inicio + i * 86400000;
+      const s = sem.sessoes.filter((x) => x.dow === i);
+      return `<div class="p-d ${s.length ? 'tr' : ''} ${t === hojeT ? 'hoje' : ''}"><small>${n.toUpperCase()}</small><b class="num">${diaMes(t)}</b><span class="p-pts">${s.map((x) => `<i class="${x.status}"></i>`).join('')}</span></div>`;
+    }).join('');
+    return `
+      <section class="p-card" aria-labelledby="sm-t">
+        <div class="pe-cab"><span class="p-rot" id="sm-t">Semana ${pe.semanaAtual} de ${pe.total}</span><span class="p-chip" style="background:color-mix(in srgb, ${b.cor} 24%, var(--surface))">${esc(tipoSemana(sm))}</span></div>
+        <div class="pe-fator"><b class="num">${sm.fator}%</b><span>da carga de referência<br><small class="num">${milhar(sm.planejado)} UA planejadas</small></span></div>
+        <div><div class="p-3" style="grid-template-columns:1fr 1fr;margin-bottom:10px"><div><b class="num">${milhar(sem.cargaFeita)}</b><small>UA feitas</small></div><div><b class="num">${milhar(sem.cargaAlvo)}</b><small>UA alvo da semana</small></div></div>
+          <div class="p-prog" role="img" aria-label="${pct}% da carga da semana"><i style="width:${pct}%"></i></div></div>
+        <div class="p-dias" role="img" aria-label="Dias de treino da semana">${dias}</div></section>
+      <section class="p-card" aria-labelledby="ts-t"><span class="p-rot" id="ts-t">Treinos da semana</span>
+        <ul class="p-lista">${sem.sessoes.map((s) => `<li><div class="p-ses pe-ses ${s.status}"><span class="p-ses-dia"><small>${DIAS[s.dow].toUpperCase()}</small><b class="num">${diaMes(s.data)}</b></span>
+          <span class="p-txt"><b>${esc(s.tipo)} · ${esc(s.foco)}</b><small>${s.dur} min · PSE alvo ${s.pse} · dia ${esc(s.dia)}${s.reg ? ` · feito: PSE ${s.reg.pse}, ${s.reg.presentes} presentes` : ''}</small>
+            ${s.itens.length ? `<ul class="pe-itens">${s.itens.map((it) => `<li>${esc(it)}</li>`).join('')}</ul>` : ''}</span>
+          ${s.status === 'registrado' ? `<span class="p-ok" aria-label="Registrado">${ic(I.ok, 24)}</span>` : s.status === 'futuro' ? '<small class="p-vazio">em breve</small>' : `<button type="button" class="p-btn peq ${s.status === 'hoje' ? 'primario' : ''}" data-registrar="${s.id}">Registrar</button>`}</div></li>`).join('')}</ul></section>
+      <section class="p-card" aria-labelledby="bl-t"><span class="p-rot" id="bl-t">Dentro do bloco</span>
+        <a class="pe-tile mini" href="#periodo/${e.id}/bloco/${b.idx}" style="--cor:${b.cor}"><span class="p-txt"><b class="pe-tn">${esc(b.nome)}</b><small>Semana ${sm.k + 1} de ${b.semanas} · ${esc(b.regime)}</small></span><span class="p-seta">${ic(I.seta)}</span></a></section>`;
+  }
+
+  function abaBloco(e, pe, idxStr) {
+    let idx = Number(idxStr);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= pe.blocos.length) idx = pe.blocoAtual;
+    const b = pe.blocos[idx];
+    const prox = pe.blocos[idx + 1];
+    const sems = pe.semanas.filter((x) => x.bloco === idx);
+    const ref = pe.ref;
+    const feitas = sems.filter((x) => x.realizado != null);
+    const feitoPct = feitas.length ? Math.round((100 * feitas.reduce((t, x) => t + x.realizado, 0)) / feitas.reduce((t, x) => t + x.planejado, 0)) : null;
+    const eventos = pe.eventos.filter((v) => v.semana > b.ini && v.semana <= b.ini + b.semanas);
+    const sa = pe.semanas[pe.semanaAtual - 1];
+    const estadoTxt = b.estado === 'andamento' ? `semana ${sa.k + 1} de ${b.semanas}` : b.estado === 'concluido' ? 'concluído' : `começa em ${Math.max(1, Math.round((b.inicio - D.hoje()) / 86400000))} dias`;
+    const nav = (d, rot, i) => `<button type="button" class="pe-nav-b" data-bloco-ir="${i}" aria-label="${rot}" ${i < 0 || i >= pe.blocos.length ? 'disabled' : ''}>${ic(d, 20)}</button>`;
+    return `
+      <section class="p-card pe-bloco" style="--cor:${b.cor}" aria-labelledby="bk-t">
+        <div class="pe-cab"><span class="p-rot" id="bk-t">Bloco ${idx + 1} de ${pe.blocos.length}</span>
+          <span class="pe-setas">${nav(I.volta, 'Bloco anterior', idx - 1)}${nav(I.seta, 'Próximo bloco', idx + 1)}</span></div>
+        <div class="pe-nomeb"><i aria-hidden="true"></i><h2>${esc(b.nome)}</h2></div>
+        <div class="p-chips"><span class="p-chip ${b.estado === 'andamento' ? 'ok' : ''}">${esc(ESTADO_BLOCO[b.estado])} · ${esc(estadoTxt)}</span><span class="p-chip">${plural(b.semanas, 'semana', 'semanas')}</span></div>
+        <p class="pe-datas">${dataLonga(b.inicio)} a ${dataLonga(b.fim)}</p>
+        <p class="pe-obj">${esc(b.objetivo)}</p>
+        <p class="pe-regime">${esc(b.regime)}</p></section>
+      <section class="p-card" style="--cor:${b.cor}" aria-labelledby="fc-t">
+        <div class="pe-cab"><h2 id="fc-t" style="font-size:20px">Fator de carga</h2><small class="pe-leg">100% = ${milhar(ref)} UA</small></div>
+        <div class="pe-barras" role="img" aria-label="Fator de carga semana a semana: ${sems.map((x) => `semana ${x.n}, ${x.fator}%`).join('; ')}">
+          <span class="pe-ref" aria-hidden="true"></span>
+          ${sems.map((x) => `<div class="pe-col ${x.atual ? 'atual' : ''}"><b class="num">${x.fator}%</b><i class="${x.descarga ? 'desc' : ''}" style="height:${Math.round(x.fator * 1.1)}px"></i></div>`).join('')}</div>
+        <div class="pe-eixo">${sems.map((x) => `<div class="${x.atual ? 'atual' : ''}"><b>S${x.n}</b><small class="num">${x.atual ? 'hoje' : dd(x.inicio)}</small><small class="num pe-ua">${x.realizado != null ? milhar(x.realizado) : milhar(x.planejado)}</small></div>`).join('')}</div>
+        <p class="pe-nota-b">UA por semana${feitas.length ? `: feito ${milhar(feitas.reduce((t, x) => t + x.realizado, 0))}, ${feitoPct}% do planejado nas ${plural(feitas.length, 'semana concluída', 'semanas concluídas')}` : ', planejadas'}. A semana de descarga aparece tracejada.</p></section>
+      <section class="p-card" aria-labelledby="fu-t"><h2 id="fu-t" style="font-size:20px">Fundamentos do bloco</h2>
+        <div class="p-chips pe-fund">${b.fundamentos.map((f) => `<span>${esc(f)}</span>`).join('')}</div></section>
+      ${eventos.length ? `<section class="p-card" aria-labelledby="ce-t"><h2 id="ce-t" style="font-size:20px">Competições neste bloco</h2><ul class="p-lista">${eventos.map(linhaEvento).join('')}</ul></section>` : ''}
+      ${prox ? `<a class="p-card pe-prox" href="#periodo/${e.id}/bloco/${prox.idx}" style="--cor:${prox.cor}"><i aria-hidden="true"></i><span class="p-txt"><span class="p-rot">Em seguida</span><b class="pe-tn">${esc(prox.nome)}</b><small>A partir de ${dd(prox.inicio)} · ${esc(prox.regime.toLowerCase())}</small></span><span class="p-seta">${ic(I.seta)}</span></a>`
+        : '<section class="p-card"><span class="p-rot">Em seguida</span><p class="p-sub">Este é o último bloco da temporada.</p></section>'}`;
+  }
+
+  function linhaEvento(v) {
+    return `<li><div class="p-ses"><span class="p-prio ${v.prio}" aria-label="Prioridade ${v.prio}">${v.prio}</span>
+      <span class="p-txt"><b>${esc(v.nome)}</b><small class="num">${dataLonga(v.data)} · semana ${v.semana} · ${esc(v.status)}</small></span><span class="p-chip">${v.dias} dias</span></div></li>`;
+  }
+
+  function abaTemporada(e, pe) {
+    const T = pe.total;
+    const pos = (n) => `${((n - 0.5) / T) * 100}%`;
+    const maxPl = Math.max(...pe.semanas.map((x) => x.planejado));
+    return `
+      <section class="p-card" aria-labelledby="tp-t"><div class="pe-cab"><h2 id="tp-t">${T} semanas</h2><span class="p-chip">semana ${pe.semanaAtual}</span></div>
+        <div class="pe-tl" role="img" aria-label="Linha do tempo: ${pe.blocos.map((b) => `${b.nome}, ${b.semanas} semanas`).join('; ')}">
+          <div class="pe-pinos">${pe.eventos.map((v) => `<span class="pe-pino ${v.prio}" style="left:${pos(Math.min(T, v.semana))}" title="${esc(v.nome)}">${v.prio}</span>`).join('')}</div>
+          <div class="pe-faixa">${pe.blocos.map((b) => `<i style="flex:${b.semanas};background:${b.cor}" class="${b.estado}">${b.semanas >= 7 ? `<span>${esc(b.nome)}</span>` : b.semanas >= 4 ? `<span>${esc(b.nome.slice(0, 5))}.</span>` : ''}</i>`).join('')}<em class="pe-hoje" style="left:${pos(pe.semanaAtual)}" aria-hidden="true"></em></div>
+          <div class="pe-ticks"><span>S1</span><span style="left:${pos(pe.semanaAtual)}">S${pe.semanaAtual}</span><span class="fim">S${T}</span></div></div></section>
+      <section class="p-card" aria-labelledby="bq-t"><span class="p-rot" id="bq-t">Blocos da temporada</span>
+        <div class="pe-tiles">${pe.blocos.map((b) => `<a class="pe-tile ${b.estado}" href="#periodo/${e.id}/bloco/${b.idx}" style="--cor:${b.cor}">
+          <span class="p-txt"><b class="pe-tn">${esc(b.nome)}</b><small class="num">Semanas ${b.ini + 1} a ${b.ini + b.semanas} · ${dd(b.inicio)} a ${dd(b.fim)}</small></span>
+          <span class="p-dir"><span class="p-chip ${b.estado === 'andamento' ? 'ok' : ''}">${esc(ESTADO_BLOCO[b.estado])}</span></span><span class="p-seta">${ic(I.seta)}</span></a>`).join('')}</div></section>
+      <section class="p-card" aria-labelledby="cs-t"><div class="pe-cab"><h2 id="cs-t" style="font-size:20px">Carga semana a semana</h2><small class="pe-leg">UA planejadas</small></div>
+        <div class="pe-sem" role="img" aria-label="Carga planejada de cada uma das ${T} semanas">${pe.semanas.map((x) => `<i class="${x.descarga ? 'desc' : ''} ${x.atual ? 'atual' : ''}" style="height:${Math.round((x.planejado / maxPl) * 84)}px;--cor:${pe.blocos[x.bloco].cor}"></i>`).join('')}</div>
+        <div class="pe-ticks"><span>S1</span><span style="left:${pos(pe.semanaAtual)}">hoje</span><span class="fim">S${T}</span></div>
+        <p class="pe-nota-b">Cada barra é uma semana, na cor do bloco. As mais claras são semanas de descarga.</p></section>
+      <section class="p-card" aria-labelledby="cp-t"><h2 id="cp-t" style="font-size:20px">Competições</h2><ul class="p-lista">${pe.eventos.map(linhaEvento).join('')}</ul>
         <p class="p-sub">A é o alvo da temporada, B é importante e C é treino. Mudar a data ou a prioridade propõe um ajuste que você confirma.</p></section>`;
   }
 
@@ -242,14 +334,14 @@
 
   /* ---------- Navegação ---------- */
 
-  const NAV = [['hoje', 'Hoje', I.casa], ['equipes', 'Equipes', I.equipes], ['mais', 'Mais', I.mais]];
-  const ativo = (rota) => (rota === 'hoje' ? 'hoje' : rota === 'mais' || rota === 'plano' ? 'mais' : 'equipes');
+  const NAV = [['hoje', 'Hoje', I.casa], ['periodo', 'Periodização', I.cal], ['equipes', 'Equipes', I.equipes], ['mais', 'Mais', I.mais]];
+  const ativo = (rota) => (rota === 'hoje' ? 'hoje' : rota === 'mais' ? 'mais' : rota === 'periodo' || rota === 'plano' ? 'periodo' : 'equipes');
   let anterior = '', atual = '', verBem = false;
-  const rotulo = (h) => { const [r, id] = h.slice(1).split('/'); if (r === 'hoje') return 'Hoje'; if (r === 'equipes') return 'Equipes'; if (r === 'mais') return 'Mais'; if (r === 'equipe') { const e = D.equipe(id); return e ? e.nome : 'Equipe'; } return ''; };
+  const rotulo = (h) => { const [r, id] = h.slice(1).split('/'); if (r === 'hoje') return 'Hoje'; if (r === 'equipes') return 'Equipes'; if (r === 'mais') return 'Mais'; if (r === 'periodo') return 'Periodização'; if (r === 'equipe') { const e = D.equipe(id); return e ? e.nome : 'Equipe'; } return ''; };
 
   function rotear() {
     const h = location.hash || '#hoje';
-    const [rota, id] = h.slice(1).split('/');
+    const [rota, id, aba, idx] = h.slice(1).split('/');
     const main = document.getElementById('p-main');
     let html = '';
     if (rota === 'hoje') html = hoje();
@@ -257,7 +349,13 @@
     else if (rota === 'equipe') html = `<a class="p-voltar" href="${anteriorValido(h, '#equipes')}" data-voltar>${ic(I.volta)}${voltaRotulo(h, 'Equipes')}</a>${equipe(id, verBem)}`;
     else if (rota === 'atleta') { const a = D.atleta(id); html = `<a class="p-voltar" href="${anteriorValido(h, a ? `#equipe/${a.eq}` : '#equipes')}" data-voltar>${ic(I.volta)}${voltaRotulo(h, a ? D.equipe(a.eq).nome : 'Equipes')}</a>${atleta(id)}`; }
     else if (rota === 'mais') html = mais();
-    else if (rota === 'plano') html = plano(id);
+    else if (rota === 'plano') { location.hash = `#periodo/${id || ''}/temporada`; return; }
+    else if (rota === 'periodo') {
+      const eqId = D.equipe(id) ? id : periodoEq || D.equipes()[0].id;
+      const ab = ['semana', 'bloco', 'temporada'].includes(aba) ? aba : 'bloco';
+      if (id !== eqId || aba !== ab) { location.replace(`#periodo/${eqId}/${ab}${idx ? `/${idx}` : ''}`); return; }
+      html = periodizacao(eqId, ab, idx);
+    }
     else { location.hash = '#hoje'; return; }
     main.innerHTML = html;
     document.querySelectorAll('.p-nav a').forEach((a) => { if (a.dataset.rota === ativo(rota)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
@@ -266,8 +364,8 @@
     atual = h;
   }
   // O "‹" volta para a tela de onde o técnico veio, quando ela é uma tela principal; senão, para a de cima.
-  function anteriorValido(h, padrao) { return anterior && anterior !== h && /^#(hoje|equipes|equipe\/|mais)/.test(anterior) ? anterior : padrao; }
-  function voltaRotulo(h, padrao) { return anterior && anterior !== h && /^#(hoje|equipes|equipe\/|mais)/.test(anterior) ? rotulo(anterior) || padrao : padrao; }
+  function anteriorValido(h, padrao) { return anterior && anterior !== h && /^#(hoje|equipes|equipe\/|mais|periodo)/.test(anterior) ? anterior : padrao; }
+  function voltaRotulo(h, padrao) { return anterior && anterior !== h && /^#(hoje|equipes|equipe\/|mais|periodo)/.test(anterior) ? rotulo(anterior) || padrao : padrao; }
 
   function ligar(main, rota, id) {
     main.querySelectorAll('[data-registrar]').forEach((b) => b.addEventListener('click', () => abrirRegistro(b.dataset.registrar)));
@@ -276,7 +374,8 @@
     if (vb) vb.addEventListener('click', () => { verBem = !verBem; const y = window.scrollY; rotear(); window.scrollTo({ top: y }); const n = document.getElementById('ver-bem'); if (n) n.focus({ preventScroll: true }); });
     const z = main.querySelector('#zerar');
     if (z) z.addEventListener('click', () => { D.zerarExemplo(); aviso('Registros do exemplo apagados.'); });
-    main.querySelectorAll('[data-plano-eq]').forEach((b) => b.addEventListener('click', () => { const y = window.scrollY; location.hash = `#plano/${b.dataset.planoEq}`; window.scrollTo({ top: y }); }));
+    main.querySelectorAll('[data-periodo-eq]').forEach((b) => b.addEventListener('click', () => { const ab = location.hash.split('/')[2] || 'bloco'; location.hash = `#periodo/${b.dataset.periodoEq}/${ab === 'bloco' ? 'bloco' : ab}`; }));
+    main.querySelectorAll('[data-bloco-ir]').forEach((b) => b.addEventListener('click', () => { const [, eq] = location.hash.slice(1).split('/'); location.hash = `#periodo/${eq}/bloco/${b.dataset.blocoIr}`; }));
     if (rota === 'atleta') {
       const a = D.atleta(id);
       const abre = (btn, alvo) => btn.addEventListener('click', () => { const x = alvo.hidden; alvo.hidden = !x; btn.setAttribute('aria-expanded', String(x)); if (x) { const f = alvo.querySelector('input, select'); if (f) f.focus(); } });

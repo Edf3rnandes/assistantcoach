@@ -63,7 +63,7 @@ section { margin: 1.4rem 0; }
 .nav a.on { color: var(--brand); font-weight: 700; }
 .nav a.on svg { stroke-width: 2.2; }
 
-.titulo-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: .5rem; }
+.titulo-linha { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: .5rem; flex-wrap: wrap; }
 .titulo-linha h1, .titulo-linha h2 { margin: 0; }
 .sub { color: var(--muted); margin-bottom: 1rem; }
 .voltar { display: inline-block; margin-bottom: .5rem; padding: 4px 0; font-size: .95rem; }
@@ -198,6 +198,7 @@ dialog.modal::backdrop { background: rgba(10, 20, 25, .55); }
 .g-psr { stroke: var(--psr); fill: var(--psr); }
 .g-pse { stroke: var(--pse); fill: var(--pse); }
 .g-ponto.g-psr, .g-ponto.g-pse { stroke: var(--card); stroke-width: 1.5; }
+.g-linha.g-psr, .g-linha.g-pse { fill: none; }
 .legenda { display: flex; gap: 14px; font-size: .85rem; margin-bottom: 4px; }
 .leg::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .leg.psr::before { background: var(--psr); }
@@ -279,3 +280,76 @@ details.todos summary { cursor: pointer; font-weight: 600; min-height: 32px; dis
   .esc-btns { gap: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Topo com mais de um link */
+.topo-links { display: flex; gap: 2px; }
+
+/* Competições e calendário de carga */
+.tl-comp.prov { border-style: dashed; border-color: #fff; opacity: .85; }
+.acoes-card.sem-margem { margin-top: 0; }
+.calendario { border: 1px solid var(--linha); border-radius: var(--raio); background: var(--card); overflow: hidden; }
+.cal-linha { display: grid; grid-template-columns: 54px 1fr; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--linha); }
+.cal-linha:last-child { border-bottom: 0; }
+.cal-linha.passou { opacity: .6; }
+.cal-linha.atual { background: var(--brand-soft); }
+.cal-esq { display: flex; flex-direction: column; }
+.cal-topo { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.cal-topo .chip { margin: 0; }
+.cal-nums { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .85rem; }
+.vol-barra { display: block; width: 90px; height: 8px; border-radius: 99px; background: var(--card2); overflow: hidden; flex: none; }
+.vol-barra i { display: block; height: 100%; border-radius: 99px; }
+.prop-linha { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--linha); }
+.prop-linha .chip { flex: none; }
+h3 { font-size: .95rem; margin: 14px 0 4px; }
+
+/* Cadastro de atletas */
+.link-atleta { padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.item-resp { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--linha); cursor: pointer; }
+.item-lista { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--linha); }
+.item-lista.ignorado { opacity: .55; }
+.item-lista .chips { margin: 2px 0 0; }
+.ficha-publica { max-width: 520px; margin: 0 auto; }
+.seg.grande button { min-height: 46px; flex: 1; }
+.seg.grande { display: flex; width: 100%; }
+.check.autoriza { align-items: flex-start; font-size: .9rem; margin: 14px 0; }
+.check.autoriza input { flex: none; margin-top: 2px; }
+.erro-campo { color: var(--bad); font-weight: 600; min-height: 1.3em; margin: 6px 0; }
+.btn.largo { width: 100%; }
+.publico .topo-links, .publico .nav { display: none; }
+.publico .marca { pointer-events: none; }
+.publico { padding-bottom: 24px; }
+
+/* Guia (organograma) */
+.pagina-guia section { margin: 1.8rem 0; }
+.org, .org-filhos { list-style: none; margin: 0; padding: 0; }
+.org-filhos { margin-left: 14px; padding-left: 14px; border-left: 2px solid var(--linha); }
+.org-no { position: relative; margin: 10px 0; }
+.org-filhos > .org-no::before { content: ""; position: absolute; left: -14px; top: 24px; width: 14px; border-top: 2px solid var(--linha); }
+.org-caixa { background: var(--card); border: 1px solid var(--linha); border-left: 5px solid var(--brand); border-radius: 12px; padding: 10px 12px; display: block; }
+.org-caixa strong { display: inline; font-size: 1.05rem; }
+.org-caixa > span { margin-left: 8px; font-size: .85rem; }
+.org-caixa dl { margin: 6px 0 0; display: grid; gap: 2px; font-size: .9rem; }
+.org-caixa dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 4px; }
+.org-caixa dd { margin: 0; }
+.grade3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.grade2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.comp-cartao { background: var(--card); border: 1px solid var(--linha); border-top: 5px solid var(--cor); border-radius: 12px; padding: 10px 12px; }
+.comp-topo { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.comp-cartao ul { margin: 4px 0 0; padding-left: 18px; font-size: .9rem; }
+.fluxo { display: flex; flex-direction: column; align-items: stretch; }
+.passo { background: var(--card); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 14px; }
+.passo p { margin: 2px 0 0; }
+.seta { text-align: center; color: var(--muted); font-size: 1.3rem; line-height: 1.4; }
+.fases { display: grid; gap: 6px; margin-top: 8px; }
+.fase-linha { display: grid; grid-template-columns: 150px 82px 1fr; gap: 8px; align-items: center; font-size: .88rem; }
+.fase-linha .chip { justify-self: start; margin: 0; }
+.fase-quando { font-weight: 700; }
+.gaps { display: grid; gap: 8px; }
+.gap-linha { background: var(--card); border: 1px solid var(--linha); border-radius: 12px; padding: 8px 12px; }
+.gap-linha strong { display: block; }
+.gap-linha .chips { margin: 4px 0; }
+.passos-simples { padding-left: 20px; }
+.passos-simples li { margin-bottom: 6px; }
+.grafico.guia { min-width: 0; max-height: none; }
+.g-ponto-guia { stroke: var(--card); stroke-width: 1.5; }
+@media (max-width: 520px) { .fase-linha { grid-template-columns: 140px 1fr; gap: 0 8px; } .fase-linha > .muted { grid-column: 1 / -1; margin-bottom: 4px; } }

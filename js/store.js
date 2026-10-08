@@ -17,6 +17,24 @@
     return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   }
 
+  const ATLETA_PADRAO = { sexo: '', acao: '', lado: '', nascimento: '', contato: '', responsavel: '', consentimento: '', obs: '', parceiroId: null, ativo: true };
+
+  /* Completa campos novos e converte a função antiga ("Bloqueadora") em ação e sexo. */
+  function normalizar(e) {
+    e.atletas = (e.atletas || []).map((a) => {
+      const n = { ...ATLETA_PADRAO, ...a };
+      if (a.funcao !== undefined) {
+        const f = String(a.funcao).toLowerCase();
+        if (!n.acao) n.acao = /bloq/.test(f) ? 'bloqueio' : /def/.test(f) ? 'defesa' : '';
+        if (!n.sexo && /(ora|a)$/.test(f.trim()) && !/sem fun/.test(f)) n.sexo = 'F';
+        else if (!n.sexo && /(or)$/.test(f.trim())) n.sexo = 'M';
+        delete n.funcao;
+      }
+      return n;
+    });
+    return e;
+  }
+
   let estado;
   let semArmazenamento = false;
 
@@ -25,7 +43,7 @@
       const bruto = localStorage.getItem(CHAVE);
       if (bruto) {
         const e = JSON.parse(bruto);
-        if (e && e.versao === VERSAO) return Object.assign(vazio(), e);
+        if (e && e.versao === VERSAO) return normalizar(Object.assign(vazio(), e));
       }
     } catch (err) { semArmazenamento = true; }
     return vazio();
@@ -56,7 +74,7 @@
     if (!e || e.versao !== VERSAO || !Array.isArray(e.atletas) || !Array.isArray(e.treinos) || !Array.isArray(e.periodizacoes)) {
       throw new Error('Este arquivo não é um backup do assistente.');
     }
-    estado = Object.assign(vazio(), e);
+    estado = normalizar(Object.assign(vazio(), e));
     salvar();
   }
 
@@ -70,7 +88,7 @@
     exportar,
     importar,
     apagarTudo,
-    substituir(novo) { estado = Object.assign(vazio(), novo); salvar(); },
+    substituir(novo) { estado = normalizar(Object.assign(vazio(), novo)); salvar(); },
     atleta: (id) => por(estado.atletas, id),
     perio: (id) => por(estado.periodizacoes, id),
     treino: (id) => por(estado.treinos, id),

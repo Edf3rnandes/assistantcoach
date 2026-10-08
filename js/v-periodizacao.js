@@ -7,6 +7,11 @@
   const PRIORIDADES = [{ valor: 'alta', rotulo: 'Alta' }, { valor: 'media', rotulo: 'Média' }, { valor: 'baixa', rotulo: 'Baixa' }];
   const PRIO_ROTULO = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
   const COR_COMP = { A: 'var(--bad)', B: 'var(--warn)', C: 'var(--muted)' };
+  const AJUDA_PRIO = {
+    A: 'Competição alvo: a temporada se organiza para chegar nela no melhor momento (polimento antes, recuperação depois).',
+    B: 'Importante: reduz o volume só da semana dela (mini-polimento), sem mexer no resto da temporada.',
+    C: 'Treino: serve para ganhar ritmo de jogo, sem reduzir a carga.',
+  };
 
   const fase = (id) => cat.fase(id) || cat.FASES[0];
   const faseChip = (id) => chip(fase(id).nome, { cor: fase(id).cor });
@@ -151,15 +156,18 @@
       const nome = entrada('text', c ? c.nome : '', { required: true, maxLength: 80 });
       const data = entrada('date', c ? c.data : calc.hojeISO(), { required: true });
       let prio = c ? c.prioridade : 'B';
-      const seg = AC.ui.segmentado([{ valor: 'A', rotulo: 'A · principal' }, { valor: 'B', rotulo: 'B · importante' }, { valor: 'C', rotulo: 'C · treino' }], prio, (v) => { prio = v; });
+      const seg = AC.ui.segmentado([{ valor: 'A', rotulo: 'A · alvo' }, { valor: 'B', rotulo: 'B · importante' }, { valor: 'C', rotulo: 'C · treino' }], prio, (v) => { prio = v; ajuda.textContent = AJUDA_PRIO[v]; });
+      const ajuda = h('span', { class: 'dica' }, AJUDA_PRIO[prio]);
+      const situacao = selecao([{ valor: 'confirmada', rotulo: 'Data confirmada' }, { valor: 'provisoria', rotulo: 'Data a confirmar' }, { valor: 'cancelada', rotulo: 'Cancelada' }], c && c.situacao ? c.situacao : 'confirmada');
       return h('form', { onsubmit: (e) => {
         e.preventDefault();
-        const dados = { nome: nome.value.trim(), data: data.value, prioridade: prio };
+        const dados = { nome: nome.value.trim(), data: data.value, prioridade: prio, situacao: situacao.value };
         if (novo) perio.competicoes.push({ id: store.uid(), ...dados }); else Object.assign(c, dados);
         store.salvar(); fechar(); AC.redesenhar();
       } },
       campo('Nome', nome), campo('Data', data),
-      h('div', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, 'Prioridade'), seg),
+      h('div', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, 'Prioridade'), seg, ajuda),
+      campo('Situação da data', situacao, 'Mudou a data ou caiu a competição? Edite aqui: o sistema avisa se os mesociclos precisam ser reorganizados.'),
       h('div', { class: 'acoes' },
         !novo ? h('button', { class: 'btn perigo', type: 'button', onclick: async () => {
           if (await confirmar(`Excluir "${c.nome}"?`, { ok: 'Excluir', perigo: true })) { perio.competicoes = perio.competicoes.filter((x) => x !== c); store.salvar(); fechar(); AC.redesenhar(); }
@@ -178,7 +186,49 @@
     };
   }
 
+  const temAlvo = (perio) => (perio.competicoes || []).some((c) => (c.prioridade === 'A' || c.prioridade === 'B') && c.situacao !== 'cancelada');
+
+  /* Aplica a proposta: o que passou fica, o resto é recriado a partir das competições, aproveitando ênfase e tópicos da mesma fase. */
+  function aplicarProposta(perio, prop) {
+    const modelos = {};
+    [...perio.mesociclos].sort((a, b) => a.inicio.localeCompare(b.inicio)).forEach((m) => { modelos[m.fase] = m; });
+    const cargaPadrao = [...perio.mesociclos].reverse().find((m) => m.cargaRef);
+    const novos = prop.novos.map((n) => {
+      const base = mesoPadrao(n.fase, n.inicio, n.semanas);
+      const mod = modelos[n.fase];
+      const alvo = ['precompetitivo', 'polimento', 'competitivo'].includes(n.fase) && n.alvo ? ` · ${n.alvo}` : '';
+      return {
+        ...base,
+        nome: `${fase(n.fase).nome}${alvo}${n.partes > 1 ? ` (${n.parte}/${n.partes})` : ''}`,
+        enfase: mod ? mod.enfase : base.enfase,
+        topicos: mod ? mod.topicos.map((t) => ({ ...t, id: store.uid(), tipos: [...t.tipos] })) : base.topicos,
+        fisico: mod ? [...mod.fisico] : base.fisico,
+        cargaRef: mod && mod.cargaRef ? mod.cargaRef : cargaPadrao ? cargaPadrao.cargaRef : null,
+      };
+    });
+    perio.mesociclos = [...prop.mantidos.map((x) => { x.meso.semanas = x.semanas; return x.meso; }), ...novos];
+    store.salvar(); AC.redesenhar();
+    aviso('Mesociclos reorganizados pelas competições.');
+  }
+
+  function modalProposta(perio) {
+    const hoje = calc.hojeISO();
+    const prop = calc.propostaMesos(perio, hoje);
+    modal('Reorganizar pelas competições', (fechar) => h('div', null,
+      h('p', { class: 'muted' }, `O que já passou e a semana atual não mudam. A partir de ${dataCompleta(prop.corte)} os mesociclos são refeitos para que cada competição alvo (A) tenha polimento antes e recuperação depois.`),
+      prop.mantidos.length ? h('div', null, h('h3', null, 'Continua como está'),
+        prop.mantidos.map((x) => h('div', { class: 'prop-linha' }, faseChip(x.meso.fase), h('span', { class: 'linha-txt' }, h('strong', null, x.meso.nome),
+          h('span', { class: 'muted' }, `${dm(x.meso.inicio)} a ${dm(calc.addDias(calc.segundaDe(x.meso.inicio), x.semanas * 7 - 1))}${x.encurtado ? ` · encurtado de ${x.meso.semanas} para ${x.semanas} semanas` : ''}`))))) : null,
+      h('h3', null, 'Passa a ser'),
+      prop.novos.map((n) => h('div', { class: 'prop-linha' }, faseChip(n.fase), h('span', { class: 'linha-txt' }, h('strong', null, `${fase(n.fase).nome}${n.partes > 1 ? ` (${n.parte}/${n.partes})` : ''}`),
+        h('span', { class: 'muted' }, `${dm(n.inicio)} a ${dm(calc.addDias(n.inicio, n.semanas * 7 - 1))} · ${plural(n.semanas, 'semana', 'semanas')}${n.alvo ? ` · rumo a ${n.alvo}` : ''}`)))),
+      prop.descartados.length ? h('p', { class: 'dica' }, `${plural(prop.descartados.length, 'mesociclo futuro atual é substituído', 'mesociclos futuros atuais são substituídos')}. A ênfase e os tópicos de fundamentos são copiados do mesociclo da mesma fase.`) : null,
+      h('div', { class: 'acoes' }, h('button', { class: 'btn', type: 'button', onclick: () => fechar() }, 'Manter como está'),
+        h('button', { class: 'btn primario', type: 'button', onclick: () => { fechar(); aplicarProposta(perio, prop); } }, 'Aplicar'))), { largo: true });
+  }
+
   function sugerirEstrutura(perio) {
+    if (temAlvo(perio)) return modalProposta(perio);
     const est = calc.sugerirEstrutura(perio.inicio, perio.fim || calc.addDias(perio.inicio, 7 * 16 - 1));
     let ini = calc.segundaDe(perio.inicio);
     for (const e of est) { perio.mesociclos.push(mesoPadrao(e.fase, ini, e.semanas)); ini = calc.addDias(ini, e.semanas * 7); }
@@ -206,8 +256,8 @@
       faixa.append(el);
     });
     const marcas = h('div', { class: 'tl-marcas' });
-    perio.competicoes.filter((c) => c.data >= ini && c.data <= fimTotal).forEach((c) => {
-      const el = h('button', { class: 'tl-comp', type: 'button', title: `${c.nome} · ${dm(c.data)} (${c.prioridade})`, onclick: () => formCompeticao(perio, c) }, c.prioridade);
+    perio.competicoes.filter((c) => c.data >= ini && c.data <= fimTotal && c.situacao !== 'cancelada').forEach((c) => {
+      const el = h('button', { class: 'tl-comp' + (c.situacao === 'provisoria' ? ' prov' : ''), type: 'button', title: `${c.nome} · ${dm(c.data)} (${c.prioridade})`, onclick: () => formCompeticao(perio, c) }, c.prioridade);
       el.style.cssText = `left:${pct(c.data)}%;background:${COR_COMP[c.prioridade]}`;
       marcas.append(el);
     });
@@ -223,11 +273,32 @@
   function cargaTemporada(perio, hoje) {
     const ativos = store.ativos();
     const itens = [];
+    const mods = calc.modsCompeticao(perio);
     [...perio.mesociclos].sort((a, b) => a.inicio.localeCompare(b.inicio)).forEach((m) => {
-      calc.planejadoReal(m, S().treinos, ativos, hoje).forEach((s) => itens.push({ rotulo: dm(s.seg), real: s.real, planejado: s.planejado, atual: s.atual }));
+      calc.planejadoReal(m, S().treinos, ativos, hoje, mods).forEach((s) => itens.push({ rotulo: dm(s.seg), real: s.real, planejado: s.planejado, atual: s.atual }));
     });
     if (!itens.some((i) => i.planejado != null || i.real != null)) return null;
     return h('div', { class: 'rolagem-x' }, AC.ui.graficoCarga(itens));
+  }
+
+  /* Semana a semana: fase, volume (fator de carga), intensidade (PSE alvo), competição e a intenção. */
+  function calendarioSemanas(perio, hoje) {
+    const cal = calc.calendarioCarga(perio);
+    const segHoje = calc.segundaDe(hoje);
+    const caixa = h('div', { class: 'calendario' });
+    cal.forEach((w) => {
+      const f = w.fase ? fase(w.fase) : null;
+      const barra = h('span', { class: 'vol-barra', title: w.fator == null ? '' : `Volume ${num(w.fator)}× da carga de referência` });
+      if (w.fator != null) { const i = h('i'); i.style.width = Math.min(100, Math.round(w.fator * 100)) + '%'; i.style.background = f.cor; barra.append(i); }
+      caixa.append(h('div', { class: 'cal-linha' + (w.seg === segHoje ? ' atual' : '') + (w.seg < segHoje ? ' passou' : '') },
+        h('div', { class: 'cal-esq' }, h('strong', null, dm(w.seg)), h('span', { class: 'muted' }, `S${w.i + 1}`)),
+        h('div', { class: 'cal-meio' },
+          h('div', { class: 'cal-topo' }, f ? faseChip(w.fase) : chip('sem mesociclo', { pequeno: true }),
+            w.eventos.map((c) => chip(`${c.prioridade} · ${c.nome}${c.situacao === 'provisoria' ? ' (a confirmar)' : ''}`, { pequeno: true, cor: COR_COMP[c.prioridade] }))),
+          h('div', { class: 'cal-nums' }, barra, h('span', null, w.fator == null ? '' : `volume ×${num(w.fator)}`), h('span', null, w.pse == null ? '' : `intensidade PSE ${w.pse}`)),
+          w.intencao ? h('div', { class: 'dica' }, w.intencao) : null)));
+    });
+    return caixa;
   }
 
   function temporada(id) {
@@ -253,14 +324,21 @@
     const avisos = calc.validarMesos(perio);
     if (avisos.length) raiz.append(h('div', { class: 'alerta medio' }, h('strong', null, 'Confira a estrutura'), h('ul', null, avisos.map((a) => h('li', null, a)))));
 
+    const desal = perio.mesociclos.length && temAlvo(perio) ? calc.desalinhamento(perio, hoje) : [];
+    if (desal.length) raiz.append(h('div', { class: 'alerta medio' }, h('strong', null, 'Os mesociclos não acompanham as competições'),
+      h('p', null, `Em ${plural(desal.length, 'semana', 'semanas')} a fase planejada difere do que as competições pedem (por exemplo, polimento antes de um alvo). Isso acontece quando uma data muda.`),
+      h('button', { class: 'btn primario', type: 'button', onclick: () => modalProposta(perio) }, 'Ver proposta')));
+
     const mesosSec = h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Mesociclos'),
-      h('button', { class: 'btn', type: 'button', onclick: () => formMeso(perio) }, '+ Mesociclo')));
+      h('div', { class: 'acoes-card sem-margem' },
+        perio.mesociclos.length && temAlvo(perio) ? h('button', { class: 'btn', type: 'button', onclick: () => modalProposta(perio) }, 'Reorganizar') : null,
+        h('button', { class: 'btn', type: 'button', onclick: () => formMeso(perio) }, '+ Mesociclo'))));
     const ordenados = [...perio.mesociclos].sort((a, b) => a.inicio.localeCompare(b.inicio));
     if (!ordenados.length) {
       mesosSec.append(h('div', { class: 'vazio' },
         h('p', null, 'Divida a temporada em mesociclos de 2 a 6 semanas, cada um com uma ênfase.'),
-        h('button', { class: 'btn primario', type: 'button', onclick: () => sugerirEstrutura(perio) }, 'Sugerir estrutura da temporada'),
-        h('p', { class: 'dica' }, 'Cria base, desenvolvimento, pré-competitivo e competitivo com tópicos de fundamentos sugeridos. Tudo editável.')));
+        h('button', { class: 'btn primario', type: 'button', onclick: () => sugerirEstrutura(perio) }, temAlvo(perio) ? 'Montar a partir das competições' : 'Sugerir estrutura da temporada'),
+        h('p', { class: 'dica' }, temAlvo(perio) ? 'Distribui base, desenvolvimento, pré-competitivo, polimento e recuperação em torno das competições A, com tópicos de fundamentos sugeridos. Tudo editável.' : 'Cria base, desenvolvimento, pré-competitivo e competitivo com tópicos de fundamentos sugeridos. Cadastre uma competição A para a estrutura seguir as datas.')));
     }
     ordenados.forEach((m) => {
       const atual = hoje >= m.inicio && hoje <= calc.fimMeso(m);
@@ -275,8 +353,12 @@
     });
     raiz.append(mesosSec);
 
+    if (perio.mesociclos.length) raiz.append(h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Semana a semana'), h('a', { class: 'link', href: '#/guia' }, 'Como funciona')),
+      h('p', { class: 'dica' }, 'Volume: quanto da carga de referência a semana pede. Intensidade: PSE alvo dos treinos. A competição reduz o volume e a intensidade se mantém.'),
+      calendarioSemanas(perio, hoje)));
+
     const carga = cargaTemporada(perio, hoje);
-    if (carga) raiz.append(h('section', null, h('h2', null, 'Carga por semana'), h('p', { class: 'dica' }, 'Barras: média do grupo (PSE × minutos). Traço: planejado pela carga de referência de cada mesociclo.'), carga));
+    if (carga) raiz.append(h('section', null, h('h2', null, 'Carga por semana'), h('p', { class: 'dica' }, 'Barras: média do grupo (PSE × minutos). Traço: planejado pela carga de referência do mesociclo, já com a redução das competições.'), carga));
 
     const comp = h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Competições'),
       h('button', { class: 'btn', type: 'button', onclick: () => formCompeticao(perio) }, '+ Competição')));
@@ -284,8 +366,9 @@
     if (!cs.length) comp.append(h('p', { class: 'dica' }, 'Cadastre as competições para ver o caminho até elas na linha do tempo.'));
     cs.forEach((c) => comp.append(h('button', { class: 'linha', type: 'button', onclick: () => formCompeticao(perio, c) },
       h('span', { class: 'bolinha', style: { background: COR_COMP[c.prioridade] } }, c.prioridade),
-      h('span', { class: 'linha-txt' }, h('strong', null, c.nome), h('span', { class: 'muted' }, dataCompleta(c.data))),
-      h('span', { class: 'muted' }, c.data < hoje ? 'passou' : c.data === hoje ? 'hoje' : `em ${calc.diffDias(hoje, c.data)} d`))));
+      h('span', { class: 'linha-txt' }, h('strong', { style: c.situacao === 'cancelada' ? { textDecoration: 'line-through' } : null }, c.nome),
+        h('span', { class: 'muted' }, `${dataCompleta(c.data)}${c.situacao === 'provisoria' ? ' · data a confirmar' : c.situacao === 'cancelada' ? ' · cancelada' : ''}`)),
+      h('span', { class: 'muted' }, c.situacao === 'cancelada' ? '' : c.data < hoje ? 'passou' : c.data === hoje ? 'hoje' : `em ${calc.diffDias(hoje, c.data)} d`))));
     raiz.append(comp);
 
     raiz.append(h('div', { class: 'rodape-acoes' }, h('button', { class: 'btn perigo', type: 'button', onclick: async () => {
@@ -351,7 +434,7 @@
     raiz.append(h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Treino físico do mesociclo'), h('a', { class: 'btn', href: '#/fisico' }, 'Abrir físico')),
       meso.fisico && meso.fisico.length ? h('div', { class: 'chips' }, meso.fisico.map((x) => chip(x))) : h('p', { class: 'dica' }, 'Sem foco físico definido. Use "Editar".')));
 
-    const semanas = calc.planejadoReal(meso, S().treinos, store.ativos(), hoje);
+    const semanas = calc.planejadoReal(meso, S().treinos, store.ativos(), hoje, calc.modsCompeticao(perio));
     const tem = semanas.some((s) => s.planejado != null || s.real != null);
     const tab = h('div', { class: 'tabela-semanas' });
     semanas.forEach((s, i) => {

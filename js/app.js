@@ -26,8 +26,8 @@
       el.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${a.icone}</svg><span>${a.rotulo}</span>`;
       return el;
     }));
-    const dados = document.getElementById('link-dados');
-    dados.classList.toggle('on', rota === 'dados');
+    document.getElementById('link-dados').classList.toggle('on', rota === 'dados');
+    document.getElementById('link-guia').classList.toggle('on', rota === 'guia');
   }
 
   function desenhar(rolar) {
@@ -35,6 +35,8 @@
     const rota = ctx.partes[0];
     const view = AC.views[rota] || AC.views.inicio;
     desenharNav(AC.views[rota] ? rota : 'inicio');
+    /* A ficha do atleta é pública: sem menu nem acesso ao resto do sistema. */
+    document.body.classList.toggle('publico', rota === 'ficha');
     let no;
     try { no = view(ctx); }
     catch (err) {
@@ -43,7 +45,7 @@
     }
     principal().replaceChildren(no);
     if (rolar) window.scrollTo(0, 0);
-    document.title = ({ inicio: 'Início', periodizacao: 'Periodização', treinos: 'Treinos', fisico: 'Treino físico', atletas: 'Atletas', dados: 'Dados' }[rota] || 'Início') + ' · Assistente do Treinador';
+    document.title = ({ inicio: 'Início', periodizacao: 'Periodização', treinos: 'Treinos', fisico: 'Treino físico', atletas: 'Atletas', dados: 'Dados', guia: 'Guia', ficha: 'Cadastro de atleta' }[rota] || 'Início') + ' · Assistente do Treinador';
   }
 
   /* Refaz a tela atual mantendo a posição de rolagem (depois de salvar algo num modal, por exemplo). */

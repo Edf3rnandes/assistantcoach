@@ -10,7 +10,7 @@
   function passos() {
     const e = S();
     const lista = [
-      { ok: e.atletas.length > 0, titulo: 'Cadastrar os atletas', texto: 'Quem treina com você e quem forma dupla.', href: '#/atletas' },
+      { ok: e.atletas.length > 0, titulo: 'Cadastrar os atletas', texto: 'Cole a lista do elenco e envie o link para cada atleta completar a ficha.', href: '#/atletas' },
       { ok: e.periodizacoes.length > 0, titulo: 'Montar a periodização', texto: 'Mesociclos, ênfase e fundamentos de cada fase.', href: '#/periodizacao' },
       { ok: e.treinos.length > 0, titulo: 'Registrar o primeiro treino', texto: 'O que foi feito e como cada atleta chegou e saiu.', href: '#/treinos/novo' },
       { ok: e.planosFisicos.length > 0, titulo: 'Montar um treino físico', texto: 'Escolha exercícios e insira nos dias que quiser.', href: '#/fisico/plano/novo' },

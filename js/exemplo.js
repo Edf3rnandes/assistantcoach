@@ -1,62 +1,61 @@
 /* Dados de exemplo para conhecer o sistema. Só entram quando o técnico pede, e substituem o que existe. */
 (function (AC) {
-  const { addDias, segundaDe, hojeISO, fimMeso, fatoresCarga } = AC.calc;
+  const { addDias, segundaDe, hojeISO } = AC.calc;
 
   function gerar() {
     const uid = AC.store.uid;
     const hoje = hojeISO();
     const seg0 = segundaDe(hoje);
 
-    const nomes = [
-      ['Ana Beatriz', 'Bloqueadora'], ['Camila', 'Defensora'], ['Júlia', 'Bloqueadora'], ['Marina', 'Defensora'],
-      ['Rafael', 'Bloqueador'], ['Lucas', 'Defensor'], ['Pedro', 'Bloqueador'], ['Thiago', 'Defensor'],
+    const nasc = (anos, mmdd) => `${Number(hoje.slice(0, 4)) - anos}-${mmdd}`;
+    const dados = [
+      ['Ana Beatriz', 'F', 'bloqueio', nasc(17, '03-14'), '(83) 99811-2001', true],
+      ['Camila', 'F', 'defesa', nasc(16, '09-02'), '(83) 99811-2002', true],
+      ['Júlia', 'F', 'bloqueio', '', '', false],
+      ['Marina', 'F', 'defesa', nasc(18, '11-23'), '(83) 99811-2004', true],
+      ['Rafael', 'M', 'bloqueio', nasc(17, '06-30'), '(83) 99811-2005', true],
+      ['Lucas', 'M', 'defesa', nasc(16, '01-19'), '(83) 99811-2006', true],
+      ['Pedro', 'M', 'ambos', nasc(17, '08-08'), '', false],
+      ['Thiago', 'M', 'defesa', '', '', false],
     ];
-    const atletas = nomes.map(([nome, funcao]) => ({ id: uid(), nome, funcao, nascimento: '', ativo: true, obs: '', parceiroId: null }));
+    const atletas = dados.map(([nome, sexo, acao, nascimento, contato, ok]) => ({
+      id: uid(), nome, sexo, acao, lado: '', nascimento, contato, responsavel: '', consentimento: ok ? hoje : '', ativo: true, obs: '', parceiroId: null,
+    }));
     for (let i = 0; i < atletas.length; i += 2) { atletas[i].parceiroId = atletas[i + 1].id; atletas[i + 1].parceiroId = atletas[i].id; }
     atletas[3].obs = 'Dor leve no ombro direito, acompanhar nos ataques';
 
-    /* Quatro mesociclos: dois já passaram parcialmente, o atual está na semana 3. */
-    const T = (fundamento, tipos, foco, prioridade) => ({ id: uid(), fundamento, tipos, foco, prioridade });
-    const meso = (nome, fase, semIni, semanas, perfil, cargaRef, enfase, topicos, fisico) => ({
-      id: uid(), nome, fase, inicio: addDias(seg0, 7 * semIni), semanas, perfil, cargaRef, enfase, topicos, fisico, notas: '',
-    });
-    const mesos = [
-      meso('Base geral', 'base', -6, 4, '3:1', 1700, 'Construir base de movimento e consistência nos fundamentos de controle.', [
-        T('movimentacao', ['Deslocamento lateral', 'Frente e trás'], 'Eficiência de passada na areia', 'alta'),
-        T('defesa', ['Manchete', 'Posicionamento por zonas'], 'Plataforma e base', 'alta'),
-        T('recepcao', ['Manchete'], 'Passe na meta', 'media'),
-        T('saque', ['Flutuante'], 'Consistência e controle de zona', 'media'),
-      ], ['Resistência aeróbia', 'Força', 'Core e estabilidade']),
-      meso('Desenvolvimento de ataque e saque', 'desenvolvimento', -2, 4, '3:1', 2000, 'Ganhar agressividade no saque e variação no ataque, sem perder controle.', [
-        T('ataque', ['Diagonal', 'Paralela'], 'Ataque com direção e variação de ritmo', 'alta'),
-        T('saque', ['Viagem', 'Direcionado por zona'], 'Saque agressivo com controle', 'alta'),
-        T('bloqueio', ['Temporização', 'Linha'], 'Tempo de salto e mãos à frente', 'media'),
-        T('defesa', ['Rolamento / peixinho', 'Bola de potência'], 'Defesa em deslocamento', 'media'),
-        T('tatica', ['Side-out'], 'Complexo de side-out', 'media'),
-      ], ['Potência e saltos', 'Força', 'Prevenção de lesões']),
-      meso('Pré-competitivo', 'precompetitivo', 2, 3, '2:1', 2100, 'Transformar a técnica em decisões de jogo sob placar.', [
-        T('tatica', ['Side-out', 'Break point'], 'Rendimento de side-out e break point', 'alta'),
-        T('tatica', ['Bloqueio e defesa (sistema)', 'Sinais e comunicação'], 'Sistema defensivo e sinais', 'alta'),
-        T('saque', ['No jogador', 'Agressivo x seguro'], 'Escolha do saque por situação', 'media'),
-      ], ['Velocidade e agilidade', 'Resistência intermitente']),
-      meso('Competitivo e polimento', 'polimento', 5, 2, 'polimento', 1500, 'Chegar descansado, com rotinas claras e o plano de jogo revisado.', [
-        T('mental', ['Rotina pré-saque', 'Pressão de placar'], 'Rotinas de competição', 'alta'),
-        T('tatica', ['Leitura do adversário', 'Final de set e tie-break'], 'Ajustes e fechamento de set', 'alta'),
-      ], ['Mobilidade', 'Recuperação']),
-    ];
-    const fimMacro = fimMeso(mesos[3]);
+    /* Quatro competições na temporada: a primeira A fica no meio do ciclo, e a segunda A fecha a temporada. */
+    const sab = (sem) => addDias(seg0, 7 * sem + 5);
     const perio = {
       id: uid(),
       nome: `Temporada ${hoje.slice(0, 4)}`,
       objetivo: 'Chegar ao circuito estadual com saque agressivo e side-out acima de 65%.',
-      inicio: mesos[0].inicio,
-      fim: fimMacro,
-      mesociclos: mesos,
+      inicio: addDias(seg0, -7 * 6),
+      fim: addDias(seg0, 7 * 15 - 1),
+      mesociclos: [],
       competicoes: [
-        { id: uid(), nome: 'Torneio de preparação', data: addDias(seg0, 7 * 4 + 5), prioridade: 'B' },
-        { id: uid(), nome: 'Circuito Estadual, etapa final', data: addDias(seg0, 7 * 6 + 5), prioridade: 'A' },
+        { id: uid(), nome: 'Torneio local', data: sab(1), prioridade: 'C', situacao: 'confirmada' },
+        { id: uid(), nome: 'Circuito Estadual, 1ª etapa', data: sab(5), prioridade: 'A', situacao: 'confirmada' },
+        { id: uid(), nome: 'Torneio regional', data: sab(9), prioridade: 'B', situacao: 'provisoria' },
+        { id: uid(), nome: 'Circuito Estadual, final', data: sab(13), prioridade: 'A', situacao: 'confirmada' },
       ],
     };
+
+    /* Os mesociclos saem da mesma regra que o sistema usa para reorganizar pelas competições. */
+    const REF = { base: 1700, desenvolvimento: 2000, precompetitivo: 2100, polimento: 1700, competitivo: 1600, recuperacao: 900 };
+    const NOMES_FASE = { base: 'Base', desenvolvimento: 'Desenvolvimento', precompetitivo: 'Pré-competitivo', polimento: 'Polimento', competitivo: 'Competição', recuperacao: 'Recuperação' };
+    const prop = AC.calc.propostaMesos(perio, addDias(perio.inicio, -1));
+    perio.mesociclos = prop.novos.map((n) => {
+      const f = AC.cat.fase(n.fase);
+      const alvo = ['precompetitivo', 'polimento', 'competitivo'].includes(n.fase) && n.alvo ? ` · ${n.alvo}` : '';
+      return {
+        id: uid(), nome: `${NOMES_FASE[n.fase]}${alvo}${n.partes > 1 ? ` (${n.parte}/${n.partes})` : ''}`, fase: n.fase, inicio: n.inicio, semanas: n.semanas,
+        perfil: f.perfil, cargaRef: REF[n.fase], enfase: f.desc,
+        topicos: (AC.cat.SUGESTOES_FASE[n.fase] || []).map((t) => ({ id: uid(), ...t, tipos: [...t.tipos] })),
+        fisico: [...(AC.cat.FOCO_FISICO_FASE[n.fase] || [])], notas: '',
+      };
+    });
+    const cal = AC.calc.calendarioCarga(perio);
 
     /* Treinos: segunda, terça, quinta e sexta, do início ao dia de hoje (planejados daí em diante nesta semana). */
     const treinos = [];
@@ -70,9 +69,10 @@
     const limite = (v) => Math.max(0, Math.min(10, Math.round(v)));
     for (let w = -6; w <= 0; w++) {
       const segSemana = addDias(seg0, 7 * w);
-      const m = mesos.find((x) => segSemana >= segundaDe(x.inicio) && segSemana <= fimMeso(x));
+      const semCal = cal.find((c) => c.seg === segSemana);
+      const m = semCal && semCal.meso;
       if (!m) continue;
-      const fator = fatoresCarga(m.perfil, m.semanas)[Math.round((new Date(segSemana) - new Date(segundaDe(m.inicio))) / (7 * 86400000))] || 1;
+      const fator = semCal.fator == null ? 1 : semCal.fator;
       for (const a of agenda) {
         const data = addDias(segSemana, a.dow);
         const feito = data <= hoje;

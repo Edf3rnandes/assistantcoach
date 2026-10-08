@@ -135,4 +135,197 @@ t('planejado × real por semana', () => {
   assert.strictEqual(r[1].real, null);
 });
 
+/* ---------- Competições mandam na carga ---------- */
+
+const perioComp = (comps, extra = {}) => ({ inicio: '2026-10-05', fim: '2027-02-28', mesociclos: [], competicoes: comps.map((c, i) => ({ id: 'c' + i, ...c })), ...extra });
+
+t('plano ideal: contagem regressiva até a competição A', () => {
+  // A no sábado da semana 10 (índice 10): semanas 10 competição, 9 polimento, 8-7 pré, 6..3 desenvolvimento, 2..0 base
+  const p = perioComp([{ nome: 'Estadual', data: C.addDias('2026-10-05', 7 * 10 + 5), prioridade: 'A' }]);
+  const fases = C.planoIdeal(p).semanas.map((w) => w.fase);
+  assert.strictEqual(fases[10], 'competitivo');
+  assert.strictEqual(fases[9], 'polimento');
+  assert.deepStrictEqual(fases.slice(7, 9), ['precompetitivo', 'precompetitivo']);
+  assert.deepStrictEqual(fases.slice(3, 7), Array(4).fill('desenvolvimento'));
+  assert.deepStrictEqual(fases.slice(0, 3), Array(3).fill('base'));
+  assert.strictEqual(fases[11], 'recuperacao');
+});
+
+t('volume cai na semana do A e depois dele; intensidade (PSE alvo) se mantém no polimento', () => {
+  const p = perioComp([{ nome: 'Estadual', data: C.addDias('2026-10-05', 7 * 10 + 5), prioridade: 'A' }]);
+  const w = C.planoIdeal(p).semanas;
+  assert.strictEqual(w[10].fator, 0.6);   // semana da competição: plana 1,0 × 0,6
+  assert.strictEqual(w[9].fator, 0.6);    // polimento
+  assert.strictEqual(w[11].fator, 0.5);   // recuperação depois do A
+  assert.strictEqual(w[9].pse, C.FASE_PLANO.precompetitivo.pse); // intensidade igual à do pré
+  assert.ok(w[10].eventos.length === 1 && /Estadual/.test(w[10].eventos[0].nome));
+  assert.ok(/competição A/.test(w[10].intencao));
+});
+
+t('várias competições: cada A reinicia a contagem e a B só reduz a própria semana', () => {
+  const p = perioComp([
+    { nome: 'A1', data: C.addDias('2026-10-05', 7 * 5 + 5), prioridade: 'A' },
+    { nome: 'B1', data: C.addDias('2026-10-05', 7 * 8 + 5), prioridade: 'B' },
+    { nome: 'A2', data: C.addDias('2026-10-05', 7 * 13 + 5), prioridade: 'A' },
+  ]);
+  const w = C.planoIdeal(p).semanas;
+  assert.strictEqual(w[5].fase, 'competitivo');
+  assert.strictEqual(w[6].fase, 'recuperacao');
+  assert.strictEqual(w[12].fase, 'polimento');
+  assert.strictEqual(w[13].fase, 'competitivo');
+  // B na semana 8 fica dentro do desenvolvimento rumo ao A2 e reduz só aquela semana (×0,85) e a seguinte (×0,9)
+  assert.strictEqual(w[8].fase, 'desenvolvimento');
+  assert.strictEqual(w[8].mod, 0.85);
+  assert.strictEqual(w[9].mod, 0.9);
+  assert.strictEqual(w[10].mod, 1);
+});
+
+t('sem A a B vira o alvo; sem nenhuma, mantém desenvolvimento; cancelada não conta', () => {
+  const soB = perioComp([{ nome: 'B1', data: C.addDias('2026-10-05', 7 * 4 + 5), prioridade: 'B' }]);
+  assert.strictEqual(C.planoIdeal(soB).semanas[3].fase, 'polimento');
+  const nenhuma = perioComp([]);
+  assert.ok(C.planoIdeal(nenhuma).semAlvo);
+  const cancelada = perioComp([{ nome: 'X', data: C.addDias('2026-10-05', 7 * 4 + 5), prioridade: 'A', situacao: 'cancelada' }]);
+  assert.ok(C.planoIdeal(cancelada).semAlvo);
+});
+
+t('data da competição mudou: desalinhamento aponta só semanas futuras', () => {
+  const hoje = '2026-10-08'; // semana 0; corte = semana 1
+  const comp = (sem) => ({ nome: 'Alvo', data: C.addDias('2026-10-05', 7 * sem + 5), prioridade: 'A' });
+  const p = perioComp([comp(10)]);
+  const prop = C.propostaMesos(p, hoje);
+  // monta mesos reais a partir da proposta e confirma que ficam alinhados
+  p.mesociclos = prop.novos.map((n, i) => ({ id: 'm' + i, nome: n.fase, fase: n.fase, inicio: n.inicio, semanas: n.semanas, perfil: C.FASE_PLANO[n.fase].perfil }));
+  assert.deepStrictEqual(C.desalinhamento(p, hoje), []);
+  // a competição andou 3 semanas para frente
+  p.competicoes[0].data = C.addDias('2026-10-05', 7 * 13 + 5);
+  const d = C.desalinhamento(p, hoje);
+  assert.ok(d.length > 0 && d.every((x) => x.seg >= '2026-10-12'));
+});
+
+t('proposta de mesociclos: mantém o que passou, encurta o atual e limita a 6 semanas', () => {
+  const hoje = '2026-10-21'; // semana 2
+  const p = perioComp([{ nome: 'Alvo', data: C.addDias('2026-10-05', 7 * 20 + 5), prioridade: 'A' }], {
+    mesociclos: [
+      { id: 'm0', nome: 'Antigo', fase: 'base', inicio: '2026-10-05', semanas: 5, perfil: '3:1' },
+      { id: 'm1', nome: 'Futuro', fase: 'desenvolvimento', inicio: '2026-11-09', semanas: 4, perfil: '3:1' },
+    ],
+  });
+  const prop = C.propostaMesos(p, hoje);
+  assert.strictEqual(prop.corte, '2026-10-26');
+  assert.strictEqual(prop.mantidos.length, 1);
+  assert.deepStrictEqual([prop.mantidos[0].semanas, prop.mantidos[0].encurtado], [3, true]);
+  assert.strictEqual(prop.descartados.length, 1);
+  assert.ok(prop.novos.every((n) => n.semanas <= 6 && n.semanas >= 1));
+  assert.strictEqual(C.soma(prop.novos.map((n) => n.semanas)), 20 - 3 + 1); // semanas 3 a 20 (o período termina na semana da competição)
+  assert.strictEqual(prop.novos[0].inicio, '2026-10-26');
+  assert.deepStrictEqual(C.partirFase(8), [4, 4]);
+  assert.deepStrictEqual(C.partirFase(13), [5, 4, 4]);
+});
+
+t('avisos: dois A muito próximos e competição fora do período', () => {
+  const p = perioComp([
+    { nome: 'A1', data: '2026-11-07', prioridade: 'A' },
+    { nome: 'A2', data: '2026-12-05', prioridade: 'A' },
+    { nome: 'Fora', data: '2028-01-01', prioridade: 'C' },
+  ]);
+  const av = C.validarMesos(p);
+  assert.ok(av.some((x) => /A1.*A2.*4 semanas/.test(x)));
+  assert.ok(av.some((x) => /Fora/.test(x)));
+});
+
+t('calendário de carga usa os mesociclos reais e aplica o modificador da competição', () => {
+  const p = perioComp([{ nome: 'B1', data: '2026-10-10', prioridade: 'B' }], {
+    mesociclos: [{ id: 'm', nome: 'Desenv.', fase: 'desenvolvimento', inicio: '2026-10-05', semanas: 4, perfil: '3:1' }],
+  });
+  const cal = C.calendarioCarga(p);
+  assert.strictEqual(cal[0].fatorPerfil, 0.8);
+  assert.strictEqual(cal[0].fator, 0.68);   // 0,8 × 0,85 (semana da B)
+  assert.strictEqual(cal[1].fator, 0.81);   // 0,9 × 0,9 (depois da B)
+  assert.strictEqual(cal[2].fator, 1);
+  assert.strictEqual(cal[0].pse, 6);
+  const plan = C.planejadoReal(p.mesociclos[0], [], [], '2026-10-08', C.modsCompeticao(p));
+  p.mesociclos[0].cargaRef = 1000;
+  assert.strictEqual(C.planejadoReal(p.mesociclos[0], [], [], '2026-10-08', C.modsCompeticao(p))[0].planejado, 680);
+  assert.ok(plan.length === 4);
+});
+
+/* ---------- Atletas ---------- */
+
+t('função com o gênero pelo sexo e naipe da dupla', () => {
+  assert.strictEqual(C.rotuloFuncao({ acao: 'bloqueio', sexo: 'F' }), 'Bloqueadora');
+  assert.strictEqual(C.rotuloFuncao({ acao: 'bloqueio', sexo: 'M' }), 'Bloqueador');
+  assert.strictEqual(C.rotuloFuncao({ acao: 'defesa', sexo: 'F' }), 'Defensora');
+  assert.strictEqual(C.rotuloFuncao({ acao: 'bloqueio', sexo: '' }), 'Bloqueio');
+  assert.strictEqual(C.rotuloFuncao({ acao: 'ambos', sexo: 'F' }), 'Bloqueio e defesa');
+  assert.strictEqual(C.rotuloFuncao({ acao: '', sexo: 'F' }), null);
+  assert.strictEqual(C.naipe({ sexo: 'F' }), 'Feminino');
+  assert.strictEqual(C.naipeDupla({ sexo: 'F' }, { sexo: 'M' }), 'Mista');
+  assert.strictEqual(C.naipeDupla({ sexo: 'M' }, { sexo: 'M' }), 'Masculina');
+  assert.strictEqual(C.naipeDupla({ sexo: 'M' }, {}), null);
+});
+
+t('lista colada: nome, sexo, ação, nascimento e telefone em qualquer ordem', () => {
+  const r = C.lerListaAtletas(`Beatriz Begondim, feminino, bloqueio
+2. João Pedro; M; defesa; 12/03/2008; (83) 99999-1234
+Camila Souza feminino ambos
+Lucas
+Marina, masculino e feminino
+Ana, xyz`);
+  assert.deepStrictEqual([r[0].nome, r[0].sexo, r[0].acao], ['Beatriz Begondim', 'F', 'bloqueio']);
+  assert.deepStrictEqual([r[1].nome, r[1].sexo, r[1].acao, r[1].nascimento, r[1].contato], ['João Pedro', 'M', 'defesa', '2008-03-12', '(83) 99999-1234']);
+  assert.deepStrictEqual([r[2].nome, r[2].sexo, r[2].acao], ['Camila Souza', 'F', 'ambos']);
+  assert.deepStrictEqual([r[3].nome, r[3].sexo, r[3].acao], ['Lucas', '', '']);
+  assert.ok(r[4].sexo === '' && r[4].avisos.some((a) => /ambíguo/.test(a)));
+  assert.ok(r[5].avisos.some((a) => /xyz/.test(a)));
+});
+
+t('lista colada: sexo padrão, duplicados e linhas vazias', () => {
+  const r = C.lerListaAtletas('Bia\n\n  \nbia\nCarol', [{ nome: 'CAROL' }], { sexo: 'F' });
+  assert.deepStrictEqual(r.map((x) => [x.nome, x.sexo, x.status]), [['Bia', 'F', 'novo'], ['bia', 'F', 'repetido'], ['Carol', 'F', 'existente']]);
+});
+
+t('cadastro: o que falta e idade', () => {
+  assert.deepStrictEqual(C.faltaNoCadastro({ sexo: 'F', acao: 'defesa', nascimento: '2000-01-01', contato: '8399', consentimento: '2026-10-08' }), []);
+  assert.deepStrictEqual(C.faltaNoCadastro({ sexo: 'F' }), ['ação em quadra', 'nascimento', 'contato', 'autorização de uso dos dados']);
+  assert.strictEqual(C.idade('2008-10-09', '2026-10-08'), 17);
+  assert.strictEqual(C.idade('2008-10-08', '2026-10-08'), 18);
+  assert.strictEqual(C.idade('', '2026-10-08'), null);
+});
+
+/* ---------- Cadastro pelo atleta ---------- */
+
+const F = require('../js/ficha-dados.js');
+
+t('link individual e geral: ida e volta com acentos', () => {
+  const link = F.criarLink('https://x.com/app/index.html', { id: 'abc', nome: 'João Conceição', sexo: 'M', acao: 'defesa', contato: 'nao vai' });
+  assert.ok(link.startsWith('https://x.com/app/index.html#/ficha?d='));
+  const d = link.split('d=')[1];
+  assert.ok(!/[+/=]/.test(d), 'seguro para URL');
+  const r = F.lerLink(d, '2026-10-08');
+  assert.deepStrictEqual([r.id, r.nome, r.sexo, r.acao, r.contato], ['abc', 'João Conceição', 'M', 'defesa', '']);
+  const geral = F.lerLink(F.criarLink('https://x.com/', null).split('d=')[1], '2026-10-08');
+  assert.deepStrictEqual([geral.id, geral.nome], [null, '']);
+  assert.strictEqual(F.lerLink('lixo!!', '2026-10-08').nome, '');
+});
+
+t('resposta do atleta: vários códigos no mesmo texto, sem repetir, e só os campos permitidos', () => {
+  const hoje = '2026-10-08';
+  const c1 = F.criarResposta({ id: 'a1', nome: 'Bia', sexo: 'F', acao: 'bloqueio', lado: 'esquerdo', nascimento: '2009-05-17', contato: '(83) 99999-0000', consentimento: hoje, extra: 'ignorado' }, hoje);
+  const c2 = F.criarResposta({ nome: 'Carol', sexo: 'X', acao: 'goleira', nascimento: '2999-01-01', contato: 'abc 123' }, hoje);
+  const msg = `Oi prof! segue meu código:\n${c1}\n\ne o da Carol ${c2} ${c1}`;
+  const rs = F.lerRespostas(msg, hoje);
+  assert.strictEqual(rs.length, 2);
+  assert.deepStrictEqual([rs[0].id, rs[0].nome, rs[0].sexo, rs[0].acao, rs[0].lado, rs[0].nascimento, rs[0].consentimento], ['a1', 'Bia', 'F', 'bloqueio', 'esquerdo', '2009-05-17', hoje]);
+  assert.strictEqual('extra' in rs[0], false);
+  assert.deepStrictEqual([rs[1].sexo, rs[1].acao, rs[1].nascimento, rs[1].contato], ['', '', '', '123']);
+  assert.strictEqual(F.lerRespostas('AC1:bobagem AC1:eyJ2IjoyfQ', hoje).length, 0);
+});
+
+t('aplicar resposta não apaga o que o atleta deixou em branco', () => {
+  const a = { id: 'a1', nome: 'Bia', sexo: 'F', acao: 'bloqueio', contato: '8399', nascimento: '' };
+  F.aplicarResposta(a, { nome: 'Beatriz', sexo: '', acao: 'ambos', contato: '', nascimento: '2009-05-17' });
+  assert.deepStrictEqual([a.nome, a.sexo, a.acao, a.contato, a.nascimento], ['Beatriz', 'F', 'ambos', '8399', '2009-05-17']);
+});
+
 console.log(`\n${n} testes passaram`);

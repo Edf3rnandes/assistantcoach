@@ -22,6 +22,9 @@
     { id: 'recuperacao', nome: 'Recuperação', cor: '#868e96', desc: 'Transição: descanso ativo e retorno gradual', pseAlvo: 3, perfil: 'plana' },
   ];
 
+  /* Perfil de carga e intensidade (PSE alvo) de cada fase vêm de calc.js, para ter uma fonte só. */
+  FASES.forEach((f) => { f.perfil = AC.calc.FASE_PLANO[f.id].perfil; f.pseAlvo = AC.calc.FASE_PLANO[f.id].pse; });
+
   /* Tópicos sugeridos por fase: fundamento, tipos e prioridade. */
   const SUGESTOES_FASE = {
     base: [

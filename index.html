@@ -3,83 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Farol Tático</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400..800&display=swap">
-  <link rel="stylesheet" href="css/farol.css">
+  <meta name="theme-color" content="#0b6e80">
+  <title>Assistente do Treinador</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23f2a900'/%3E%3Cpath d='M16 2c0 7-4 11-14 14M16 30c0-7 4-11 14-14M5 7c6 1 10 5 11 9M27 25c-6-1-10-5-11-9' stroke='%23fff' stroke-width='1.6' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <div class="app">
-    <header class="topo">
-      <a class="brand" href="#inicio" aria-label="Farol Tático, ir para o início">
-        <svg width="34" height="34" viewBox="0 0 34 34" fill="none" aria-hidden="true">
-          <path d="M3 17 L16 14 V20 Z" fill="#f2a900" opacity=".9"/>
-          <path d="M31 17 L18 14 V20 Z" fill="#f2a900" opacity=".55"/>
-          <path d="M14 13h4l1.5 17h-7z" style="fill:var(--ink)"/>
-          <path d="M13 22h8M12.6 26h8.8" style="stroke:var(--bg)" stroke-width="1.6"/>
-          <rect x="14" y="8" width="6" height="5" rx="1" fill="#f2a900"/>
-          <path d="M13 8l4-4 4 4z" style="fill:var(--ink)"/>
-        </svg>
-        <div>
-          <div class="brand-name">Farol Tático</div>
-          <div class="brand-sub">Painel do técnico</div>
-        </div>
-      </a>
-      <div class="conta" id="conta"></div>
-    </header>
-    <div class="voltar" id="voltar-w" hidden><a class="voltar-link" href="#inicio">‹ Início</a></div>
-    <nav class="subnav" id="subnav" aria-label="Seções" hidden></nav>
+  <header class="topo">
+    <a class="marca" href="#/inicio" aria-label="Assistente do Treinador, ir para o início">
+      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#f2a900"/><path d="M16 2c0 7-4 11-14 14M16 30c0-7 4-11 14-14M5 7c6 1 10 5 11 9M27 25c-6-1-10-5-11-9" stroke="#fff" stroke-width="1.6" fill="none"/></svg>
+      <span>Assistente do Treinador<small>Vôlei de praia</small></span>
+    </a>
+    <a class="dados" id="link-dados" href="#/dados">Dados</a>
+  </header>
+  <main class="conteudo" id="conteudo" aria-live="polite"></main>
+  <nav class="nav" id="nav" aria-label="Principal"></nav>
 
-    <main class="main" id="conteudo"></main>
-  </div>
-
-  <nav class="barra" id="barra" aria-label="Módulos"></nav>
-
-  <aside class="gaveta" id="gaveta-quadro" aria-label="Quadro técnico rápido" hidden>
-    <div class="gaveta-topo">
-      <strong>Quadro rápido</strong>
-      <button class="link-btn" id="gaveta-modo" style="margin:0" aria-pressed="false">Reduzir</button>
-      <button class="link-btn" id="gaveta-tela" style="margin:0">Tela completa</button>
-      <button class="btn btn-sm" id="gaveta-fechar">Fechar</button>
-    </div>
-    <div class="gaveta-corpo" id="gaveta-corpo"></div>
-  </aside>
-
-  <script src="js/util.js"></script>
-  <script src="js/conta.js"></script>
-  <script src="js/elenco.js"></script>
-  <script src="js/calendario.js"></script>
-  <script src="js/carga.js"></script>
-  <script src="js/registros.js"></script>
-  <script src="js/motor.js"></script>
-  <script src="js/dados.js"></script>
-  <script src="js/medidas.js"></script>
-  <script src="js/graficos.js"></script>
-  <script src="js/analise-dados.js"></script>
-  <script src="js/pauta.js"></script>
-  <script src="js/macro.js"></script>
-  <script src="js/meso.js"></script>
-  <script src="js/micro.js"></script>
-  <script src="js/criar.js"></script>
-  <script src="js/periodo-motor.js"></script>
-  <script src="js/periodizacao.js"></script>
-  <script src="js/registro.js"></script>
-  <script src="js/competicoes.js"></script>
-  <script src="js/quadro.js"></script>
-  <script src="js/comparativos.js"></script>
-  <script src="js/analise-carga.js"></script>
-  <script src="js/analise.js"></script>
-  <script src="js/prescricao.js"></script>
-  <script src="js/biblioteca.js"></script>
-  <script src="js/semana.js"></script>
-  <script src="js/saude.js"></script>
-  <script src="js/equipe.js"></script>
-  <script src="js/equipes-form.js"></script>
-  <script src="js/inicio.js"></script>
-  <script src="js/ficha.js"></script>
-  <script src="js/atleta.js"></script>
-  <script src="js/entrar.js"></script>
+  <script src="js/calc.js"></script>
+  <script src="js/catalogo.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/exemplo.js"></script>
+  <script src="js/v-periodizacao.js"></script>
+  <script src="js/v-treinos.js"></script>
+  <script src="js/v-fisico.js"></script>
+  <script src="js/v-atletas.js"></script>
+  <script src="js/v-inicio.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

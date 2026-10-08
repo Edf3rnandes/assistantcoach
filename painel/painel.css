@@ -199,6 +199,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pe-nomeb { display: flex; align-items: center; gap: 12px; }
 .pe-nomeb i { flex: none; width: 10px; align-self: stretch; border-radius: 6px; background: var(--cor); }
 .pe-nomeb h2 { font-size: clamp(30px, 9.5vw, 42px); font-weight: 800; min-width: 0; overflow-wrap: anywhere; }
+.pe-nomeb > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pe-lema { font-size: 14px; font-weight: 700; color: var(--ink); }
+.pe-lema span { font-weight: 500; color: var(--ink-2); }
+.pe-lm { color: var(--ink) !important; font-weight: 700; }
 .pe-datas { color: var(--ink-2); font-size: 14px; }
 .pe-obj { font-size: 15px; line-height: 1.5; }
 .pe-regime { display: flex; flex-direction: column; gap: 2px; background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }

@@ -13,11 +13,11 @@
 
   const EQUIPES = [
     { id: 'e1', nome: 'Base da manhã', faixas: ['Sub-15', 'Sub-17'], generos: 'masculino e feminino', cats: ['Sub-15 Masc', 'Sub-15 Fem', 'Sub-17 Masc', 'Sub-17 Fem'],
-      fase: { nome: 'Acumulação', cor: '#2f7fa0' }, semana: 6, semanas: 24, alvo: { nome: 'Estadual', dias: 82 }, cargaAlvo: 1840,
+      fase: { nome: 'Base', cor: '#2f7fa0' }, semana: 6, semanas: 24, alvo: { nome: 'Estadual', dias: 82 }, cargaAlvo: 1840,
       // dias de treino relativos a hoje (para a demonstração sempre mostrar um treino hoje)
       sessoes: [{ off: -2, tipo: 'Técnica', foco: 'Defesa', dur: 90, pse: 6, dia: 'volume' }, { off: 0, tipo: 'Tática', foco: 'Saída de rede', dur: 90, pse: 7, dia: 'pesado' }, { off: 1, tipo: 'Físico', foco: 'Membros inferiores', dur: 60, pse: 7, dia: 'potência' }, { off: 3, tipo: 'Jogo', foco: 'Treino-jogo', dur: 120, pse: 7, dia: 'pesado' }] },
     { id: 'e2', nome: 'Sub-21 da tarde', faixas: ['Sub-21'], generos: 'masculino', cats: ['Sub-21 Masc'],
-      fase: { nome: 'Transmutação', cor: '#7e8f3a' }, semana: 14, semanas: 24, alvo: { nome: 'Brasileiro Sub-21', dias: 31 }, cargaAlvo: 2100,
+      fase: { nome: 'Potência', cor: '#7e8f3a' }, semana: 14, semanas: 24, alvo: { nome: 'Brasileiro Sub-21', dias: 31 }, cargaAlvo: 2100,
       sessoes: [{ off: 0, tipo: 'Físico', foco: 'Pesado, na areia', dur: 60, pse: 7, dia: 'pesado' }, { off: 2, tipo: 'Técnica', foco: 'Saque e recepção', dur: 90, pse: 6, dia: 'volume' }, { off: 4, tipo: 'Jogo', foco: 'Treino-jogo', dur: 120, pse: 8, dia: 'potência' }] },
   ];
   const A = (id, eq, nome, faixa, genero, nasc, estado, acwr, pse, pres, extra) => ({ id, eq, nome, faixa, genero, nasc, estado, acwr, pse, pres, ...(extra || {}) });
@@ -38,21 +38,21 @@
     e2: [{ prio: 'B', nome: 'Etapa regional', data: hoje() + 12 * DIA, status: 'Confirmada' }, { prio: 'A', nome: 'Brasileiro Sub-21', data: hoje() + 31 * DIA, status: 'Confirmada' }],
   };
   const FASES = {
-    e1: [{ nome: 'Acumulação', semanas: 8, cor: '#2f7fa0' }, { nome: 'Transmutação', semanas: 5, cor: '#7e8f3a' }, { nome: 'Realização', semanas: 3, cor: '#e08a1e' }, { nome: 'Polimento', semanas: 2, cor: '#d94f3d' }, { nome: 'Transição', semanas: 6, cor: '#6b8190' }],
-    e2: [{ nome: 'Acumulação', semanas: 8, cor: '#2f7fa0' }, { nome: 'Transmutação', semanas: 6, cor: '#7e8f3a' }, { nome: 'Realização', semanas: 3, cor: '#e08a1e' }, { nome: 'Polimento', semanas: 2, cor: '#d94f3d' }, { nome: 'Transição', semanas: 5, cor: '#6b8190' }],
+    e1: [{ nome: 'Base', semanas: 8, cor: '#2f7fa0' }, { nome: 'Potência', semanas: 5, cor: '#7e8f3a' }, { nome: 'Ritmo de jogo', semanas: 3, cor: '#e08a1e' }, { nome: 'Afinação', semanas: 2, cor: '#d94f3d' }, { nome: 'Recuperação', semanas: 6, cor: '#6b8190' }],
+    e2: [{ nome: 'Base', semanas: 8, cor: '#2f7fa0' }, { nome: 'Potência', semanas: 6, cor: '#7e8f3a' }, { nome: 'Ritmo de jogo', semanas: 3, cor: '#e08a1e' }, { nome: 'Afinação', semanas: 2, cor: '#d94f3d' }, { nome: 'Recuperação', semanas: 5, cor: '#6b8190' }],
   };
 
   // O que cada fase pede: objetivo, fundamentos, como a carga se comporta e a onda semanal (100% = semana de referência).
   const FASE_INFO = {
-    'Acumulação': { objetivo: 'Montar a base da temporada. O volume de treino sobe semana a semana para a equipe aguentar as fases mais intensas.', regime: 'Volume alto, intensidade moderada', fundamentos: ['Defesa', 'Saque', 'Bloqueio', 'Saída de rede'],
+    'Base': { termo: 'Acumulação', lema: 'Construir a base', objetivo: 'Montar a base da temporada. O volume de treino sobe semana a semana para a equipe aguentar as fases mais intensas.', regime: 'Volume alto, intensidade moderada', fundamentos: ['Defesa', 'Saque', 'Bloqueio', 'Saída de rede'],
       fisico: 'Resistência e força geral na areia, com peso do corpo, disco, cone e escada. A técnica do movimento vem antes da carga.', tecnico: 'Repetição dos fundamentos até ficarem automáticos: defesa, saque, bloqueio e saída de rede.', cuidado: 'Dor nova no tornozelo, joelho ou ombro nas semanas de subida. Respeite a semana de descarga.', onda: [100, 110, 115, 70] },
-    'Transmutação': { objetivo: 'Transformar a base em explosão e velocidade. Os treinos ficam mais curtos e mais fortes, e o volume cai.', regime: 'Intensidade alta, volume menor', fundamentos: ['Ataque', 'Transição', 'Leitura de jogo', 'Cobertura'],
+    'Potência': { termo: 'Transmutação', lema: 'Virar força em explosão', objetivo: 'Transformar a base em explosão e velocidade. Os treinos ficam mais curtos e mais fortes, e o volume cai.', regime: 'Intensidade alta, volume menor', fundamentos: ['Ataque', 'Transição de defesa para ataque', 'Leitura de jogo', 'Cobertura'],
       fisico: 'Saltos, arrancadas e mudanças de direção com escada, cone e disco. Pausas longas para manter a qualidade de cada série.', tecnico: 'Fundamentos em velocidade e contra adversário: ataque, transição, leitura de jogo e cobertura.', cuidado: 'PSE acima do alvo em duas sessões seguidas pede ajuste. Nesta fase o ACWR sobe mais rápido.', onda: [90, 100, 108, 65] },
-    'Realização': { objetivo: 'Ensaiar a competição. Os treinos ficam curtos e parecidos com o jogo, com placar e pressão.', regime: 'Específico, sessões curtas', fundamentos: ['Sistema de jogo', 'Saque agressivo', 'Decisão sob pressão'],
+    'Ritmo de jogo': { termo: 'Realização', lema: 'Ensaiar a competição', objetivo: 'Ensaiar a competição. Os treinos ficam curtos e parecidos com o jogo, com placar e pressão.', regime: 'Específico, sessões curtas', fundamentos: ['Sistema de jogo', 'Saque agressivo', 'Decisão sob pressão'],
       fisico: 'Manter a força e a potência em sessões curtas. Sem carga nova perto dos jogos.', tecnico: 'Sistema de jogo, saque agressivo e decisão sob pressão, sempre valendo ponto.', cuidado: 'Cansaço acumulado antes das competições B e C. Em semana de torneio, reduza o treino físico.', onda: [85, 95, 70] },
-    'Polimento': { objetivo: 'Chegar descansado ao alvo. O volume cai bastante e a intensidade se mantém, para a equipe chegar com energia.', regime: 'Volume bem menor, intensidade mantida', fundamentos: ['Saque', 'Ajustes finos', 'Rotina de jogo'],
+    'Afinação': { termo: 'Polimento', lema: 'Chegar descansado', objetivo: 'Chegar descansado ao alvo. O volume cai bastante e a intensidade se mantém, para a equipe chegar com energia.', regime: 'Volume bem menor, intensidade mantida', fundamentos: ['Saque', 'Ajustes finos', 'Rotina de jogo'],
       fisico: 'Ativação curta e leve. Poucos saltos, nenhum exercício novo e nada até a exaustão.', tecnico: 'Saque, ajustes finos e rotina de jogo: aquecimento, ordem de saque e combinados da dupla.', cuidado: 'Treinar além do plano. Menos carga faz parte do trabalho e não é folga.', onda: [70, 55] },
-    'Transição': { objetivo: 'Recuperar corpo e cabeça depois da competição. A rotina fica leve e livre antes de um novo ciclo.', regime: 'Atividade leve e livre', fundamentos: ['Prazer de jogar', 'Mobilidade', 'Outros esportes'],
+    'Recuperação': { termo: 'Transição', lema: 'Descansar e recomeçar', objetivo: 'Recuperar corpo e cabeça depois da competição. A rotina fica leve e livre antes de um novo ciclo.', regime: 'Atividade leve e livre', fundamentos: ['Prazer de jogar', 'Mobilidade', 'Outros esportes'],
       fisico: 'Mobilidade, corrida leve na areia e outros esportes. Sem meta de carga.', tecnico: 'Jogo livre e brincadeiras com bola, sem cobrança de resultado.', cuidado: 'Lesões que ficaram em segundo plano. Use essas semanas para tratar e liberar o atleta com calma.', onda: [50, 40, 50, 40] },
   };
   // Itens de cada treino da semana (só peso do corpo, disco, cone e escada de agilidade).
@@ -139,7 +139,7 @@
       let ini = 0;
       const blocos = fases.map((f, idx) => {
         const info = FASE_INFO[f.nome];
-        const b = { idx, nome: f.nome, cor: f.cor, semanas: f.semanas, ini, inicio: inicio + ini * 7 * DIA, fim: inicio + (ini + f.semanas) * 7 * DIA - DIA, objetivo: info.objetivo, regime: info.regime, fundamentos: info.fundamentos, fisico: info.fisico, tecnico: info.tecnico, cuidado: info.cuidado, onda: info.onda };
+        const b = { idx, nome: f.nome, cor: f.cor, semanas: f.semanas, ini, inicio: inicio + ini * 7 * DIA, fim: inicio + (ini + f.semanas) * 7 * DIA - DIA, termo: info.termo, lema: info.lema, objetivo: info.objetivo, regime: info.regime, fundamentos: info.fundamentos, fisico: info.fisico, tecnico: info.tecnico, cuidado: info.cuidado, onda: info.onda };
         ini += f.semanas;
         b.estado = eq.semana - 1 >= b.ini + b.semanas ? 'concluido' : eq.semana - 1 >= b.ini ? 'andamento' : 'planejado';
         return b;

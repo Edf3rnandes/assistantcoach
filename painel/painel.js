@@ -210,7 +210,7 @@
             ${s.itens.length ? `<ul class="pe-itens">${s.itens.map((it) => `<li>${esc(it)}</li>`).join('')}</ul>` : ''}</span>
           ${s.status === 'registrado' ? `<span class="p-ok" aria-label="Registrado">${ic(I.ok, 24)}</span>` : s.status === 'futuro' ? '<small class="p-vazio">em breve</small>' : `<button type="button" class="p-btn peq ${s.status === 'hoje' ? 'primario' : ''}" data-registrar="${s.id}">Registrar</button>`}</div></li>`).join('')}</ul></section>
       <section class="p-card" aria-labelledby="bl-t"><span class="p-rot" id="bl-t">Dentro do bloco</span>
-        <a class="pe-tile mini" href="#periodo/${e.id}/bloco/${b.idx}" style="--cor:${b.cor}"><span class="p-txt"><b class="pe-tn">${esc(b.nome)}</b><small>Semana ${sm.k + 1} de ${b.semanas} · ${esc(b.regime)}</small></span><span class="p-seta">${ic(I.seta)}</span></a></section>`;
+        <a class="pe-tile mini" href="#periodo/${e.id}/bloco/${b.idx}" style="--cor:${b.cor}"><span class="p-txt"><b class="pe-tn">${esc(b.nome)}</b><small>${esc(b.lema)} · semana ${sm.k + 1} de ${b.semanas}</small></span><span class="p-seta">${ic(I.seta)}</span></a></section>`;
   }
 
   function abaBloco(e, pe, idxStr) {
@@ -230,7 +230,7 @@
       <section class="p-card pe-bloco" style="--cor:${b.cor}" aria-labelledby="bk-t">
         <div class="pe-cab"><span class="p-rot" id="bk-t">Bloco ${idx + 1} de ${pe.blocos.length}</span>
           <span class="pe-setas">${nav(I.volta, 'Bloco anterior', idx - 1)}${nav(I.seta, 'Próximo bloco', idx + 1)}</span></div>
-        <div class="pe-nomeb"><i aria-hidden="true"></i><h2>${esc(b.nome)}</h2></div>
+        <div class="pe-nomeb"><i aria-hidden="true"></i><div><h2>${esc(b.nome)}</h2><p class="pe-lema">${esc(b.lema)} <span>· nome técnico: ${esc(b.termo)}</span></p></div></div>
         <div class="p-chips"><span class="p-chip ${b.estado === 'andamento' ? 'ok' : ''}">${esc(ESTADO_BLOCO[b.estado])} · ${esc(estadoTxt)}</span><span class="p-chip">${plural(b.semanas, 'semana', 'semanas')}</span></div>
         <p class="pe-datas">${dataLonga(b.inicio)} a ${dataLonga(b.fim)}</p>
         <p class="pe-obj">${esc(b.objetivo)}</p>
@@ -246,7 +246,7 @@
         <div class="p-chips pe-fund">${b.fundamentos.map((f) => `<span>${esc(f)}</span>`).join('')}</div>
         <dl class="pe-linhas"><div><dt>Físico</dt><dd>${esc(b.fisico)}</dd></div><div><dt>Técnico e tático</dt><dd>${esc(b.tecnico)}</dd></div><div class="cuidado"><dt>Cuidado</dt><dd>${esc(b.cuidado)}</dd></div></dl></section>
       ${eventos.length ? `<section class="p-card" aria-labelledby="ce-t"><h2 id="ce-t" style="font-size:20px">Competições neste bloco</h2><ul class="p-lista">${eventos.map(linhaEvento).join('')}</ul></section>` : ''}
-      ${prox ? `<a class="p-card pe-prox" href="#periodo/${e.id}/bloco/${prox.idx}" style="--cor:${prox.cor}"><i aria-hidden="true"></i><span class="p-txt"><span class="p-rot">Em seguida</span><b class="pe-tn">${esc(prox.nome)}</b><small>Começa em ${dd(prox.inicio)} · ${esc(prox.regime)}</small></span><span class="p-seta">${ic(I.seta)}</span></a>`
+      ${prox ? `<a class="p-card pe-prox" href="#periodo/${e.id}/bloco/${prox.idx}" style="--cor:${prox.cor}"><i aria-hidden="true"></i><span class="p-txt"><span class="p-rot">Em seguida</span><b class="pe-tn">${esc(prox.nome)}</b><small>${esc(prox.lema)} · começa em ${dd(prox.inicio)}</small></span><span class="p-seta">${ic(I.seta)}</span></a>`
         : '<section class="p-card"><span class="p-rot">Em seguida</span><p class="p-sub">Este é o último bloco da temporada.</p></section>'}`;
   }
 
@@ -263,11 +263,11 @@
       <section class="p-card" aria-labelledby="tp-t"><div class="pe-cab"><h2 id="tp-t">${T} semanas</h2><span class="p-chip">semana ${pe.semanaAtual}</span></div>
         <div class="pe-tl" role="img" aria-label="Linha do tempo: ${pe.blocos.map((b) => `${b.nome}, ${b.semanas} semanas`).join('; ')}">
           <div class="pe-pinos">${pe.eventos.map((v) => `<span class="pe-pino ${v.prio}" style="left:${pos(Math.min(T, v.semana))}" title="${esc(v.nome)}">${v.prio}</span>`).join('')}</div>
-          <div class="pe-faixa">${pe.blocos.map((b) => `<i style="flex:${b.semanas};background:${b.cor}" class="${b.estado}">${b.semanas >= 7 ? `<span>${esc(b.nome)}</span>` : b.semanas >= 4 ? `<span>${esc(b.nome.slice(0, 5))}.</span>` : ''}</i>`).join('')}<em class="pe-hoje" style="left:${pos(pe.semanaAtual)}" aria-hidden="true"></em></div>
+          <div class="pe-faixa">${pe.blocos.map((b) => `<i style="flex:${b.semanas};background:${b.cor}" class="${b.estado}">${b.semanas >= 5 && b.nome.length <= 9 ? `<span>${esc(b.nome)}</span>` : ''}</i>`).join('')}<em class="pe-hoje" style="left:${pos(pe.semanaAtual)}" aria-hidden="true"></em></div>
           <div class="pe-ticks"><span>S1</span><span style="left:${pos(pe.semanaAtual)}">S${pe.semanaAtual}</span><span class="fim">S${T}</span></div></div></section>
       <section class="p-card" aria-labelledby="bq-t"><span class="p-rot" id="bq-t">Blocos da temporada</span>
         <div class="pe-tiles">${pe.blocos.map((b) => `<a class="pe-tile ${b.estado}" href="#periodo/${e.id}/bloco/${b.idx}" style="--cor:${b.cor}">
-          <span class="p-txt"><b class="pe-tn">${esc(b.nome)}</b><small class="num">Semanas ${b.ini + 1} a ${b.ini + b.semanas} · ${dd(b.inicio)} a ${dd(b.fim)}</small></span>
+          <span class="p-txt"><b class="pe-tn">${esc(b.nome)}</b><small class="pe-lm">${esc(b.lema)}</small><small class="num">Semanas ${b.ini + 1} a ${b.ini + b.semanas} · ${dd(b.inicio)} a ${dd(b.fim)}</small></span>
           <span class="p-dir"><span class="p-chip ${b.estado === 'andamento' ? 'ok' : ''}">${esc(ESTADO_BLOCO[b.estado])}</span></span><span class="p-seta">${ic(I.seta)}</span></a>`).join('')}</div></section>
       <section class="p-card" aria-labelledby="cs-t"><div class="pe-cab"><h2 id="cs-t" style="font-size:20px">Carga semana a semana</h2><small class="pe-leg">UA planejadas</small></div>
         <div class="pe-sem" role="img" aria-label="Carga planejada de cada uma das ${T} semanas">${pe.semanas.map((x) => `<i class="${x.descarga ? 'desc' : ''} ${x.atual ? 'atual' : ''}" style="height:${Math.round((x.planejado / maxPl) * 84)}px;--cor:${pe.blocos[x.bloco].cor}"></i>`).join('')}</div>

@@ -50,5 +50,6 @@
   AC.redesenhar = () => { const y = window.scrollY; desenhar(false); window.scrollTo(0, y); };
 
   window.addEventListener('hashchange', () => desenhar(true));
-  document.addEventListener('DOMContentLoaded', () => desenhar(true));
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => desenhar(true));
+  else desenhar(true);
 })((window.AC = window.AC || {}));

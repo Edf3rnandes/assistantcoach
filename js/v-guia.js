@@ -51,6 +51,23 @@
       ]));
   }
 
+  /* ---------- Como cada semana é montada pelos dias de treino ---------- */
+
+  function semanasPorDias() {
+    const nomes = { alta: 'Alta', media: 'Moderada', leve: 'Leve' };
+    const exemplos = [[2, [1, 4]], [3, [1, 3, 5]], [4, [1, 2, 4, 5]], [5, [1, 2, 3, 4, 5]]];
+    return h('div', { class: 'dias-guia' }, exemplos.map(([n, dias]) => {
+      const papeis = calc.papeisDe(n);
+      return h('div', { class: 'dias-linha' }, h('strong', null, `${n} dias`),
+        h('div', { class: 'dias-faixa' }, cat.DIAS_SEMANA.map((x) => {
+          const k = dias.indexOf(x.d);
+          const el = h('span', { class: 'dia-cel' + (k >= 0 ? ' on' : '') }, h('b', null, x.r), k >= 0 ? h('i', null, nomes[papeis[k]]) : null);
+          if (k >= 0) el.style.setProperty('--cor', cat.INTENSIDADES[papeis[k]].cor);
+          return el;
+        })));
+    }));
+  }
+
   /* ---------- 3. Fluxo de decisão ---------- */
 
   function fluxo() {
@@ -124,6 +141,15 @@
       h('p', { class: 'sub' }, 'Volume, intensidade e intenção de cada semana quando há várias competições na mesma temporada.'),
       h('p', null, 'A regra de partida é a de quem compete bem: antes da competição alvo, reduzir o volume e manter a intensidade; depois dela, recuperar. Todo o resto da temporada se organiza em torno disso.'),
       h('section', null, h('h2', null, 'Como a temporada se organiza'), organograma()),
+      h('section', null, h('h2', null, 'Como cada semana é montada'),
+        h('p', { class: 'dica' }, 'Você escolhe os dias de treino da equipe. O sistema distribui a intensidade: o dia alto vem depois de descanso, e o leve fica perto do fim da semana. Os dias abaixo são exemplos; vale qualquer combinação.'),
+        semanasPorDias(),
+        h('ul', { class: 'regras' },
+          h('li', null, 'A semana herda a fase e o volume do mesociclo. O volume muda a duração dos treinos; o número de dias não muda.'),
+          h('li', null, 'PSE alvo do dia: a da fase, mais 1 no dia alto e menos 2 no dia leve.'),
+          h('li', null, 'Véspera e dia seguinte de competição A ou B ficam leves. O dia da competição aparece como competição.'),
+          h('li', null, 'Na base e no desenvolvimento, com 4 dias ou mais, o segundo dia é treino físico.'),
+          h('li', null, 'Os fundamentos de cada treino vêm da ênfase do mesociclo, alternando os de prioridade alta.'))),
       h('section', null, h('h2', null, 'O que cada competição muda'), cartoesCompeticao()),
       h('section', null, h('h2', null, 'O que acontece quando uma data muda'), fluxo()),
       h('section', null, h('h2', null, 'Várias competições alvo na temporada'), h('p', { class: 'dica' }, 'Cada A reinicia a contagem. O que cabe entre duas A depende da distância:'), tabelaIntervalo()),

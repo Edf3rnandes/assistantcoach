@@ -17,7 +17,7 @@
   const resumoAtleta = (a) => {
     const par = a.parceiroId && store.atleta(a.parceiroId);
     const nai = par ? calc.naipeDupla(a, par) : null;
-    return [calc.rotuloFuncao(a), calc.naipe(a), par ? `dupla: ${par.nome}${nai ? ` (${nai.toLowerCase()})` : ''}` : null, idade(a) != null ? `${idade(a)} anos` : null].filter(Boolean);
+    return [calc.rotuloFuncao(a), calc.naipe(a), calc.categoriaDe(a.nascimento, new Date().getFullYear()), par ? `dupla: ${par.nome}${nai ? ` (${nai.toLowerCase()})` : ''}` : null, idade(a) != null ? `${idade(a)} anos` : null].filter(Boolean);
   };
 
   /* ---------- Link e mensagem para o atleta ---------- */

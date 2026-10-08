@@ -29,6 +29,10 @@
     const perio = {
       id: uid(),
       nome: `Temporada ${hoje.slice(0, 4)}`,
+      equipe: 'Base da manhã',
+      categorias: ['Sub-17', 'Sub-19'],
+      diasTreino: [1, 2, 4, 5],
+      duracaoPadrao: 90,
       objetivo: 'Chegar ao circuito estadual com saque agressivo e side-out acima de 65%.',
       inicio: addDias(seg0, -7 * 6),
       fim: addDias(seg0, 7 * 15 - 1),

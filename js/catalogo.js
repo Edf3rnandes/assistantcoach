@@ -134,7 +134,12 @@
     ex('Respiração e alongamento final', 'Mobilidade', 'Corpo todo', 'Peso do corpo', 'Expirar longo, relaxar a musculatura.'),
   ];
 
+  const DIAS_SEMANA = [{ d: 1, r: 'Seg' }, { d: 2, r: 'Ter' }, { d: 3, r: 'Qua' }, { d: 4, r: 'Qui' }, { d: 5, r: 'Sex' }, { d: 6, r: 'Sáb' }, { d: 0, r: 'Dom' }];
+  const INTENSIDADES = { alta: { nome: 'Alta', cor: 'var(--bad)' }, media: { nome: 'Moderada', cor: 'var(--warn)' }, leve: { nome: 'Leve', cor: 'var(--ok)' } };
+  const DURACOES = [60, 75, 90, 105, 120];
+
   AC.cat = {
+    CATEGORIAS: AC.calc.CATEGORIAS, DIAS_SEMANA, INTENSIDADES, DURACOES,
     FUNDAMENTOS, FASES, SUGESTOES_FASE, FOCO_FISICO_FASE, TIPOS_TREINO, FOCOS_FISICOS, BLOCOS_FISICOS, CATEGORIAS_EX,
     PSE_ROTULOS, PSR_ROTULOS, EXERCICIOS,
     fundamento: (id) => FUNDAMENTOS.find((f) => f.id === id),

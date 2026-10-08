@@ -141,17 +141,17 @@
   }
 
   /* Carga planejada (referência × fator) contra a realizada (média do grupo), semana a semana. */
-  function planejadoReal(meso, treinos, atletas, hoje, mods = {}) {
+  function planejadoReal(meso, treinos, atletas, hoje, mods = {}, cargas = {}) {
     const fat = fatoresCarga(meso.perfil, meso.semanas);
     return fat.map((fPerfil, i) => {
       const seg = addDias(segundaDe(meso.inicio), 7 * i);
       const f = arred(fPerfil * (mods[seg] ? mods[seg].mod : 1), 2);
-      const cargas = atletas.map((a) => cargaSemanal(treinos, a.id, seg)).filter((c) => c > 0);
+      const reais = atletas.map((a) => cargaSemanal(treinos, a.id, seg)).filter((c) => c > 0);
       return {
         seg,
         fator: f,
-        planejado: meso.cargaRef ? Math.round(meso.cargaRef * f) : null,
-        real: seg > hoje ? null : arred(media(cargas)),
+        planejado: cargas[seg] != null ? cargas[seg] : meso.cargaRef ? Math.round(meso.cargaRef * f) : null,
+        real: seg > hoje ? null : arred(media(reais)),
         atual: hoje >= seg && hoje <= addDias(seg, 6),
       };
     });
@@ -281,6 +281,8 @@
       }
       fases.push(fase);
     }
+    /* Um bloco de base ou desenvolvimento de uma semana só, no começo do período, vira parte do seguinte. */
+    if (fases.length > 1 && (fases[0] === 'base' || fases[0] === 'desenvolvimento') && fases[1] !== fases[0]) fases[0] = fases[1];
     return { ini, semAlvo: !alvos.length, semanas: detalharSemanas(perio, ini, fases.map((f) => ({ fase: f })), perio) };
   }
 
@@ -350,7 +352,7 @@
   /* Primeira semana que o plano pode mexer: o que já passou e a semana atual não mudam. */
   const corteDoPlano = (perio, hoje) => (hoje < segundaDe(perio.inicio) ? segundaDe(perio.inicio) : addDias(segundaDe(hoje), 7));
 
-  /* Semanas futuras em que o mesociclo cadastrado não é o que as competições pedem. */
+  /* Semanas futuras em que o mesociclo cadastrado não é o que as competições pedem. Semana sem mesociclo é escolha do técnico e não conta. */
   function desalinhamento(perio, hoje) {
     const ideal = planoIdeal(perio);
     if (ideal.semAlvo) return [];
@@ -358,7 +360,7 @@
     return ideal.semanas.filter((w) => w.seg >= corte).map((w) => {
       const m = mesoDaData(perio, w.seg) || mesoDaData(perio, addDias(w.seg, 6));
       return { seg: w.seg, ideal: w.fase, atual: m ? m.fase : null };
-    }).filter((w) => w.ideal !== w.atual);
+    }).filter((w) => w.atual !== null && w.ideal !== w.atual);
   }
 
   /* Divide uma sequência de semanas da mesma fase em mesociclos de no máximo 6 semanas, de tamanhos parecidos. */
@@ -401,6 +403,112 @@
       n.alvo = alvo ? alvo.nome : null;
     });
     return { corte, mantidos, descartados, novos };
+  }
+
+  /* ---------- Equipe: categoria, dias de treino e a semana prevista (tipo, intensidade, duração) ---------- */
+
+  const CATEGORIAS = ['Sub-13', 'Sub-15', 'Sub-17', 'Sub-19', 'Sub-21', 'Adulto'];
+
+  /* Categoria pelo ano: Sub-N para quem faz até N anos no ano; acima de 21, adulto. */
+  function categoriaDe(nasc, ano) {
+    if (!nasc) return null;
+    const idade = Number(ano) - Number(nasc.slice(0, 4));
+    for (const n of [13, 15, 17, 19, 21]) if (idade <= n) return `Sub-${n}`;
+    return 'Adulto';
+  }
+
+  /* Atletas da equipe: sem categorias escolhidas valem todos; atleta sem nascimento sempre entra. */
+  function daEquipe(perio, atletas, ano) {
+    const cats = (perio && perio.categorias) || [];
+    if (!cats.length) return atletas;
+    return atletas.filter((a) => { const c = categoriaDe(a.nascimento, ano); return !c || cats.includes(c); });
+  }
+
+  /* Papel de intensidade de cada dia de treino da semana, na ordem dos dias: alta (dia pesado), média e leve. */
+  const PAPEIS = { 1: ['alta'], 2: ['alta', 'media'], 3: ['alta', 'media', 'leve'], 4: ['alta', 'media', 'alta', 'leve'], 5: ['alta', 'media', 'alta', 'media', 'leve'], 6: ['alta', 'media', 'alta', 'media', 'media', 'leve'] };
+  const papeisDe = (n) => PAPEIS[n] || [...PAPEIS[6], ...Array(Math.max(0, n - 6)).fill('leve')];
+
+  const TIPO_POR_FASE = {
+    base: { alta: 'misto', media: 'tecnico', leve: 'tecnico' },
+    desenvolvimento: { alta: 'tecnico', media: 'misto', leve: 'tecnico' },
+    precompetitivo: { alta: 'treino-jogo', media: 'tatico', leve: 'tecnico' },
+    polimento: { alta: 'tatico', media: 'tecnico', leve: 'recuperacao' },
+    competitivo: { alta: 'tatico', media: 'tecnico', leve: 'recuperacao' },
+    recuperacao: { alta: 'recuperacao', media: 'recuperacao', leve: 'recuperacao' },
+  };
+
+  const arred5 = (n) => Math.round(n / 5) * 5;
+  /* Ordem da semana começando na segunda: 1 (seg) a 6 (sáb), depois 0 (dom). */
+  const ordemDia = (d) => (d + 6) % 7;
+  const diasOrdenados = (dias) => [...new Set(dias || [])].filter((d) => d >= 0 && d <= 6).sort((a, b) => ordemDia(a) - ordemDia(b));
+
+  /* Os dias de treino de uma semana (w vem de calendarioCarga): tipo, intensidade, PSE alvo, duração e fundamentos.
+     A competição mexe nos dias vizinhos e ocupa o dia em que cai; o volume da semana encurta a duração, não o número de dias. */
+  function sessoesDaSemana(perio, w) {
+    if (!w || !w.fase || !w.meso) return [];
+    const dias = diasOrdenados(perio.diasTreino);
+    if (!dias.length) return [];
+    const n = dias.length;
+    const papeis = w.fase === 'recuperacao' ? Array(n).fill('leve') : papeisDe(n);
+    const comps = ativas(perio).filter((c) => c.prioridade !== 'C');
+    const todas = ativas(perio);
+    const base = perio.duracaoPadrao || 90;
+    const ordem = { alta: 0, media: 1, baixa: 2 };
+    const topicos = [...(w.meso.topicos || [])].sort((a, b) => ordem[a.prioridade] - ordem[b.prioridade]);
+    const pool = [...topicos.filter((t) => t.prioridade === 'alta'), ...topicos];
+    let j = pool.length ? (w.i * 2) % pool.length : 0;
+    const out = [];
+    dias.forEach((dow, k) => {
+      const data = addDias(w.seg, ordemDia(dow));
+      const comp = todas.find((c) => c.data === data);
+      if (comp) { out.push({ data, dow, papel: 'alta', intensidade: 'alta', tipo: 'competicao', titulo: comp.nome, pse: null, duracao: null, fundamentos: [], motivo: 'Dia de competição', competicao: comp }); return; }
+      let papel = papeis[k];
+      let motivo = '';
+      const vizinha = comps.find((c) => Math.abs(diffDias(data, c.data)) <= 1);
+      if (vizinha) { papel = 'leve'; motivo = diffDias(data, vizinha.data) >= 0 ? 'Véspera de competição: ativação' : 'Dia seguinte à competição: regenerar'; }
+      let tipo = (TIPO_POR_FASE[w.fase] || TIPO_POR_FASE.base)[papel];
+      if (!vizinha && n >= 4 && k === 1 && (w.fase === 'base' || w.fase === 'desenvolvimento')) tipo = 'fisico';
+      const plano = FASE_PLANO[w.fase];
+      const pse = Math.max(2, Math.min(9, plano.pse + (papel === 'alta' ? 1 : papel === 'leve' ? -2 : 0)));
+      const duracao = Math.max(30, arred5(base * (w.fator == null ? 1 : w.fator) * (papel === 'leve' ? 0.85 : 1)));
+      let fundamentos = [];
+      if (['tecnico', 'tatico', 'treino-jogo', 'misto'].includes(tipo) && pool.length) {
+        const escolhidos = [];
+        for (let t = 0; t < pool.length && escolhidos.length < 2; t++) { const c = pool[j % pool.length]; j++; if (!escolhidos.includes(c)) escolhidos.push(c); }
+        for (const c of escolhidos) {
+          const ex = fundamentos.find((f) => f.fundamento === c.fundamento);
+          if (ex) ex.tipos = [...new Set([...ex.tipos, ...(c.tipos || [])])]; else fundamentos.push({ fundamento: c.fundamento, tipos: [...(c.tipos || [])] });
+        }
+      }
+      out.push({ data, dow, papel, intensidade: papel, tipo, titulo: '', pse, duracao, fundamentos, motivo });
+    });
+    return out;
+  }
+
+  const cargaDasSessoes = (ss) => ss.reduce((t, x) => t + (x.pse && x.duracao ? x.pse * x.duracao : 0), 0);
+
+  /* Plano de sessões da periodização inteira: por semana (segunda), as sessões previstas e a carga planejada por atleta. */
+  function planoDeSessoes(perio) {
+    const out = {};
+    for (const w of calendarioCarga(perio)) {
+      const sessoes = sessoesDaSemana(perio, w);
+      out[w.seg] = { semana: w, sessoes, carga: sessoes.length ? cargaDasSessoes(sessoes) : null };
+    }
+    return out;
+  }
+
+  const sessoesDaData = (perio, data) => ((planoDeSessoes(perio)[segundaDe(data)] || { sessoes: [] }).sessoes).filter((s) => s.data === data);
+
+  /* Mesociclos de uma periodização nova: pelas competições A (ou B) e, sem nenhuma, nas proporções usuais. */
+  function estruturaInicial(perio) {
+    const ini = segundaDe(perio.inicio);
+    if (!planoIdeal(perio).semAlvo) return propostaMesos(perio, addDias(ini, -1)).novos;
+    let i = ini;
+    return sugerirEstrutura(perio.inicio, perio.fim || addDias(ini, 7 * 16 - 1)).map((e) => {
+      const r = { fase: e.fase, inicio: i, semanas: e.semanas, parte: 1, partes: 1, alvo: null };
+      i = addDias(i, e.semanas * 7);
+      return r;
+    });
   }
 
   /* ---------- Atletas: função como ação, sexo à parte, lista colada e cadastro ---------- */
@@ -504,6 +612,7 @@
     cobreTopico, coberturaMeso, situacao, alertasAtleta,
     FASE_PLANO, MOD_COMPETICAO, modsCompeticao, planoIdeal, calendarioCarga, desalinhamento, propostaMesos, corteDoPlano, partirFase,
     rotuloFuncao, naipe, naipeDupla, idade, faltaNoCadastro, lerListaAtletas, semAcento,
+    CATEGORIAS, categoriaDe, daEquipe, papeisDe, diasOrdenados, sessoesDaSemana, cargaDasSessoes, planoDeSessoes, sessoesDaData, estruturaInicial,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else (raiz.AC = raiz.AC || {}).calc = API;

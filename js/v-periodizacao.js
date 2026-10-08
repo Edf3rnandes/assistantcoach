@@ -26,14 +26,14 @@
     raiz.append(
       h('div', { class: 'titulo-linha' },
         h('h1', null, 'Periodização'),
-        h('button', { class: 'btn primario', type: 'button', onclick: () => formPerio() }, '+ Nova')),
+        h('a', { class: 'btn primario', href: '#/periodizacao/nova' }, '+ Nova')),
       h('p', { class: 'sub' }, 'Monte a temporada em mesociclos e defina a ênfase de fundamentos de cada um.'),
     );
     if (!S().periodizacoes.length) {
       raiz.append(h('div', { class: 'vazio' },
         h('h2', null, 'Nenhuma periodização ainda'),
         h('p', null, 'Crie a temporada, divida em mesociclos e escolha os fundamentos que cada fase vai enfatizar.'),
-        h('button', { class: 'btn primario', type: 'button', onclick: () => formPerio() }, 'Criar periodização')));
+        h('a', { class: 'btn primario', href: '#/periodizacao/nova' }, 'Criar periodização')));
       return raiz;
     }
     for (const p of [...S().periodizacoes].sort((a, b) => b.inicio.localeCompare(a.inicio))) {
@@ -41,6 +41,7 @@
       raiz.append(h('a', { class: 'card clicavel', href: `#/periodizacao/${p.id}` },
         h('div', { class: 'card-topo' }, h('strong', null, p.nome), sit.meso ? faseChip(sit.meso.fase) : null),
         h('div', { class: 'muted' }, `${dataCompleta(p.inicio)} a ${p.fim ? dataCompleta(p.fim) : '…'} · ${plural(p.mesociclos.length, 'mesociclo', 'mesociclos')}`),
+        (p.equipe || p.categorias.length || p.diasTreino.length) ? h('div', { class: 'muted' }, [p.equipe, p.categorias.join(', '), p.diasTreino.length ? `${p.diasTreino.length} dias de treino` : null].filter(Boolean).join(' · ')) : null,
         p.objetivo ? h('p', { class: 'trecho' }, p.objetivo) : null,
         sit.meso ? h('div', { class: 'muted' }, `Agora: ${sit.meso.nome}, semana ${sit.semana} de ${sit.meso.semanas}`) : null));
     }
@@ -55,22 +56,23 @@
     modal(novo ? 'Nova periodização' : 'Editar periodização', (fechar) => {
       const nome = entrada('text', p ? p.nome : `Temporada ${hoje.slice(0, 4)}`, { required: true, maxLength: 80 });
       const obj = h('textarea', { rows: 3, placeholder: 'Ex.: chegar ao circuito estadual com saque agressivo e side-out acima de 65%' }, p ? p.objetivo : '');
+      const equipe = entrada('text', p ? p.equipe : '', { maxLength: 60, placeholder: 'Ex.: Base da manhã' });
       const ini = entrada('date', p ? p.inicio : calc.segundaDe(hoje), { required: true });
       const fim = entrada('date', p ? p.fim : calc.addDias(calc.segundaDe(hoje), 7 * 16 - 1), { required: true });
       return h('form', { onsubmit: (e) => {
         e.preventDefault();
         if (fim.value < ini.value) return aviso('O fim precisa ser depois do início.', true);
         if (novo) {
-          const np = { id: store.uid(), nome: nome.value.trim(), objetivo: obj.value.trim(), inicio: ini.value, fim: fim.value, mesociclos: [], competicoes: [] };
+          const np = { id: store.uid(), nome: nome.value.trim(), objetivo: obj.value.trim(), equipe: equipe.value.trim(), categorias: [], diasTreino: [], duracaoPadrao: 90, inicio: ini.value, fim: fim.value, mesociclos: [], competicoes: [] };
           S().periodizacoes.push(np);
           store.salvar(); fechar();
           location.hash = `#/periodizacao/${np.id}`;
         } else {
-          Object.assign(p, { nome: nome.value.trim(), objetivo: obj.value.trim(), inicio: ini.value, fim: fim.value });
+          Object.assign(p, { nome: nome.value.trim(), objetivo: obj.value.trim(), equipe: equipe.value.trim(), inicio: ini.value, fim: fim.value });
           store.salvar(); fechar(); AC.redesenhar();
         }
       } },
-      campo('Nome', nome), campo('Objetivo da temporada', obj),
+      campo('Nome', nome), campo('Equipe', equipe), campo('Objetivo da temporada', obj),
       h('div', { class: 'duas' }, campo('Início', ini), campo('Fim', fim)),
       h('div', { class: 'acoes' }, h('button', { class: 'btn', type: 'button', onclick: () => fechar() }, 'Cancelar'), h('button', { class: 'btn primario', type: 'submit' }, 'Salvar')));
     });
@@ -189,23 +191,26 @@
   const temAlvo = (perio) => (perio.competicoes || []).some((c) => (c.prioridade === 'A' || c.prioridade === 'B') && c.situacao !== 'cancelada');
 
   /* Aplica a proposta: o que passou fica, o resto é recriado a partir das competições, aproveitando ênfase e tópicos da mesma fase. */
+  /* Mesociclo de uma proposta: nome com o alvo, e ênfase e tópicos copiados de um mesociclo da mesma fase quando houver. */
+  function mesoDeProposta(n, modelos = {}, cargaPadrao = null) {
+    const base = mesoPadrao(n.fase, n.inicio, n.semanas);
+    const mod = modelos[n.fase];
+    const alvo = ['precompetitivo', 'polimento', 'competitivo'].includes(n.fase) && n.alvo ? ` · ${n.alvo}` : '';
+    return {
+      ...base,
+      nome: `${fase(n.fase).nome}${alvo}${n.partes > 1 ? ` (${n.parte}/${n.partes})` : ''}`,
+      enfase: mod ? mod.enfase : base.enfase,
+      topicos: mod ? mod.topicos.map((t) => ({ ...t, id: store.uid(), tipos: [...t.tipos] })) : base.topicos,
+      fisico: mod ? [...mod.fisico] : base.fisico,
+      cargaRef: mod && mod.cargaRef ? mod.cargaRef : cargaPadrao ? cargaPadrao.cargaRef : null,
+    };
+  }
+
   function aplicarProposta(perio, prop) {
     const modelos = {};
     [...perio.mesociclos].sort((a, b) => a.inicio.localeCompare(b.inicio)).forEach((m) => { modelos[m.fase] = m; });
     const cargaPadrao = [...perio.mesociclos].reverse().find((m) => m.cargaRef);
-    const novos = prop.novos.map((n) => {
-      const base = mesoPadrao(n.fase, n.inicio, n.semanas);
-      const mod = modelos[n.fase];
-      const alvo = ['precompetitivo', 'polimento', 'competitivo'].includes(n.fase) && n.alvo ? ` · ${n.alvo}` : '';
-      return {
-        ...base,
-        nome: `${fase(n.fase).nome}${alvo}${n.partes > 1 ? ` (${n.parte}/${n.partes})` : ''}`,
-        enfase: mod ? mod.enfase : base.enfase,
-        topicos: mod ? mod.topicos.map((t) => ({ ...t, id: store.uid(), tipos: [...t.tipos] })) : base.topicos,
-        fisico: mod ? [...mod.fisico] : base.fisico,
-        cargaRef: mod && mod.cargaRef ? mod.cargaRef : cargaPadrao ? cargaPadrao.cargaRef : null,
-      };
-    });
+    const novos = prop.novos.map((n) => mesoDeProposta(n, modelos, cargaPadrao));
     perio.mesociclos = [...prop.mantidos.map((x) => { x.meso.semanas = x.semanas; return x.meso; }), ...novos];
     store.salvar(); AC.redesenhar();
     aviso('Mesociclos reorganizados pelas competições.');
@@ -270,23 +275,56 @@
     return caixa;
   }
 
+  /* Carga semanal planejada pelas sessões previstas (PSE × minutos), por segunda-feira. */
+  const cargasDoPlano = (perio) => Object.fromEntries(Object.entries(calc.planoDeSessoes(perio)).filter(([, v]) => v.carga != null).map(([k, v]) => [k, v.carga]));
+
   function cargaTemporada(perio, hoje) {
-    const ativos = store.ativos();
+    const ativos = store.ativos(perio);
     const itens = [];
     const mods = calc.modsCompeticao(perio);
+    const cargas = cargasDoPlano(perio);
     [...perio.mesociclos].sort((a, b) => a.inicio.localeCompare(b.inicio)).forEach((m) => {
-      calc.planejadoReal(m, S().treinos, ativos, hoje, mods).forEach((s) => itens.push({ rotulo: dm(s.seg), real: s.real, planejado: s.planejado, atual: s.atual }));
+      calc.planejadoReal(m, S().treinos, ativos, hoje, mods, cargas).forEach((s) => itens.push({ rotulo: dm(s.seg), real: s.real, planejado: s.planejado, atual: s.atual }));
     });
     if (!itens.some((i) => i.planejado != null || i.real != null)) return null;
     return h('div', { class: 'rolagem-x' }, AC.ui.graficoCarga(itens));
   }
 
+  const DIA_ROT = Object.fromEntries(cat.DIAS_SEMANA.map((x) => [x.d, x.r]));
+  const nomeTipo = (id) => (cat.tipoTreino(id) || { nome: id }).nome;
+
+  /* Um dia de treino previsto: dia, tipo e a intensidade (cor) do dia. */
+  function diaChip(x) {
+    const it = cat.INTENSIDADES[x.intensidade];
+    const el = h('span', { class: 'dia-chip', title: `${DIA_ROT[x.dow]}: ${nomeTipo(x.tipo)}, intensidade ${it.nome.toLowerCase()}${x.pse ? `, PSE ${x.pse}` : ''}${x.duracao ? `, ${x.duracao} min` : ''}${x.motivo ? `. ${x.motivo}` : ''}` },
+      h('b', null, DIA_ROT[x.dow]), ` ${x.tipo === 'competicao' ? 'competição' : nomeTipo(x.tipo).toLowerCase()} `, h('i', null, x.tipo === 'competicao' ? '' : it.nome.toLowerCase()));
+    el.style.setProperty('--cor', it.cor);
+    return el;
+  }
+
+  /* Equipe e dias de treino, editados ali mesmo, sem janela. */
+  function equipeCard(perio) {
+    const grava = () => { store.salvar(); AC.redesenhar(); };
+    const cats = h('div', { class: 'chips' }, cat.CATEGORIAS.map((c) => chip(c, { ativo: perio.categorias.includes(c), onclick: () => { perio.categorias = perio.categorias.includes(c) ? perio.categorias.filter((x) => x !== c) : [...perio.categorias, c]; grava(); } })));
+    const dias = h('div', { class: 'chips' }, cat.DIAS_SEMANA.map((x) => chip(x.r, { ativo: perio.diasTreino.includes(x.d), onclick: () => { perio.diasTreino = perio.diasTreino.includes(x.d) ? perio.diasTreino.filter((d) => d !== x.d) : [...perio.diasTreino, x.d]; grava(); } })));
+    const dur = selecao(cat.DURACOES.map((d) => ({ valor: String(d), rotulo: `${d} min` })), String(perio.duracaoPadrao || 90), { 'aria-label': 'Duração padrão do treino', onchange: (e) => { perio.duracaoPadrao = Number(e.target.value); grava(); } });
+    const n = perio.diasTreino.length;
+    return h('section', { class: 'equipe-card' },
+      h('h2', null, perio.equipe ? `Equipe: ${perio.equipe}` : 'Equipe e dias de treino'),
+      h('div', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, 'Categorias'), cats),
+      h('div', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, n ? `Dias de treino · ${plural(n, 'dia', 'dias')} por semana` : 'Dias de treino'), dias,
+        n ? null : h('span', { class: 'dica' }, 'Escolha os dias para ver, semana a semana, o tipo e a intensidade de cada treino.')),
+      h('div', { class: 'campo curto' }, h('span', { class: 'campo-rotulo' }, 'Duração padrão'), dur));
+  }
+
   /* Semana a semana: fase, volume (fator de carga), intensidade (PSE alvo), competição e a intenção. */
   function calendarioSemanas(perio, hoje) {
     const cal = calc.calendarioCarga(perio);
+    const plano = calc.planoDeSessoes(perio);
     const segHoje = calc.segundaDe(hoje);
     const caixa = h('div', { class: 'calendario' });
     cal.forEach((w) => {
+      const ss = (plano[w.seg] || { sessoes: [], carga: null });
       const f = w.fase ? fase(w.fase) : null;
       const barra = h('span', { class: 'vol-barra', title: w.fator == null ? '' : `Volume ${num(w.fator)}× da carga de referência` });
       if (w.fator != null) { const i = h('i'); i.style.width = Math.min(100, Math.round(w.fator * 100)) + '%'; i.style.background = f.cor; barra.append(i); }
@@ -296,6 +334,7 @@
           h('div', { class: 'cal-topo' }, f ? faseChip(w.fase) : chip('sem mesociclo', { pequeno: true }),
             w.eventos.map((c) => chip(`${c.prioridade} · ${c.nome}${c.situacao === 'provisoria' ? ' (a confirmar)' : ''}`, { pequeno: true, cor: COR_COMP[c.prioridade] }))),
           h('div', { class: 'cal-nums' }, barra, h('span', null, w.fator == null ? '' : `volume ×${num(w.fator)}`), h('span', null, w.pse == null ? '' : `intensidade PSE ${w.pse}`)),
+          ss.sessoes.length ? h('div', { class: 'cal-dias' }, ss.sessoes.map((x) => diaChip(x)), ss.carga ? h('span', { class: 'muted cal-carga', title: 'Soma de PSE × minutos das sessões previstas, por atleta' }, `carga ${milhar(ss.carga)}`) : null) : null,
           w.intencao ? h('div', { class: 'dica' }, w.intencao) : null)));
     });
     return caixa;
@@ -321,6 +360,7 @@
 
     const tl = linhaDoTempo(perio, hoje);
     if (tl) raiz.append(h('section', null, h('h2', null, 'Temporada'), tl));
+    raiz.append(equipeCard(perio));
     const avisos = calc.validarMesos(perio);
     if (avisos.length) raiz.append(h('div', { class: 'alerta medio' }, h('strong', null, 'Confira a estrutura'), h('ul', null, avisos.map((a) => h('li', null, a)))));
 
@@ -354,7 +394,7 @@
     raiz.append(mesosSec);
 
     if (perio.mesociclos.length) raiz.append(h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Semana a semana'), h('a', { class: 'link', href: '#/guia' }, 'Como funciona')),
-      h('p', { class: 'dica' }, 'Volume: quanto da carga de referência a semana pede. Intensidade: PSE alvo dos treinos. A competição reduz o volume e a intensidade se mantém.'),
+      h('p', { class: 'dica' }, 'Volume: quanto da semana cheia ela pede (muda a duração dos treinos). Intensidade: o PSE alvo e se o dia é alto, moderado ou leve. A competição reduz o volume e a intensidade se mantém.'),
       calendarioSemanas(perio, hoje)));
 
     const carga = cargaTemporada(perio, hoje);
@@ -434,7 +474,7 @@
     raiz.append(h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Treino físico do mesociclo'), h('a', { class: 'btn', href: '#/fisico' }, 'Abrir físico')),
       meso.fisico && meso.fisico.length ? h('div', { class: 'chips' }, meso.fisico.map((x) => chip(x))) : h('p', { class: 'dica' }, 'Sem foco físico definido. Use "Editar".')));
 
-    const semanas = calc.planejadoReal(meso, S().treinos, store.ativos(), hoje, calc.modsCompeticao(perio));
+    const semanas = calc.planejadoReal(meso, S().treinos, store.ativos(perio), hoje, calc.modsCompeticao(perio), cargasDoPlano(perio));
     const tem = semanas.some((s) => s.planejado != null || s.real != null);
     const tab = h('div', { class: 'tabela-semanas' });
     semanas.forEach((s, i) => {
@@ -460,7 +500,125 @@
     return raiz;
   }
 
+
+  /* ---------- Nova periodização, numa tela: ciclo, competições, equipe e a prévia dos mesociclos ---------- */
+
+  function nova() {
+    const { pintar } = AC.ui;
+    const hoje = calc.hojeISO();
+    const seg = calc.segundaDe(hoje);
+    const d = { nome: `Temporada ${hoje.slice(0, 4)}`, inicio: seg, fim: calc.addDias(seg, 7 * 16 - 1), equipe: '', categorias: [], dias: [1, 3, 5], duracao: 90, comps: [], fora: new Set() };
+    const novaComp = () => { const c = { id: store.uid(), nome: '', data: '', prioridade: 'A' }; d.comps.push(c); return c; };
+    novaComp();
+
+    const rascunho = (mesos = []) => ({
+      id: 'rascunho', inicio: d.inicio, fim: d.fim, mesociclos: mesos, diasTreino: d.dias, duracaoPadrao: d.duracao, categorias: d.categorias,
+      competicoes: d.comps.filter((c) => c.data).map((c) => ({ ...c, nome: c.nome.trim() || 'Competição', situacao: 'confirmada' })),
+    });
+
+    const previa = h('div');
+    const botao = h('button', { class: 'btn primario', type: 'button' }, 'Criar periodização');
+    let atuais = [];
+
+    const linhaSessao = (x) => {
+      const it = cat.INTENSIDADES[x.intensidade];
+      return h('div', { class: 'prev-sessao' }, h('strong', null, DIA_ROT[x.dow]), h('span', null, x.tipo === 'competicao' ? `Competição: ${x.titulo}` : nomeTipo(x.tipo)),
+        x.tipo === 'competicao' ? h('span') : chip(it.nome, { cor: it.cor, pequeno: true }),
+        h('span', { class: 'muted' }, x.duracao ? `${x.duracao} min · PSE ${x.pse}` : ''));
+    };
+
+    const prev = () => {
+      if (!d.inicio || !d.fim || d.fim <= d.inicio) {
+        pintar(previa, h('p', { class: 'dica' }, 'Informe o início e um fim depois dele para ver os mesociclos.'));
+        botao.disabled = true;
+        return;
+      }
+      const novos = calc.estruturaInicial(rascunho());
+      atuais = novos.map((n) => ({ chave: n.fase + n.inicio, n, meso: mesoDeProposta(n) }));
+      const mantidos = atuais.filter((m) => !d.fora.has(m.chave));
+      const draft = rascunho(mantidos.map((m) => m.meso));
+      const avisos = calc.validarMesos(draft);
+      const plano = Object.values(calc.planoDeSessoes(draft)).filter((x) => x.sessoes.length);
+      const modelo = plano.find((x) => x.semana.fase !== 'recuperacao' && x.semana.fase !== 'competitivo');
+      const poli = plano.find((x) => x.semana.fase === 'polimento');
+      const semanas = mantidos.reduce((t, m) => t + m.n.semanas, 0);
+      botao.disabled = false;
+      pintar(previa,
+        h('p', { class: 'muted' }, `${plural(mantidos.length, 'mesociclo', 'mesociclos')} · ${plural(semanas, 'semana', 'semanas')}. Desligue o que não quiser: o resto da temporada continua.`),
+        atuais.map((m) => {
+          const fora = d.fora.has(m.chave);
+          const sw = h('button', { class: 'troca' + (fora ? '' : ' on'), type: 'button', role: 'switch', 'aria-checked': String(!fora), 'aria-label': `Manter ${m.meso.nome}`, onclick: () => { fora ? d.fora.delete(m.chave) : d.fora.add(m.chave); prev(); } }, h('span'));
+          return h('div', { class: 'prop-linha' + (fora ? ' fora' : '') }, sw, faseChip(m.n.fase),
+            h('span', { class: 'linha-txt' }, h('strong', null, m.meso.nome), h('span', { class: 'muted' }, `${dm(m.n.inicio)} a ${dm(calc.addDias(m.n.inicio, m.n.semanas * 7 - 1))} · ${plural(m.n.semanas, 'semana', 'semanas')}`)));
+        }),
+        avisos.length ? h('div', { class: 'alerta medio' }, h('ul', null, avisos.map((a) => h('li', null, a)))) : null,
+        d.dias.length && modelo ? h('div', { class: 'semana-modelo' }, h('h3', null, `Uma semana de ${fase(modelo.semana.fase).nome.toLowerCase()}`), modelo.sessoes.map(linhaSessao),
+          h('span', { class: 'dica' }, `Carga planejada por atleta: ${milhar(modelo.carga)} (PSE × minutos).`)) : null,
+        d.dias.length && poli ? h('div', { class: 'semana-modelo' }, h('h3', null, 'Semana do polimento'), poli.sessoes.map(linhaSessao),
+          h('span', { class: 'dica' }, `Carga planejada por atleta: ${milhar(poli.carga)}. Mesma intensidade, treinos mais curtos.`)) : null,
+        !d.dias.length ? h('p', { class: 'dica' }, 'Escolha os dias de treino para ver o tipo e a intensidade de cada sessão.') : null);
+    };
+
+    /* 1. Ciclo */
+    const nome = entrada('text', d.nome, { required: true, maxLength: 80, oninput: () => { d.nome = nome.value; } });
+    const ini = entrada('date', d.inicio, { required: true, 'aria-label': 'Início do ciclo', onchange: () => { d.inicio = ini.value; prev(); } });
+    const fim = entrada('date', d.fim, { required: true, 'aria-label': 'Fim do ciclo', onchange: () => { d.fim = fim.value; prev(); } });
+    const atalhos = h('div', { class: 'chips' }, [8, 12, 16, 24, 32].map((n) => chip(`${n} semanas`, { pequeno: true, onclick: () => { d.fim = calc.addDias(calc.segundaDe(d.inicio || hoje), 7 * n - 1); fim.value = d.fim; prev(); } })));
+
+    /* 2. Competições */
+    const compsEl = h('div');
+    const linhaComp = (c) => {
+      const n = entrada('text', c.nome, { maxLength: 80, placeholder: 'Nome da competição', 'aria-label': 'Nome da competição', oninput: () => { c.nome = n.value; prev(); } });
+      const dt = entrada('date', c.data, { 'aria-label': 'Data da competição', onchange: () => { c.data = dt.value; prev(); } });
+      const pr = selecao([{ valor: 'A', rotulo: 'A · alvo' }, { valor: 'B', rotulo: 'B · importante' }, { valor: 'C', rotulo: 'C · treino' }], c.prioridade, { 'aria-label': 'Prioridade', onchange: () => { c.prioridade = pr.value; prev(); } });
+      return h('div', { class: 'comp-linha' }, n, h('div', { class: 'comp-linha-2' }, dt, pr,
+        h('button', { class: 'icone', type: 'button', 'aria-label': 'Remover competição', onclick: () => { d.comps = d.comps.filter((x) => x !== c); desenharComps(); prev(); } }, '✕')));
+    };
+    const desenharComps = () => pintar(compsEl, d.comps.map(linhaComp), h('button', { class: 'btn', type: 'button', onclick: () => { novaComp(); desenharComps(); } }, '+ Competição'));
+    desenharComps();
+
+    /* 3. Equipe */
+    const equipe = entrada('text', '', { maxLength: 60, placeholder: 'Ex.: Base da manhã (opcional)', oninput: () => { d.equipe = equipe.value; } });
+    const cats = AC.ui.chipsMulti(cat.CATEGORIAS, d.categorias, (v) => { d.categorias = v; });
+    const diasEl = h('div', { class: 'chips' });
+    const desenharDias = () => pintar(diasEl, cat.DIAS_SEMANA.map((x) => chip(x.r, { ativo: d.dias.includes(x.d), onclick: () => { d.dias = d.dias.includes(x.d) ? d.dias.filter((y) => y !== x.d) : [...d.dias, x.d]; desenharDias(); prev(); } })));
+    desenharDias();
+    const dur = selecao(cat.DURACOES.map((x) => ({ valor: String(x), rotulo: `${x} min` })), '90', { 'aria-label': 'Duração padrão do treino', onchange: () => { d.duracao = Number(dur.value); prev(); } });
+
+    const criar = () => {
+      if (!d.nome.trim()) return aviso('Dê um nome à periodização.', true);
+      const mesos = atuais.filter((m) => !d.fora.has(m.chave)).map((m) => m.meso);
+      const perio = {
+        id: store.uid(), nome: d.nome.trim(), objetivo: '', equipe: d.equipe.trim(), categorias: cat.CATEGORIAS.filter((c) => d.categorias.includes(c)),
+        diasTreino: cat.DIAS_SEMANA.map((x) => x.d).filter((x) => d.dias.includes(x)), duracaoPadrao: d.duracao,
+        inicio: d.inicio, fim: d.fim, mesociclos: mesos,
+        competicoes: rascunho().competicoes.map((c) => ({ id: c.id, nome: c.nome, data: c.data, prioridade: c.prioridade, situacao: 'confirmada' })),
+      };
+      S().periodizacoes.push(perio);
+      store.salvar();
+      aviso('Periodização criada.');
+      location.hash = `#/periodizacao/${perio.id}`;
+    };
+    botao.addEventListener('click', criar);
+
+    const raiz = h('div', { class: 'pagina-nova' },
+      voltar('#/periodizacao', 'Periodizações'),
+      h('h1', null, 'Nova periodização'),
+      h('p', { class: 'sub' }, 'Preencha de cima para baixo. A prévia dos mesociclos aparece embaixo e muda enquanto você preenche.'),
+      h('section', null, h('h2', null, '1. Ciclo'), campo('Nome', nome),
+        h('div', { class: 'duas' }, campo('Início', ini, 'Começa na segunda-feira da semana.'), campo('Fim', fim)), atalhos),
+      h('section', null, h('h2', null, '2. Competições'), h('p', { class: 'dica' }, 'A é o alvo (a temporada chega nela no auge), B reduz só a semana dela e C é treino. Pode deixar em branco e cadastrar depois.'), compsEl),
+      h('section', null, h('h2', null, '3. Equipe e dias de treino'), campo('Equipe', equipe),
+        h('div', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, 'Categorias'), cats.el),
+        h('div', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, 'Dias de treino na semana'), diasEl),
+        h('div', { class: 'campo curto' }, h('span', { class: 'campo-rotulo' }, 'Duração padrão do treino'), dur)),
+      h('section', null, h('h2', null, '4. Mesociclos'), previa),
+      h('div', { class: 'barra-salvar' }, h('a', { class: 'btn', href: '#/periodizacao' }, 'Cancelar'), h('span', { class: 'esp' }), botao));
+    prev();
+    return raiz;
+  }
+
   AC.views = AC.views || {};
-  AC.views.periodizacao = ({ partes }) => (partes[1] && partes[2] ? mesociclo(partes[1], partes[2]) : partes[1] ? temporada(partes[1]) : lista());
+  AC.views.periodizacao = ({ partes }) => (partes[1] === 'nova' ? nova() : partes[1] && partes[2] ? mesociclo(partes[1], partes[2]) : partes[1] ? temporada(partes[1]) : lista());
   AC.periodizacaoForms = { formPerio };
 })((window.AC = window.AC || {}));

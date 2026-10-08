@@ -250,6 +250,18 @@ t('calendário de carga usa os mesociclos reais e aplica o modificador da compet
   assert.ok(plan.length === 4);
 });
 
+t('começo do período: bloco de uma semana é absorvido e semana sem mesociclo não gera aviso', () => {
+  const p = perioComp([{ nome: 'Alvo', data: C.addDias('2026-10-05', 7 * 8 + 5), prioridade: 'A' }]);
+  const fases = C.planoIdeal(p).semanas.map((w) => w.fase);
+  assert.deepStrictEqual(fases.slice(0, 3), ['desenvolvimento', 'desenvolvimento', 'desenvolvimento']);
+  assert.strictEqual(fases[8], 'competitivo');
+  const prop = C.propostaMesos(p, '2026-10-04');
+  assert.ok(prop.novos[0].semanas >= 2, 'primeiro mesociclo com 2 semanas ou mais');
+  // técnico excluiu os mesociclos finais de propósito: não aparece aviso
+  p.mesociclos = prop.novos.slice(0, 2).map((n, i) => ({ id: 'm' + i, nome: n.fase, fase: n.fase, inicio: n.inicio, semanas: n.semanas, perfil: C.FASE_PLANO[n.fase].perfil }));
+  assert.deepStrictEqual(C.desalinhamento(p, '2026-10-04'), []);
+});
+
 /* ---------- Atletas ---------- */
 
 t('função com o gênero pelo sexo e naipe da dupla', () => {
@@ -326,6 +338,100 @@ t('aplicar resposta não apaga o que o atleta deixou em branco', () => {
   const a = { id: 'a1', nome: 'Bia', sexo: 'F', acao: 'bloqueio', contato: '8399', nascimento: '' };
   F.aplicarResposta(a, { nome: 'Beatriz', sexo: '', acao: 'ambos', contato: '', nascimento: '2009-05-17' });
   assert.deepStrictEqual([a.nome, a.sexo, a.acao, a.contato, a.nascimento], ['Beatriz', 'F', 'ambos', '8399', '2009-05-17']);
+});
+
+/* ---------- Equipe, dias de treino e sessões previstas ---------- */
+
+const eq = (dias, comps = [], extra = {}) => ({
+  id: 'p', inicio: '2026-10-05', fim: '2027-01-31', diasTreino: dias, duracaoPadrao: 90, categorias: [],
+  mesociclos: [{ id: 'm', nome: 'Desenv.', fase: 'desenvolvimento', inicio: '2026-10-05', semanas: 6, perfil: '3:1', topicos: [
+    { id: 't1', fundamento: 'ataque', tipos: ['Diagonal'], prioridade: 'alta' }, { id: 't2', fundamento: 'saque', tipos: ['Viagem'], prioridade: 'alta' }, { id: 't3', fundamento: 'bloqueio', tipos: [], prioridade: 'media' },
+  ] }],
+  competicoes: comps.map((c, i) => ({ id: 'c' + i, ...c })), ...extra,
+});
+const sem = (p, i) => C.sessoesDaSemana(p, C.calendarioCarga(p)[i]);
+
+t('categoria pelo ano de nascimento e atletas da equipe', () => {
+  assert.strictEqual(C.categoriaDe('2013-05-01', 2026), 'Sub-13');
+  assert.strictEqual(C.categoriaDe('2011-05-01', 2026), 'Sub-15');
+  assert.strictEqual(C.categoriaDe('2009-12-31', 2026), 'Sub-17');
+  assert.strictEqual(C.categoriaDe('2008-01-01', 2026), 'Sub-19');
+  assert.strictEqual(C.categoriaDe('2005-01-01', 2026), 'Sub-21');
+  assert.strictEqual(C.categoriaDe('1999-01-01', 2026), 'Adulto');
+  assert.strictEqual(C.categoriaDe('', 2026), null);
+  const atl = [{ id: 'a', nascimento: '2009-01-01' }, { id: 'b', nascimento: '2000-01-01' }, { id: 'c', nascimento: '' }];
+  assert.deepStrictEqual(C.daEquipe({ categorias: ['Sub-17'] }, atl, 2026).map((x) => x.id), ['a', 'c']);
+  assert.strictEqual(C.daEquipe({ categorias: [] }, atl, 2026).length, 3);
+});
+
+t('dias de treino: segunda, terça e quinta ou segunda, quarta e sexta, e a intensidade de cada um', () => {
+  const a = sem(eq([1, 2, 4]), 0);
+  assert.deepStrictEqual(a.map((s) => s.data), ['2026-10-05', '2026-10-06', '2026-10-08']);
+  assert.deepStrictEqual(a.map((s) => s.intensidade), ['alta', 'media', 'leve']);
+  const b = sem(eq([5, 1, 3]), 0);   // fora de ordem: a semana começa na segunda
+  assert.deepStrictEqual(b.map((s) => s.data), ['2026-10-05', '2026-10-07', '2026-10-09']);
+  assert.deepStrictEqual(sem(eq([1, 3]), 0).map((s) => s.intensidade), ['alta', 'media']);
+  assert.deepStrictEqual(sem(eq([1, 2, 4, 5]), 0).map((s) => s.intensidade), ['alta', 'media', 'alta', 'leve']);
+  assert.deepStrictEqual(sem(eq([1, 2, 3, 4, 5]), 0).map((s) => s.intensidade), ['alta', 'media', 'alta', 'media', 'leve']);
+  assert.deepStrictEqual(sem(eq([]), 0), []);
+  assert.deepStrictEqual(C.papeisDe(7).length, 7);
+});
+
+t('sessões: PSE alvo pela intensidade, duração pelo volume e fundamentos da ênfase', () => {
+  const p = eq([1, 3, 5]);
+  const s0 = sem(p, 0);   // semana 1 do 3:1, fator 0,8
+  assert.deepStrictEqual(s0.map((s) => s.pse), [7, 6, 4]);          // fase 6; alta +1; leve −2
+  assert.deepStrictEqual(s0.map((s) => s.duracao), [70, 70, 60]);   // 90 × 0,8 = 72; leve ×0,85
+  assert.ok(s0[0].fundamentos.length >= 1 && s0[0].fundamentos[0].fundamento === 'ataque');
+  const s2 = sem(p, 2);   // fator 1
+  assert.strictEqual(s2[0].duracao, 90);
+  const s3 = sem(p, 3);   // descarga 0,6: volume cai, mesma frequência
+  assert.strictEqual(s3.length, 3);
+  assert.ok(s3.every((s, i) => s.duracao < s2[i].duracao));
+  assert.strictEqual(s3[0].pse, 7);
+  const tipos4 = sem(eq([1, 2, 4, 5]), 0).map((s) => s.tipo);
+  assert.strictEqual(tipos4[1], 'fisico');   // com 4 dias ou mais, um deles é físico no desenvolvimento
+});
+
+t('competição: véspera e dia seguinte ficam leves; o dia dela vira competição', () => {
+  const p = eq([1, 3, 5], [{ nome: 'Etapa', data: '2026-10-10', prioridade: 'A' }]);   // sábado da semana 0
+  const s = sem(p, 0);
+  assert.strictEqual(s[2].papel, 'leve');            // sexta, véspera
+  assert.ok(/Véspera/.test(s[2].motivo));
+  const p2 = eq([1, 3, 5], [{ nome: 'Etapa', data: '2026-10-12', prioridade: 'B' }]);   // segunda da semana 1
+  const s1 = sem(p2, 1);
+  assert.strictEqual(s1[0].tipo, 'competicao');
+  assert.strictEqual(s1[0].titulo, 'Etapa');
+  const p3 = eq([1, 3, 5], [{ nome: 'Treino-torneio', data: '2026-10-09', prioridade: 'C' }]);
+  assert.strictEqual(sem(p3, 0)[2].tipo, 'competicao');   // C ocupa o dia mas não faz as vizinhas ficarem leves
+  assert.notStrictEqual(sem(p3, 0)[1].papel, 'leve');
+});
+
+t('recuperação tem só treinos leves e a carga planejada vem das sessões', () => {
+  const p = eq([1, 3, 5], [{ nome: 'Alvo', data: '2026-10-10', prioridade: 'A' }], { mesociclos: [
+    { id: 'm1', nome: 'Comp', fase: 'competitivo', inicio: '2026-10-05', semanas: 1, perfil: 'plana', topicos: [] },
+    { id: 'm2', nome: 'Rec', fase: 'recuperacao', inicio: '2026-10-12', semanas: 1, perfil: 'plana', topicos: [] },
+  ] });
+  const rec = sem(p, 1);
+  assert.ok(rec.every((s) => s.intensidade === 'leve' && s.tipo === 'recuperacao'));
+  const plano = C.planoDeSessoes(p);
+  assert.strictEqual(plano['2026-10-12'].carga, C.cargaDasSessoes(rec));
+  assert.ok(plano['2026-10-12'].carga > 0);
+  assert.strictEqual(C.sessoesDaData(p, '2026-10-12').length, 1);
+  const meso = p.mesociclos[0];
+  const r = C.planejadoReal(meso, [], [], '2026-10-08', {}, { '2026-10-05': 1234 });
+  assert.strictEqual(r[0].planejado, 1234);
+});
+
+t('estrutura inicial: pelas competições ou, sem alvo, nas proporções', () => {
+  const comAlvo = { inicio: '2026-10-05', fim: '2027-01-24', competicoes: [{ nome: 'Alvo', data: '2027-01-23', prioridade: 'A' }], mesociclos: [] };
+  const e1 = C.estruturaInicial(comAlvo);
+  assert.strictEqual(e1[0].inicio, '2026-10-05');
+  assert.ok(e1.some((x) => x.fase === 'polimento') && e1.at(-1).fase === 'competitivo');
+  const semAlvo = { inicio: '2026-10-05', fim: '2027-01-24', competicoes: [{ nome: 'C1', data: '2026-11-01', prioridade: 'C' }], mesociclos: [] };
+  const e2 = C.estruturaInicial(semAlvo);
+  assert.deepStrictEqual(e2.map((x) => x.fase), ['base', 'desenvolvimento', 'precompetitivo', 'competitivo']);
+  assert.strictEqual(e2[1].inicio, C.addDias('2026-10-05', 7 * e2[0].semanas));
 });
 
 console.log(`\n${n} testes passaram`);

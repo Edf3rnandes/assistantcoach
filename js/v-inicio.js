@@ -35,7 +35,17 @@
     /* Hoje */
     const deHoje = e.treinos.filter((t) => t.data === hoje);
     const secHoje = h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Hoje'), h('a', { class: 'btn', href: `#/treinos/novo?data=${hoje}` }, '+ Treino')));
-    if (!deHoje.length) secHoje.append(h('p', { class: 'dica' }, 'Nenhum treino marcado para hoje.'));
+    const perioHoje = store.perioDaData(hoje);
+    const previstosHoje = deHoje.length || !perioHoje ? [] : calc.sessoesDaData(perioHoje, hoje);
+    if (!deHoje.length && !previstosHoje.length) secHoje.append(h('p', { class: 'dica' }, 'Nenhum treino marcado para hoje.'));
+    previstosHoje.forEach((x, i) => {
+      const it = cat.INTENSIDADES[x.intensidade];
+      secHoje.append(h('a', { class: 'card clicavel previsto', href: `#/treinos/novo?data=${hoje}&prev=${i}` },
+        h('div', { class: 'card-topo' }, h('strong', null, x.tipo === 'competicao' ? `Competição: ${x.titulo}` : nomeTipo(x.tipo)), x.tipo === 'competicao' ? chip('Previsto', { pequeno: true }) : chip(`Intensidade ${it.nome.toLowerCase()}`, { pequeno: true, cor: it.cor })),
+        h('div', { class: 'muted' }, x.tipo === 'competicao' ? 'Previsto para hoje' : `Previsto: ${x.duracao} min · PSE alvo ${x.pse}${x.motivo ? ' · ' + x.motivo : ''}`),
+        x.fundamentos.length ? h('div', { class: 'chips' }, x.fundamentos.map((f) => chip(cat.fundamento(f.fundamento).nome, { pequeno: true }))) : null,
+        h('span', { class: 'toque' }, 'Toque para registrar')));
+    });
     deHoje.forEach((t) => secHoje.append(h('a', { class: 'card clicavel', href: `#/treinos/${t.id}` },
       h('div', { class: 'card-topo' }, h('strong', null, tituloTreino(t)), chip(t.feito ? 'Realizado' : 'Registrar', { pequeno: true, cor: t.feito ? 'var(--ok)' : 'var(--brand)', ativo: !t.feito })),
       h('div', { class: 'muted' }, `${nomeTipo(t.tipo)} · ${t.duracao || 0} min`),
@@ -70,7 +80,7 @@
 
     /* Semana */
     if (e.treinos.length) {
-      const r = calc.resumoSemana(e.treinos, store.ativos(), calc.segundaDe(hoje));
+      const r = calc.resumoSemana(e.treinos, store.ativos(store.perioDaData(hoje)), calc.segundaDe(hoje));
       raiz.append(h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Esta semana'), h('a', { class: 'btn', href: '#/treinos' }, 'Ver semana')),
         h('div', { class: 'resumo' },
           h('div', null, h('b', null, `${r.feitas}/${r.sessoes}`), h('span', null, 'treinos')),
@@ -80,7 +90,7 @@
     }
 
     /* Atenção */
-    const atencao = store.ativos().map((a) => ({ a, al: calc.alertasAtleta(e.treinos, a, hoje) })).filter((x) => x.al.length).sort((x, y) => y.al.filter((i) => i.nivel === 'alto').length - x.al.filter((i) => i.nivel === 'alto').length);
+    const atencao = store.ativos(store.perioDaData(hoje)).map((a) => ({ a, al: calc.alertasAtleta(e.treinos, a, hoje) })).filter((x) => x.al.length).sort((x, y) => y.al.filter((i) => i.nivel === 'alto').length - x.al.filter((i) => i.nivel === 'alto').length);
     if (atencao.length) raiz.append(h('section', null, h('h2', null, 'Atletas para olhar'),
       atencao.slice(0, 6).map(({ a, al }) => h('a', { class: 'card clicavel alerta-card ' + (al.some((i) => i.nivel === 'alto') ? 'alto' : 'medio'), href: `#/atletas/${a.id}` },
         h('strong', null, a.nome), h('ul', null, al.map((i) => h('li', null, i.texto)))))));

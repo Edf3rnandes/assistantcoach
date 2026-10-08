@@ -353,3 +353,33 @@ h3 { font-size: .95rem; margin: 14px 0 4px; }
 .grafico.guia { min-width: 0; max-height: none; }
 .g-ponto-guia { stroke: var(--card); stroke-width: 1.5; }
 @media (max-width: 520px) { .fase-linha { grid-template-columns: 140px 1fr; gap: 0 8px; } .fase-linha > .muted { grid-column: 1 / -1; margin-bottom: 4px; } }
+
+/* Sessão prevista */
+.card.previsto { border-style: dashed; background: color-mix(in srgb, var(--brand-soft) 45%, var(--card)); }
+.toque { display: block; margin-top: 6px; font-size: .8rem; color: var(--brand); font-weight: 600; }
+
+/* Assistente de nova periodização e equipe */
+.pagina-nova section { margin: 1.4rem 0; }
+.comp-linha { display: grid; gap: 6px; margin-bottom: 10px; }
+.comp-linha-2 { display: grid; grid-template-columns: 1fr 1.35fr 40px; gap: 6px; align-items: center; }
+.campo.curto select { width: auto; min-width: 130px; }
+.prop-linha.fora { opacity: .5; }
+.prop-linha .troca { flex: none; }
+.semana-modelo { background: var(--card); border: 1px solid var(--linha); border-radius: 12px; padding: 8px 12px 10px; margin: 10px 0; }
+.semana-modelo h3 { margin-top: 4px; }
+.prev-sessao { display: grid; grid-template-columns: 38px 1fr auto auto; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--linha); font-size: .9rem; }
+.prev-sessao .chip { margin: 0; }
+.equipe-card .chips { margin: 2px 0 6px; }
+.cal-dias { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; align-items: center; }
+.dia-chip { font-size: .76rem; padding: 2px 8px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--cor) 55%, var(--linha)); background: color-mix(in srgb, var(--cor) 14%, var(--card)); white-space: nowrap; }
+.dia-chip i { font-style: normal; color: var(--cor); font-weight: 700; }
+.cal-carga { font-size: .76rem; margin-left: 4px; }
+
+.dias-guia { display: grid; gap: 8px; margin: 8px 0; }
+.dias-linha strong { display: block; margin-bottom: 3px; font-size: .9rem; }
+.dias-faixa { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.dia-cel { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 46px; border-radius: 8px; background: var(--card2); color: var(--muted); font-size: .72rem; text-align: center; padding: 2px; }
+.dia-cel.on { background: color-mix(in srgb, var(--cor) 18%, var(--card)); border: 1px solid color-mix(in srgb, var(--cor) 60%, var(--linha)); color: var(--ink); }
+.dia-cel i { font-style: normal; font-weight: 700; color: var(--cor); font-size: .66rem; }
+.regras { padding-left: 18px; font-size: .92rem; }
+.regras li { margin-bottom: 4px; }

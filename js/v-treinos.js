@@ -9,6 +9,23 @@
   const voltar = (href, texto) => h('a', { class: 'voltar', href }, '‹ ', texto);
   const LOCAIS = ['Areia', 'Quadra coberta', 'Academia', 'Quadra de piso', 'Outro'];
 
+  /* Sessões previstas pela periodização para o dia (só quando não há treino de verdade nele). */
+  function previstos(data) {
+    if (S().treinos.some((t) => t.data === data)) return [];
+    const perio = store.perioDaData(data);
+    return perio ? calc.sessoesDaData(perio, data) : [];
+  }
+
+  function cartaoPrevisto(x, i) {
+    const it = cat.INTENSIDADES[x.intensidade];
+    const comp = x.tipo === 'competicao';
+    return h('a', { class: 'card treino previsto', href: `#/treinos/novo?data=${x.data}&prev=${i}` },
+      h('div', { class: 'card-topo' }, h('strong', null, comp ? `Competição: ${x.titulo}` : nomeTipo(x.tipo)), comp ? chip('Previsto', { pequeno: true }) : chip(`Intensidade ${it.nome.toLowerCase()}`, { pequeno: true, cor: it.cor })),
+      h('div', { class: 'muted' }, comp ? 'Registrar como treino de competição' : `${x.duracao} min · PSE alvo ${x.pse}${x.motivo ? ' · ' + x.motivo : ''}`),
+      x.fundamentos.length ? h('div', { class: 'chips' }, fundamentosChips(x)) : null,
+      h('span', { class: 'toque' }, 'Toque para registrar'));
+  }
+
   function fundamentosChips(t) {
     return (t.fundamentos || []).map((f) => chip(`${cat.fundamento(f.fundamento).nome}${f.tipos && f.tipos.length ? ': ' + f.tipos.join(', ') : ''}`, { pequeno: true }));
   }
@@ -39,8 +56,8 @@
     let seg = calc.segundaDe(query.semana || hoje);
     const desenhar = () => {
       const fim = calc.addDias(seg, 6);
-      const ativos = store.ativos();
       const perio = store.perioDaData(seg);
+      const ativos = store.ativos(perio);
       const meso = perio && (calc.mesoDaData(perio, seg) || calc.mesoDaData(perio, fim));
       const r = calc.resumoSemana(S().treinos, ativos, seg);
       const nodes = [
@@ -71,7 +88,7 @@
         nodes.push(h('section', { class: 'dia' + (dia === hoje ? ' hoje' : '') },
           h('div', { class: 'dia-topo' }, h('strong', null, dataCurta(dia)), dia === hoje ? chip('hoje', { pequeno: true, ativo: true }) : null,
             h('a', { class: 'mais', href: `#/treinos/novo?data=${dia}`, 'aria-label': `Novo treino em ${dm(dia)}` }, '+')),
-          ts.length ? ts.map((t) => cartaoTreino(t, ativos)) : h('div', { class: 'dia-vazio' }, 'Sem treino')));
+          ts.length ? ts.map((t) => cartaoTreino(t, ativos)) : (() => { const pv = previstos(dia); return pv.length ? pv.map((x, k) => cartaoPrevisto(x, k)) : h('div', { class: 'dia-vazio' }, 'Sem treino'); })()));
       }
       pintar(raiz, nodes);
     };
@@ -103,8 +120,15 @@
     const hoje = calc.hojeISO();
     const data = query.data || hoje;
     const presencas = {};
-    store.ativos().forEach((a) => { presencas[a.id] = { presente: true, psr: null, pse: null, obs: '' }; });
-    return { id: store.uid(), data, feito: data <= hoje, tipo: 'tecnico', titulo: '', duracao: 90, pseAlvo: null, local: 'Areia', fundamentos: [], atividades: [], fisico: null, presencas, notas: '' };
+    store.ativos(store.perioDaData(data)).forEach((a) => { presencas[a.id] = { presente: true, psr: null, pse: null, obs: '' }; });
+    const novo = { id: store.uid(), data, feito: data <= hoje, tipo: 'tecnico', titulo: '', duracao: 90, pseAlvo: null, local: 'Areia', fundamentos: [], atividades: [], fisico: null, presencas, notas: '' };
+    /* Vindo de uma sessão prevista: já entra com tipo, duração, PSE alvo e fundamentos. */
+    if (query.prev !== undefined) {
+      const perio = store.perioDaData(data);
+      const x = perio && calc.sessoesDaData(perio, data)[Number(query.prev)];
+      if (x) Object.assign(novo, { tipo: x.tipo, titulo: x.tipo === 'competicao' ? x.titulo : '', duracao: x.duracao || 120, pseAlvo: x.pse, fundamentos: JSON.parse(JSON.stringify(x.fundamentos)) });
+    }
+    return novo;
   }
 
   function treino(id, query) {
@@ -113,7 +137,7 @@
     const d = existente ? JSON.parse(JSON.stringify(existente)) : rascunhoNovo(query);
     const novo = !existente;
     if (!novo) {
-      store.ativos().forEach((a) => { if (!d.presencas[a.id]) d.presencas[a.id] = { presente: !d.feito, psr: null, pse: null, obs: '' }; });
+      store.ativos(store.perioDaData(d.data)).forEach((a) => { if (!d.presencas[a.id]) d.presencas[a.id] = { presente: !d.feito, psr: null, pse: null, obs: '' }; });
     }
     const raiz = h('div', { class: 'pagina-treino' });
     const hoje = calc.hojeISO();
@@ -256,7 +280,7 @@
           h('button', { class: 'btn', type: 'button', onclick: () => { d.feito = true; desenharTopo(); desenharPresencas(); } }, 'Marcar como realizado')));
         return;
       }
-      const atletas = S().atletas.filter((a) => a.ativo !== false || d.presencas[a.id]);
+      const atletas = S().atletas.filter((a) => d.presencas[a.id]);
       if (!atletas.length) {
         pintar(blocoPres, h('h2', null, 'Chegada e saída'), h('div', { class: 'vazio pequeno' }, h('p', null, 'Cadastre os atletas para registrar PSR e PSE.'), h('a', { class: 'btn', href: '#/atletas' }, 'Cadastrar atletas')));
         return;

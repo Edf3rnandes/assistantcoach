@@ -32,6 +32,7 @@
       }
       return n;
     });
+    e.periodizacoes = (e.periodizacoes || []).map((p) => ({ equipe: '', categorias: [], diasTreino: [], duracaoPadrao: 90, ...p }));
     return e;
   }
 
@@ -94,7 +95,11 @@
     treino: (id) => por(estado.treinos, id),
     plano: (id) => por(estado.planosFisicos, id),
     exercicio: (id) => por(estado.exercicios, id),
-    ativos: () => estado.atletas.filter((a) => a.ativo !== false),
+    /* Atletas ativos; com uma periodização, só os das categorias da equipe dela. */
+    ativos: (perio) => {
+      const ativos = estado.atletas.filter((a) => a.ativo !== false);
+      return perio ? AC.calc.daEquipe(perio, ativos, new Date().getFullYear()) : ativos;
+    },
     /* Periodização que contém a data (ou a mais recente que já começou). */
     perioDaData(data) {
       const ps = estado.periodizacoes;

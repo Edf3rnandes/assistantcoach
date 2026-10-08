@@ -54,7 +54,7 @@
         let t;
         if (destino.value === 'novo') {
           const presencas = {};
-          store.ativos().forEach((a) => { presencas[a.id] = { presente: true, psr: null, pse: null, obs: '' }; });
+          store.ativos(store.perioDaData(data.value)).forEach((a) => { presencas[a.id] = { presente: true, psr: null, pse: null, obs: '' }; });
           t = { id: store.uid(), data: data.value, feito: data.value < hoje, tipo: 'fisico', titulo: plano.nome, duracao: plano.duracao || 60, pseAlvo: plano.pseAlvo, local: 'Areia', fundamentos: [], atividades: [], fisico: null, presencas, notas: '' };
           S().treinos.push(t);
         } else t = store.treino(destino.value);

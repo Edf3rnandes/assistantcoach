@@ -44,11 +44,16 @@
 
   // O que cada fase pede: objetivo, fundamentos, como a carga se comporta e a onda semanal (100% = semana de referência).
   const FASE_INFO = {
-    'Acumulação': { objetivo: 'Construir a base técnica e física com volume crescente: duas semanas de subida e uma de descarga.', regime: 'Volume sobe, intensidade moderada', fundamentos: ['Defesa', 'Saque', 'Bloqueio', 'Saída de rede'], onda: [100, 110, 115, 70] },
-    'Transmutação': { objetivo: 'Transformar a base em potência e velocidade: a intensidade sobe e o volume cai.', regime: 'Intensidade sobe, volume cai', fundamentos: ['Ataque', 'Transição', 'Leitura de jogo', 'Cobertura'], onda: [90, 100, 108, 65] },
-    'Realização': { objetivo: 'Treinar no ritmo da competição, com cargas curtas, específicas e parecidas com o jogo.', regime: 'Específico, sessões curtas', fundamentos: ['Sistema de jogo', 'Saque agressivo', 'Decisão sob pressão'], onda: [85, 95, 70] },
-    'Polimento': { objetivo: 'Chegar descansado ao alvo: o volume cai bastante e a intensidade se mantém.', regime: 'Volume cai muito, intensidade fica', fundamentos: ['Saque', 'Ajustes finos', 'Rotina de jogo'], onda: [70, 55] },
-    'Transição': { objetivo: 'Recuperar corpo e cabeça com atividade leve e livre, antes de recomeçar o ciclo.', regime: 'Atividade leve e livre', fundamentos: ['Prazer de jogar', 'Mobilidade', 'Outros esportes'], onda: [50, 40, 50, 40] },
+    'Acumulação': { objetivo: 'Montar a base da temporada. O volume de treino sobe semana a semana para a equipe aguentar as fases mais intensas.', regime: 'Volume alto, intensidade moderada', fundamentos: ['Defesa', 'Saque', 'Bloqueio', 'Saída de rede'],
+      fisico: 'Resistência e força geral na areia, com peso do corpo, disco, cone e escada. A técnica do movimento vem antes da carga.', tecnico: 'Repetição dos fundamentos até ficarem automáticos: defesa, saque, bloqueio e saída de rede.', cuidado: 'Dor nova no tornozelo, joelho ou ombro nas semanas de subida. Respeite a semana de descarga.', onda: [100, 110, 115, 70] },
+    'Transmutação': { objetivo: 'Transformar a base em explosão e velocidade. Os treinos ficam mais curtos e mais fortes, e o volume cai.', regime: 'Intensidade alta, volume menor', fundamentos: ['Ataque', 'Transição', 'Leitura de jogo', 'Cobertura'],
+      fisico: 'Saltos, arrancadas e mudanças de direção com escada, cone e disco. Pausas longas para manter a qualidade de cada série.', tecnico: 'Fundamentos em velocidade e contra adversário: ataque, transição, leitura de jogo e cobertura.', cuidado: 'PSE acima do alvo em duas sessões seguidas pede ajuste. Nesta fase o ACWR sobe mais rápido.', onda: [90, 100, 108, 65] },
+    'Realização': { objetivo: 'Ensaiar a competição. Os treinos ficam curtos e parecidos com o jogo, com placar e pressão.', regime: 'Específico, sessões curtas', fundamentos: ['Sistema de jogo', 'Saque agressivo', 'Decisão sob pressão'],
+      fisico: 'Manter a força e a potência em sessões curtas. Sem carga nova perto dos jogos.', tecnico: 'Sistema de jogo, saque agressivo e decisão sob pressão, sempre valendo ponto.', cuidado: 'Cansaço acumulado antes das competições B e C. Em semana de torneio, reduza o treino físico.', onda: [85, 95, 70] },
+    'Polimento': { objetivo: 'Chegar descansado ao alvo. O volume cai bastante e a intensidade se mantém, para a equipe chegar com energia.', regime: 'Volume bem menor, intensidade mantida', fundamentos: ['Saque', 'Ajustes finos', 'Rotina de jogo'],
+      fisico: 'Ativação curta e leve. Poucos saltos, nenhum exercício novo e nada até a exaustão.', tecnico: 'Saque, ajustes finos e rotina de jogo: aquecimento, ordem de saque e combinados da dupla.', cuidado: 'Treinar além do plano. Menos carga faz parte do trabalho e não é folga.', onda: [70, 55] },
+    'Transição': { objetivo: 'Recuperar corpo e cabeça depois da competição. A rotina fica leve e livre antes de um novo ciclo.', regime: 'Atividade leve e livre', fundamentos: ['Prazer de jogar', 'Mobilidade', 'Outros esportes'],
+      fisico: 'Mobilidade, corrida leve na areia e outros esportes. Sem meta de carga.', tecnico: 'Jogo livre e brincadeiras com bola, sem cobrança de resultado.', cuidado: 'Lesões que ficaram em segundo plano. Use essas semanas para tratar e liberar o atleta com calma.', onda: [50, 40, 50, 40] },
   };
   // Itens de cada treino da semana (só peso do corpo, disco, cone e escada de agilidade).
   const ITENS = {
@@ -134,7 +139,7 @@
       let ini = 0;
       const blocos = fases.map((f, idx) => {
         const info = FASE_INFO[f.nome];
-        const b = { idx, nome: f.nome, cor: f.cor, semanas: f.semanas, ini, inicio: inicio + ini * 7 * DIA, fim: inicio + (ini + f.semanas) * 7 * DIA - DIA, objetivo: info.objetivo, regime: info.regime, fundamentos: info.fundamentos };
+        const b = { idx, nome: f.nome, cor: f.cor, semanas: f.semanas, ini, inicio: inicio + ini * 7 * DIA, fim: inicio + (ini + f.semanas) * 7 * DIA - DIA, objetivo: info.objetivo, regime: info.regime, fundamentos: info.fundamentos, fisico: info.fisico, tecnico: info.tecnico, cuidado: info.cuidado, onda: info.onda };
         ini += f.semanas;
         b.estado = eq.semana - 1 >= b.ini + b.semanas ? 'concluido' : eq.semana - 1 >= b.ini ? 'andamento' : 'planejado';
         return b;

@@ -234,18 +234,19 @@
         <div class="p-chips"><span class="p-chip ${b.estado === 'andamento' ? 'ok' : ''}">${esc(ESTADO_BLOCO[b.estado])} · ${esc(estadoTxt)}</span><span class="p-chip">${plural(b.semanas, 'semana', 'semanas')}</span></div>
         <p class="pe-datas">${dataLonga(b.inicio)} a ${dataLonga(b.fim)}</p>
         <p class="pe-obj">${esc(b.objetivo)}</p>
-        <p class="pe-regime">${esc(b.regime)}</p></section>
+        <p class="pe-regime"><b>${esc(b.regime)}</b><span class="num">Onda de carga: ${b.onda.map((f) => `${f}%`).join(' → ')}, repetida a cada ${b.onda.length} semanas</span></p></section>
       <section class="p-card" style="--cor:${b.cor}" aria-labelledby="fc-t">
-        <div class="pe-cab"><h2 id="fc-t" style="font-size:20px">Fator de carga</h2><small class="pe-leg">100% = ${milhar(ref)} UA</small></div>
+        <div class="pe-cab"><h2 id="fc-t" style="font-size:20px">Fator de carga</h2><small class="pe-leg">100% = ${milhar(ref)} UA/sem</small></div>
         <div class="pe-barras" role="img" aria-label="Fator de carga semana a semana: ${sems.map((x) => `semana ${x.n}, ${x.fator}%`).join('; ')}">
           <span class="pe-ref" aria-hidden="true"></span>
           ${sems.map((x) => `<div class="pe-col ${x.atual ? 'atual' : ''}"><b class="num">${x.fator}%</b><i class="${x.descarga ? 'desc' : ''}" style="height:${Math.round(x.fator * 1.1)}px"></i></div>`).join('')}</div>
         <div class="pe-eixo">${sems.map((x) => `<div class="${x.atual ? 'atual' : ''}"><b>S${x.n}</b><small class="num">${x.atual ? 'hoje' : dd(x.inicio)}</small><small class="num pe-ua">${x.realizado != null ? milhar(x.realizado) : milhar(x.planejado)}</small></div>`).join('')}</div>
-        <p class="pe-nota-b">UA por semana${feitas.length ? `: feito ${milhar(feitas.reduce((t, x) => t + x.realizado, 0))}, ${feitoPct}% do planejado nas ${plural(feitas.length, 'semana concluída', 'semanas concluídas')}` : ', planejadas'}. A semana de descarga aparece tracejada.</p></section>
-      <section class="p-card" aria-labelledby="fu-t"><h2 id="fu-t" style="font-size:20px">Fundamentos do bloco</h2>
-        <div class="p-chips pe-fund">${b.fundamentos.map((f) => `<span>${esc(f)}</span>`).join('')}</div></section>
+        <p class="pe-nota-b">Cada barra é a carga planejada da semana. A tracejada é a descarga. Abaixo de cada semana: UA ${feitas.length ? 'feitas nas concluídas e planejadas nas demais' : 'planejadas'}${feitas.length ? `. Até aqui você fez ${feitoPct}% do planejado (${milhar(feitas.reduce((t, x) => t + x.realizado, 0))} UA em ${plural(feitas.length, 'semana', 'semanas')})` : ''}.</p></section>
+      <section class="p-card" aria-labelledby="fu-t"><h2 id="fu-t" style="font-size:20px">O que trabalhar neste bloco</h2>
+        <div class="p-chips pe-fund">${b.fundamentos.map((f) => `<span>${esc(f)}</span>`).join('')}</div>
+        <dl class="pe-linhas"><div><dt>Físico</dt><dd>${esc(b.fisico)}</dd></div><div><dt>Técnico e tático</dt><dd>${esc(b.tecnico)}</dd></div><div class="cuidado"><dt>Cuidado</dt><dd>${esc(b.cuidado)}</dd></div></dl></section>
       ${eventos.length ? `<section class="p-card" aria-labelledby="ce-t"><h2 id="ce-t" style="font-size:20px">Competições neste bloco</h2><ul class="p-lista">${eventos.map(linhaEvento).join('')}</ul></section>` : ''}
-      ${prox ? `<a class="p-card pe-prox" href="#periodo/${e.id}/bloco/${prox.idx}" style="--cor:${prox.cor}"><i aria-hidden="true"></i><span class="p-txt"><span class="p-rot">Em seguida</span><b class="pe-tn">${esc(prox.nome)}</b><small>A partir de ${dd(prox.inicio)} · ${esc(prox.regime.toLowerCase())}</small></span><span class="p-seta">${ic(I.seta)}</span></a>`
+      ${prox ? `<a class="p-card pe-prox" href="#periodo/${e.id}/bloco/${prox.idx}" style="--cor:${prox.cor}"><i aria-hidden="true"></i><span class="p-txt"><span class="p-rot">Em seguida</span><b class="pe-tn">${esc(prox.nome)}</b><small>Começa em ${dd(prox.inicio)} · ${esc(prox.regime)}</small></span><span class="p-seta">${ic(I.seta)}</span></a>`
         : '<section class="p-card"><span class="p-rot">Em seguida</span><p class="p-sub">Este é o último bloco da temporada.</p></section>'}`;
   }
 

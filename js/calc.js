@@ -432,8 +432,8 @@
     base: { alta: 'misto', media: 'tecnico', leve: 'tecnico' },
     desenvolvimento: { alta: 'tecnico', media: 'misto', leve: 'tecnico' },
     precompetitivo: { alta: 'treino-jogo', media: 'tatico', leve: 'tecnico' },
-    polimento: { alta: 'tatico', media: 'tecnico', leve: 'recuperacao' },
-    competitivo: { alta: 'tatico', media: 'tecnico', leve: 'recuperacao' },
+    polimento: { alta: 'tatico', media: 'tecnico', leve: 'tecnico' },
+    competitivo: { alta: 'tatico', media: 'tecnico', leve: 'tecnico' },
     recuperacao: { alta: 'recuperacao', media: 'recuperacao', leve: 'recuperacao' },
   };
 
@@ -449,7 +449,8 @@
     const dias = diasOrdenados(perio.diasTreino);
     if (!dias.length) return [];
     const n = dias.length;
-    const papeis = w.fase === 'recuperacao' ? Array(n).fill('leve') : papeisDe(n);
+    /* Recuperação e semana da competição alvo: só treinos leves (regenerar ou ativar). */
+    const papeis = w.fase === 'recuperacao' || w.fase === 'competitivo' ? Array(n).fill('leve') : papeisDe(n);
     const comps = ativas(perio).filter((c) => c.prioridade !== 'C');
     const todas = ativas(perio);
     const base = perio.duracaoPadrao || 90;

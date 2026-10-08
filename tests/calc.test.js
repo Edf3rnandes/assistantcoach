@@ -434,4 +434,12 @@ t('estrutura inicial: pelas competições ou, sem alvo, nas proporções', () =>
   assert.strictEqual(e2[1].inicio, C.addDias('2026-10-05', 7 * e2[0].semanas));
 });
 
+t('semana da competição alvo: treinos só de ativação, leves', () => {
+  const p = eq([2, 4], [{ nome: 'Alvo', data: '2026-10-08', prioridade: 'A' }], { mesociclos: [{ id: 'm', nome: 'Comp', fase: 'competitivo', inicio: '2026-10-05', semanas: 1, perfil: 'plana', topicos: [] }] });
+  const s = sem(p, 0);
+  assert.strictEqual(s[0].intensidade, 'leve');   // terça, dois dias antes
+  assert.strictEqual(s[0].tipo, 'tecnico');
+  assert.strictEqual(s[1].tipo, 'competicao');    // quinta
+});
+
 console.log(`\n${n} testes passaram`);

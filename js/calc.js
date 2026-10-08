@@ -437,6 +437,51 @@
     recuperacao: { alta: 'recuperacao', media: 'recuperacao', leve: 'recuperacao' },
   };
 
+  /* K1 é o side-out (passe, levantamento e ataque); K2 é saque e sistema defensivo; o resto é controle, tática e mental. */
+  const GRUPO_FUND = { recepcao: 'K1', levantamento: 'K1', ataque: 'K1', saque: 'K2', bloqueio: 'K2', defesa: 'K2', transicao: 'K2' };
+  function grupoDeFundamento(f) {
+    if (GRUPO_FUND[f.fundamento]) return GRUPO_FUND[f.fundamento];
+    if (f.fundamento === 'tatica') {
+      const t = f.tipos || [];
+      if (t.includes('Side-out')) return 'K1';
+      if (t.some((x) => x === 'Break point' || x.startsWith('Bloqueio e defesa'))) return 'K2';
+    }
+    return 'N';
+  }
+  /* Grupo do dia: o que tiver mais fundamentos; empate fica com o primeiro que for K1 ou K2. */
+  function grupoDaSessao(fundamentos) {
+    if (!fundamentos || !fundamentos.length) return '';
+    const g = fundamentos.map(grupoDeFundamento);
+    const k1 = g.filter((x) => x === 'K1').length, k2 = g.filter((x) => x === 'K2').length;
+    if (k1 > k2) return 'K1';
+    if (k2 > k1) return 'K2';
+    return g.find((x) => x === 'K1' || x === 'K2') || 'N';
+  }
+
+  /* Treino físico: o estímulo vem da fase (capacidade, intensidade, minutos) e o técnico escolhe o tipo e os exercícios. */
+  /* A ordem importa: o primeiro foco vai para o primeiro treino com físico da semana, o segundo para o seguinte. */
+  const FOCO_FISICO_FASE = {
+    base: ['Força', 'Resistência aeróbia', 'Core e estabilidade'],
+    desenvolvimento: ['Potência e saltos', 'Prevenção de lesões', 'Força'],
+    precompetitivo: ['Velocidade e agilidade', 'Mobilidade', 'Resistência intermitente'],
+    competitivo: ['Mobilidade', 'Potência e saltos'],
+    polimento: ['Mobilidade', 'Recuperação'],
+    recuperacao: ['Recuperação', 'Mobilidade'],
+  };
+  const INT_FISICA = { 'Força': 'media', 'Potência e saltos': 'alta', 'Velocidade e agilidade': 'alta', 'Resistência aeróbia': 'media', 'Resistência intermitente': 'alta', 'Core e estabilidade': 'media', 'Prevenção de lesões': 'leve', 'Mobilidade': 'leve', 'Recuperação': 'leve' };
+  const PSE_FISICO = { alta: 7, media: 5, leve: 3 };
+  /* Em que treinos da semana entra o físico e quantos minutos: no primeiro, no do meio ou no último dia de treino. */
+  const SLOTS_FISICO = {
+    base: [['primeiro', 40], ['ultimo', 30]],
+    desenvolvimento: [['primeiro', 40], ['meio', 25]],
+    precompetitivo: [['primeiro', 30], ['ultimo', 20]],
+    polimento: [['primeiro', 20]],
+    competitivo: [['primeiro', 15]],
+    recuperacao: [['meio', 30]],
+  };
+  const posSlot = (pos, n) => (pos === 'primeiro' ? 0 : pos === 'ultimo' ? n - 1 : Math.floor(n / 2));
+  const pseSessao = (fase, papel) => Math.max(2, Math.min(9, FASE_PLANO[fase].pse + (papel === 'alta' ? 1 : papel === 'leve' ? -2 : 0)));
+
   const arred5 = (n) => Math.round(n / 5) * 5;
   /* Ordem da semana começando na segunda: 1 (seg) a 6 (sáb), depois 0 (dom). */
   const ordemDia = (d) => (d + 6) % 7;
@@ -469,8 +514,7 @@
       if (vizinha) { papel = 'leve'; motivo = diffDias(data, vizinha.data) >= 0 ? 'Véspera de competição: ativação' : 'Dia seguinte à competição: regenerar'; }
       let tipo = (TIPO_POR_FASE[w.fase] || TIPO_POR_FASE.base)[papel];
       if (!vizinha && n >= 4 && k === 1 && (w.fase === 'base' || w.fase === 'desenvolvimento')) tipo = 'fisico';
-      const plano = FASE_PLANO[w.fase];
-      const pse = Math.max(2, Math.min(9, plano.pse + (papel === 'alta' ? 1 : papel === 'leve' ? -2 : 0)));
+      const pse = pseSessao(w.fase, papel);
       const duracao = Math.max(30, arred5(base * (w.fator == null ? 1 : w.fator) * (papel === 'leve' ? 0.85 : 1)));
       let fundamentos = [];
       if (['tecnico', 'tatico', 'treino-jogo', 'misto'].includes(tipo) && pool.length) {
@@ -483,10 +527,47 @@
       }
       out.push({ data, dow, papel, intensidade: papel, tipo, titulo: '', pse, duracao, fundamentos, motivo });
     });
+    aplicarAjustes(perio, w, out);
     return out;
   }
 
+  /* Físico previsto de cada treino e ajustes do técnico (perio.dias[data]): intensidade, duração, fundamentos, anotação e físico. */
+  function aplicarAjustes(perio, w, out) {
+    const treinaveis = out.filter((x) => x.tipo !== 'competicao');
+    const focos = w.meso.fisico && w.meso.fisico.length ? w.meso.fisico : (FOCO_FISICO_FASE[w.fase] || []);
+    const tem = new Map();
+    const usados = new Set();
+    (SLOTS_FISICO[w.fase] || []).forEach(([pos, min], i) => {
+      const k = posSlot(pos, treinaveis.length);
+      if (!treinaveis.length || usados.has(k)) return;
+      usados.add(k);
+      tem.set(treinaveis[k], { capacidade: focos.length ? focos[i % focos.length] : 'Mobilidade', duracao: min });
+    });
+    const leveFixo = w.fase === 'competitivo' || w.fase === 'recuperacao';
+    const intFis = (cap, x) => (leveFixo || x.motivo ? 'leve' : INT_FISICA[cap] || 'media');
+    for (const x of out) {
+      if (x.tipo === 'competicao') { x.grupo = ''; x.fisico = null; x.nota = ''; continue; }
+      const ov = (perio.dias || {})[x.data] || {};
+      if (ov.intensidade) { x.intensidade = ov.intensidade; x.papel = ov.intensidade; x.pse = pseSessao(w.fase, ov.intensidade); }
+      if (ov.duracao) x.duracao = ov.duracao;
+      if (ov.fundamentos) x.fundamentos = JSON.parse(JSON.stringify(ov.fundamentos));
+      x.nota = ov.nota || '';
+      x.ajustado = !!(ov.intensidade || ov.duracao || ov.fundamentos || ov.nota || ov.fisico);
+      x.grupo = grupoDaSessao(x.fundamentos);
+      const padrao = tem.get(x);
+      const cap0 = padrao ? padrao.capacidade : (focos[0] || 'Mobilidade');
+      const sugestao = { capacidade: cap0, intensidade: intFis(cap0, x), duracao: padrao ? padrao.duracao : 30, previsto: !!padrao };
+      const of = ov.fisico || {};
+      const capacidade = of.capacidade || sugestao.capacidade;
+      const intensidade = of.intensidade || (of.capacidade ? intFis(capacidade, x) : sugestao.intensidade);
+      const duracao = of.duracao || sugestao.duracao;
+      const on = of.on != null ? of.on : sugestao.previsto;
+      x.fisico = { on, capacidade, intensidade, duracao, exercicios: of.exercicios || [], pse: PSE_FISICO[intensidade], carga: on ? PSE_FISICO[intensidade] * duracao : 0, sugestao };
+    }
+  }
+
   const cargaDasSessoes = (ss) => ss.reduce((t, x) => t + (x.pse && x.duracao ? x.pse * x.duracao : 0), 0);
+  const cargaFisica = (ss) => ss.reduce((t, x) => t + (x.fisico && x.fisico.on ? x.fisico.carga : 0), 0);
 
   /* Plano de sessões da periodização inteira: por semana (segunda), as sessões previstas e a carga planejada por atleta. */
   function planoDeSessoes(perio) {
@@ -613,7 +694,8 @@
     cobreTopico, coberturaMeso, situacao, alertasAtleta,
     FASE_PLANO, MOD_COMPETICAO, modsCompeticao, planoIdeal, calendarioCarga, desalinhamento, propostaMesos, corteDoPlano, partirFase,
     rotuloFuncao, naipe, naipeDupla, idade, faltaNoCadastro, lerListaAtletas, semAcento,
-    CATEGORIAS, categoriaDe, daEquipe, papeisDe, diasOrdenados, sessoesDaSemana, cargaDasSessoes, planoDeSessoes, sessoesDaData, estruturaInicial,
+    CATEGORIAS, categoriaDe, daEquipe, papeisDe, diasOrdenados, sessoesDaSemana, cargaDasSessoes, cargaFisica, planoDeSessoes, sessoesDaData, estruturaInicial,
+    GRUPO_FUND, grupoDeFundamento, grupoDaSessao, FOCO_FISICO_FASE, INT_FISICA, PSE_FISICO, SLOTS_FISICO, pseSessao,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else (raiz.AC = raiz.AC || {}).calc = API;

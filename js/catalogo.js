@@ -2,12 +2,12 @@
 (function (AC) {
   const FUNDAMENTOS = [
     { id: 'saque', nome: 'Saque', tipos: ['Viagem', 'Flutuante', 'Flutuante em suspensão', 'Direcionado por zona', 'No jogador', 'Agressivo x seguro'] },
-    { id: 'recepcao', nome: 'Recepção', tipos: ['Manchete', 'Toque', 'Contra saque viagem', 'Contra saque flutuante', 'Leitura e posicionamento', 'Chamada (quem pega)'] },
+    { id: 'recepcao', nome: 'Passe', tipos: ['Manchete', 'Toque', 'Contra saque viagem', 'Contra saque flutuante', 'Leitura e posicionamento', 'Chamada (quem pega)'] },
     { id: 'levantamento', nome: 'Levantamento', tipos: ['Toque', 'Manchete', 'Rede e fora da rede', 'Bola ruim', 'Para zona definida'] },
-    { id: 'ataque', nome: 'Ataque', tipos: ['Diagonal', 'Paralela', 'Cut (diagonal fechada)', 'Largada', 'Chip / poke', 'Bola alta de potência', 'Bola ruim'] },
+    { id: 'ataque', nome: 'Ataque', tipos: ['Passada', 'Largada', 'Diagonal', 'Paralela', 'Cut (diagonal fechada)', 'Chip / poke', 'Bola alta de potência', 'Bola ruim'] },
     { id: 'bloqueio', nome: 'Bloqueio', tipos: ['Temporização', 'Ofensivo', 'Linha', 'Diagonal', 'Leitura do levantamento', 'Bloquear ou ficar (fake)'] },
     { id: 'defesa', nome: 'Defesa', tipos: ['Manchete', 'Rolamento / peixinho', 'Largada', 'Bola de potência', 'Defesa do bloqueio', 'Posicionamento por zonas'] },
-    { id: 'transicao', nome: 'Transição', tipos: ['Cobertura de ataque', 'Defesa para ataque', 'Bola de graça (free ball)'] },
+    { id: 'transicao', nome: 'Contra-ataque', tipos: ['Cobertura de ataque', 'Defesa para ataque', 'Bola de graça (free ball)'] },
     { id: 'movimentacao', nome: 'Movimentação na areia', tipos: ['Deslocamento lateral', 'Frente e trás', 'Saída de bloqueio', 'Aproximação de ataque', 'Salto na areia'] },
     { id: 'tatica', nome: 'Tática e jogo', tipos: ['Side-out', 'Break point', 'Bloqueio e defesa (sistema)', 'Sinais e comunicação', 'Leitura do adversário', 'Final de set e tie-break', 'Jogo 2x2 reduzido'] },
     { id: 'mental', nome: 'Mental e parceria', tipos: ['Rotina pré-saque', 'Reação ao erro', 'Pressão de placar', 'Confiança e comunicação'] },
@@ -63,14 +63,8 @@
     ],
   };
 
-  const FOCO_FISICO_FASE = {
-    base: ['Resistência aeróbia', 'Força', 'Core e estabilidade'],
-    desenvolvimento: ['Potência e saltos', 'Força', 'Prevenção de lesões'],
-    precompetitivo: ['Velocidade e agilidade', 'Resistência intermitente'],
-    competitivo: ['Potência e saltos', 'Mobilidade'],
-    polimento: ['Mobilidade', 'Recuperação'],
-    recuperacao: ['Mobilidade', 'Recuperação'],
-  };
+  /* Foco físico de cada fase vem de calc.js, junto das regras que usam a ordem dele. */
+  const FOCO_FISICO_FASE = AC.calc.FOCO_FISICO_FASE;
 
   const TIPOS_TREINO = [
     { id: 'tecnico', nome: 'Técnico' },

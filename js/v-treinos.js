@@ -116,6 +116,12 @@
 
   /* ---------- Registro do treino ---------- */
 
+  /* Treino físico previsto no dia (capacidade, minutos e os exercícios que o técnico escolheu) já como treino montado. */
+  function fisicoPrevisto(f) {
+    const itens = f.exercicios.map((id) => store.exercicio(id)).filter(Boolean).map((ex) => ({ id: store.uid(), exId: ex.id, nome: ex.nome, series: 3, reps: '10', carga: ex.equip && !/peso do corpo/i.test(ex.equip) ? '' : 'Peso do corpo', descanso: 45, obs: '' }));
+    return { planoId: null, nome: `Físico · ${f.capacidade}`, foco: [f.capacidade], duracao: f.duracao, pseAlvo: f.pse, notas: '', blocos: [{ id: store.uid(), nome: 'Principal', itens }] };
+  }
+
   function rascunhoNovo(query) {
     const hoje = calc.hojeISO();
     const data = query.data || hoje;
@@ -127,6 +133,8 @@
       const perio = store.perioDaData(data);
       const x = perio && calc.sessoesDaData(perio, data)[Number(query.prev)];
       if (x) Object.assign(novo, { tipo: x.tipo, titulo: x.tipo === 'competicao' ? x.titulo : '', duracao: x.duracao || 120, pseAlvo: x.pse, fundamentos: JSON.parse(JSON.stringify(x.fundamentos)) });
+      if (x && x.nota) novo.notas = x.nota;
+      if (x && x.fisico && x.fisico.on) novo.fisico = fisicoPrevisto(x.fisico);
     }
     return novo;
   }

@@ -293,15 +293,6 @@
   const DIA_ROT = Object.fromEntries(cat.DIAS_SEMANA.map((x) => [x.d, x.r]));
   const nomeTipo = (id) => (cat.tipoTreino(id) || { nome: id }).nome;
 
-  /* Um dia de treino previsto: dia, tipo e a intensidade (cor) do dia. */
-  function diaChip(x) {
-    const it = cat.INTENSIDADES[x.intensidade];
-    const el = h('span', { class: 'dia-chip', title: `${DIA_ROT[x.dow]}: ${nomeTipo(x.tipo)}, intensidade ${it.nome.toLowerCase()}${x.pse ? `, PSE ${x.pse}` : ''}${x.duracao ? `, ${x.duracao} min` : ''}${x.motivo ? `. ${x.motivo}` : ''}` },
-      h('b', null, DIA_ROT[x.dow]), ` ${x.tipo === 'competicao' ? 'competição' : nomeTipo(x.tipo).toLowerCase()} `, h('i', null, x.tipo === 'competicao' ? '' : it.nome.toLowerCase()));
-    el.style.setProperty('--cor', it.cor);
-    return el;
-  }
-
   /* Equipe e dias de treino, editados ali mesmo, sem janela. */
   function equipeCard(perio) {
     const grava = () => { store.salvar(); AC.redesenhar(); };
@@ -317,35 +308,12 @@
       h('div', { class: 'campo curto' }, h('span', { class: 'campo-rotulo' }, 'Duração padrão'), dur));
   }
 
-  /* Semana a semana: fase, volume (fator de carga), intensidade (PSE alvo), competição e a intenção. */
-  function calendarioSemanas(perio, hoje) {
-    const cal = calc.calendarioCarga(perio);
-    const plano = calc.planoDeSessoes(perio);
-    const segHoje = calc.segundaDe(hoje);
-    const caixa = h('div', { class: 'calendario' });
-    cal.forEach((w) => {
-      const ss = (plano[w.seg] || { sessoes: [], carga: null });
-      const f = w.fase ? fase(w.fase) : null;
-      const barra = h('span', { class: 'vol-barra', title: w.fator == null ? '' : `Volume ${num(w.fator)}× da carga de referência` });
-      if (w.fator != null) { const i = h('i'); i.style.width = Math.min(100, Math.round(w.fator * 100)) + '%'; i.style.background = f.cor; barra.append(i); }
-      caixa.append(h('div', { class: 'cal-linha' + (w.seg === segHoje ? ' atual' : '') + (w.seg < segHoje ? ' passou' : '') },
-        h('div', { class: 'cal-esq' }, h('strong', null, dm(w.seg)), h('span', { class: 'muted' }, `S${w.i + 1}`)),
-        h('div', { class: 'cal-meio' },
-          h('div', { class: 'cal-topo' }, f ? faseChip(w.fase) : chip('sem mesociclo', { pequeno: true }),
-            w.eventos.map((c) => chip(`${c.prioridade} · ${c.nome}${c.situacao === 'provisoria' ? ' (a confirmar)' : ''}`, { pequeno: true, cor: COR_COMP[c.prioridade] }))),
-          h('div', { class: 'cal-nums' }, barra, h('span', null, w.fator == null ? '' : `volume ×${num(w.fator)}`), h('span', null, w.pse == null ? '' : `intensidade PSE ${w.pse}`)),
-          ss.sessoes.length ? h('div', { class: 'cal-dias' }, ss.sessoes.map((x) => diaChip(x)), ss.carga ? h('span', { class: 'muted cal-carga', title: 'Soma de PSE × minutos das sessões previstas, por atleta' }, `carga ${milhar(ss.carga)}`) : null) : null,
-          w.intencao ? h('div', { class: 'dica' }, w.intencao) : null)));
-    });
-    return caixa;
-  }
-
   function temporada(id) {
     const perio = store.perio(id);
     if (!perio) return h('div', { class: 'vazio' }, h('p', null, 'Periodização não encontrada.'), h('a', { class: 'btn', href: '#/periodizacao' }, 'Voltar'));
     const hoje = calc.hojeISO();
     const sit = calc.situacao(perio, hoje);
-    const raiz = h('div');
+    const raiz = h('div', { class: 'pagina-temporada' });
     raiz.append(
       voltar('#/periodizacao', 'Periodizações'),
       h('div', { class: 'titulo-linha' }, h('h1', null, perio.nome), h('button', { class: 'btn', type: 'button', onclick: () => formPerio(perio) }, 'Editar')),
@@ -368,6 +336,10 @@
     if (desal.length) raiz.append(h('div', { class: 'alerta medio' }, h('strong', null, 'Os mesociclos não acompanham as competições'),
       h('p', null, `Em ${plural(desal.length, 'semana', 'semanas')} a fase planejada difere do que as competições pedem (por exemplo, polimento antes de um alvo). Isso acontece quando uma data muda.`),
       h('button', { class: 'btn primario', type: 'button', onclick: () => modalProposta(perio) }, 'Ver proposta')));
+
+    if (perio.mesociclos.length) raiz.append(h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Semana a semana'), h('a', { class: 'link', href: '#/guia' }, 'Como funciona')),
+      h('p', { class: 'dica' }, 'Toque numa semana para ver os dias. A onda mostra a intensidade de cada treino; a competição reduz o volume e a intensidade se mantém. Em cada dia você ajusta o treino de quadra e o físico.'),
+      AC.quadro(perio, hoje)));
 
     const mesosSec = h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Mesociclos'),
       h('div', { class: 'acoes-card sem-margem' },
@@ -393,9 +365,6 @@
     });
     raiz.append(mesosSec);
 
-    if (perio.mesociclos.length) raiz.append(h('section', null, h('div', { class: 'titulo-linha' }, h('h2', null, 'Semana a semana'), h('a', { class: 'link', href: '#/guia' }, 'Como funciona')),
-      h('p', { class: 'dica' }, 'Volume: quanto da semana cheia ela pede (muda a duração dos treinos). Intensidade: o PSE alvo e se o dia é alto, moderado ou leve. A competição reduz o volume e a intensidade se mantém.'),
-      calendarioSemanas(perio, hoje)));
 
     const carga = cargaTemporada(perio, hoje);
     if (carga) raiz.append(h('section', null, h('h2', null, 'Carga por semana'), h('p', { class: 'dica' }, 'Barras: média do grupo (PSE × minutos). Traço: planejado pela carga de referência do mesociclo, já com a redução das competições.'), carga));

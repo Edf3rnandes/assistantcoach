@@ -442,4 +442,60 @@ t('semana da competição alvo: treinos só de ativação, leves', () => {
   assert.strictEqual(s[1].tipo, 'competicao');    // quinta
 });
 
+
+/* ---------- K1 e K2, físico previsto e ajustes por dia ---------- */
+
+t('K1 e K2: grupo de cada fundamento e do dia', () => {
+  const g = C.grupoDeFundamento;
+  assert.deepStrictEqual(['recepcao', 'levantamento', 'ataque'].map((f) => g({ fundamento: f, tipos: [] })), ['K1', 'K1', 'K1']);
+  assert.deepStrictEqual(['saque', 'bloqueio', 'defesa', 'transicao'].map((f) => g({ fundamento: f, tipos: [] })), ['K2', 'K2', 'K2', 'K2']);
+  assert.strictEqual(g({ fundamento: 'tatica', tipos: ['Side-out'] }), 'K1');
+  assert.strictEqual(g({ fundamento: 'tatica', tipos: ['Bloqueio e defesa (sistema)'] }), 'K2');
+  assert.strictEqual(g({ fundamento: 'mental', tipos: [] }), 'N');
+  assert.strictEqual(C.grupoDaSessao([]), '');
+  assert.strictEqual(C.grupoDaSessao([{ fundamento: 'ataque', tipos: [] }, { fundamento: 'recepcao', tipos: [] }, { fundamento: 'saque', tipos: [] }]), 'K1');
+  assert.strictEqual(C.grupoDaSessao([{ fundamento: 'mental', tipos: [] }, { fundamento: 'saque', tipos: [] }]), 'K2');
+  assert.strictEqual(C.grupoDaSessao([{ fundamento: 'saque', tipos: [] }, { fundamento: 'ataque', tipos: [] }]), 'K2');
+});
+
+t('físico previsto pela fase: capacidade, intensidade e minutos, no primeiro e no do meio', () => {
+  const p = eq([1, 3, 5]);
+  const [seg, qua, sex] = sem(p, 0);
+  assert.deepStrictEqual([seg.fisico.on, seg.fisico.capacidade, seg.fisico.intensidade, seg.fisico.duracao], [true, 'Potência e saltos', 'alta', 40]);
+  assert.deepStrictEqual([qua.fisico.on, qua.fisico.capacidade, qua.fisico.intensidade, qua.fisico.duracao], [true, 'Prevenção de lesões', 'leve', 25]);
+  assert.strictEqual(sex.fisico.on, false);
+  assert.strictEqual(sex.fisico.sugestao.previsto, false);
+  assert.strictEqual(seg.fisico.carga, 7 * 40);
+  assert.strictEqual(C.cargaFisica([seg, qua, sex]), 7 * 40 + 3 * 25);
+  assert.ok(seg.grupo === 'K1' || seg.grupo === 'K2');
+  /* com um dia só, os dois lugares do físico coincidem e entra um treino */
+  assert.deepStrictEqual(sem(eq([2]), 0).map((x) => x.fisico.on), [true]);
+});
+
+t('físico na semana da competição alvo e na recuperação é leve e curto', () => {
+  const p = eq([1, 3, 5], [{ nome: 'Alvo', data: '2026-10-10', prioridade: 'A' }], { mesociclos: [
+    { id: 'm1', nome: 'Comp', fase: 'competitivo', inicio: '2026-10-05', semanas: 1, perfil: 'plana', topicos: [] },
+    { id: 'm2', nome: 'Rec', fase: 'recuperacao', inicio: '2026-10-12', semanas: 1, perfil: 'plana', topicos: [] },
+  ] });
+  const comp = sem(p, 0).find((x) => x.fisico.on);
+  assert.deepStrictEqual([comp.fisico.capacidade, comp.fisico.intensidade, comp.fisico.duracao], ['Mobilidade', 'leve', 15]);
+  const rec = sem(p, 1).filter((x) => x.fisico.on);
+  assert.strictEqual(rec.length, 1);
+  assert.deepStrictEqual([rec[0].fisico.capacidade, rec[0].fisico.intensidade], ['Recuperação', 'leve']);
+});
+
+t('ajustes do técnico por dia: intensidade, duração, fundamentos, anotação e físico', () => {
+  const p = eq([1, 3, 5]);
+  const base = sem(p, 0);
+  p.dias = { '2026-10-05': { intensidade: 'leve', duracao: 60, nota: 'Foco no ritmo', fundamentos: [{ fundamento: 'saque', tipos: ['Viagem'] }], fisico: { on: false } },
+    '2026-10-09': { fisico: { on: true, capacidade: 'Força', exercicios: ['e1', 'e2'], duracao: 35 } } };
+  const [seg, qua, sex] = sem(p, 0);
+  assert.deepStrictEqual([seg.intensidade, seg.duracao, seg.pse, seg.nota, seg.grupo, seg.fisico.on, seg.ajustado], ['leve', 60, 4, 'Foco no ritmo', 'K2', false, true]);
+  assert.strictEqual(qua.duracao, base[1].duracao);
+  assert.strictEqual(qua.ajustado, false);
+  assert.deepStrictEqual([sex.fisico.on, sex.fisico.capacidade, sex.fisico.intensidade, sex.fisico.duracao, sex.fisico.exercicios], [true, 'Força', 'media', 35, ['e1', 'e2']]);
+  assert.strictEqual(C.cargaDasSessoes([seg]), 4 * 60);
+  assert.strictEqual(C.sessoesDaData(p, '2026-10-05')[0].nota, 'Foco no ritmo');
+});
+
 console.log(`\n${n} testes passaram`);

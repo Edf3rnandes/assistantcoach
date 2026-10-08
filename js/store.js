@@ -32,7 +32,7 @@
       }
       return n;
     });
-    e.periodizacoes = (e.periodizacoes || []).map((p) => ({ equipe: '', categorias: [], diasTreino: [], duracaoPadrao: 90, ...p }));
+    e.periodizacoes = (e.periodizacoes || []).map((p) => ({ equipe: '', categorias: [], diasTreino: [], duracaoPadrao: 90, dias: {}, ...p }));
     return e;
   }
 
